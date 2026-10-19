@@ -4,7 +4,7 @@ Call this only after all remote responses have been fetched and validated.
 No database credentials are stored in the repository.
 """
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from psycopg import Connection
@@ -29,7 +29,7 @@ def guardar_fuentes(
         raise ValueError("F6 contiene tasas diarias duplicadas")
     if len({f["pais"] for f in publicidad}) != len(publicidad):
         raise ValueError("F5 contiene países duplicados")
-    instante = datetime.now(timezone.utc)
+    instante = datetime.now(UTC)
     with conexion.transaction():
         with conexion.cursor() as cursor:
             for p in paises:
