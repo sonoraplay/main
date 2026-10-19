@@ -58,7 +58,8 @@ def payload():
          "region": "Other", "monedas": ["USD"]}
         for n in range(200)
     ]
-    paises[0] = {"pais": "ZZ", "region": "Other", "monedas": ["USD"]}\n    paises[66] = {"pais": "CO", "region": "Americas", "monedas": ["COP"]}
+    paises[0] = {"pais": "ZZ", "region": "Other", "monedas": ["USD"]}
+    paises[66] = {"pais": "CO", "region": "Americas", "monedas": ["COP"]}
     return {
         "mes": "2026-09",
         "paises": paises,
