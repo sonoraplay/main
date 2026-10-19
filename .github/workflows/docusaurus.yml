@@ -1,0 +1,63 @@
+name: Docusaurus
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'src/css/**'
+      - 'static/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'docusaurus.config.js'
+      - 'sidebars.js'
+      - '.github/workflows/docusaurus.yml'
+  push:
+    branches: [develop, main]
+    paths:
+      - 'docs/**'
+      - 'src/css/**'
+      - 'static/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'docusaurus.config.js'
+      - 'sidebars.js'
+      - '.github/workflows/docusaurus.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run docs:build
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run docs:build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build
+      - id: deployment
+        uses: actions/deploy-pages@v4

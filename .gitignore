@@ -219,3 +219,8 @@ __marimo__/
 # SonoraPlay: datos pesados o con licencia, no se suben
 data/raw/
 data/processed/
+# Docusaurus / Node.js
+node_modules/
+.docusaurus/
+.cache-loader/
+data/generated/

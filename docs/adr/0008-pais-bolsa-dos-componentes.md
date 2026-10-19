@@ -133,3 +133,12 @@ En `tests/reglas/test_liquidacion.py`:
 - [ADR-0002](0002-zona-horaria-dia-mes.md) (UTC), [ADR-0007](0007-cierre-mes-ajustes-reliquidacion.md) (cierre, ajustes y redondeo).
 - ISO 3166-1 alfa-2 (códigos de país): https://www.iso.org/iso-3166-country-codes.html
 - Python `decimal`: https://docs.python.org/3/library/decimal.html
+
+
+---
+
+## English — Decision summary
+
+**Accepted (October 13, 2026; EG-23).** The revenue pool country is the **F3 billing country**, not playback country; family members inherit the family account holder's billing country. A missing billing country is a data-quality error, not a reason to invent a country. Each approved subscription payment counts once. The pool has **two components**: 52% of net subscription revenue and 45% of advertising revenue, with separate eligible-play denominators (paid-plan plays versus free-plan plays). Advertising revenue is converted to USD using the monthly closing exchange rate; territorial exclusions still use playback country.
+
+**Traceability:** The original Spanish sections above remain the full decision record, including context, options, consequences, and acceptance criteria. This English summary does not change the ADR status or introduce a new decision.

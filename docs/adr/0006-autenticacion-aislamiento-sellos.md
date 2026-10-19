@@ -102,3 +102,12 @@ Hay que decidir cómo se autentica un sello y dónde se aplica el aislamiento. E
 - FastAPI, seguridad con `HTTPBearer`: https://fastapi.tiangolo.com/reference/security/
 - Amazon ECS, secretos desde SSM Parameter Store: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/secrets-envvar-ssm-paramstore.html
 - Amazon Cognito, precios: https://aws.amazon.com/cognito/pricing/
+
+
+---
+
+## English — Decision summary
+
+**Accepted (October 9, 2026; EG-21).** Rights-holder API authentication uses HS256 JWT with required `sub`, `iss`, `aud`, `iat`, and `exp`. Invalid tokens produce 401. A path rights-holder ID that differs from the token subject produces **403 before any database query**, preventing cross-holder disclosure. A strong non-default signing secret is required at startup. The design favors low cost and local testability; production deployment and credential distribution require separate verification.
+
+**Traceability:** The original Spanish sections above remain the full decision record, including context, options, consequences, and acceptance criteria. This English summary does not change the ADR status or introduce a new decision.

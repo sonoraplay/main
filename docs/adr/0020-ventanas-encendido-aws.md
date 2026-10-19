@@ -72,3 +72,12 @@ Esta decisión **no cambia los servicios** de ADR-0001 ni de la arquitectura v1:
 - Terraform, comando `destroy`: https://developer.hashicorp.com/terraform/cli/commands/destroy
 - Apache Airflow, CLI `dags trigger`: https://airflow.apache.org/docs/apache-airflow/stable/cli-and-env-variables-ref.html#trigger
 - [ADR-0001](0001-arquitectura-base-aws.md) y la [arquitectura v1](../arquitectura/arquitectura-v1.md).
+
+
+---
+
+## English — Decision summary
+
+**Accepted (October 9, 2026; EG-16).** The AWS environment is **off by default**. Terraform provisions it for short test windows during Sprints 3–5, with continuous operation planned only for the final demonstration week, followed by destruction. This changes the operating schedule in ADR-0001 without changing the selected services. Figures in this ADR are planning estimates, **not observed AWS charges**. Verify actual provisioned resources, billing, and teardown separately.
+
+**Traceability:** The original Spanish sections above remain the full decision record, including context, options, consequences, and acceptance criteria. This English summary does not change the ADR status or introduce a new decision.
