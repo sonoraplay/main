@@ -1,4 +1,4 @@
-"""EG-30: captura HTTP reintentable y CSV F5 reproducible y atómico.
+"""EG-30: captura HTTP reintentable, CSV F5 reproducible y carga transaccional.
 
 Los datos de F6/F7 se obtienen de las APIs oficiales; no se inventan respuestas.
 """
@@ -17,6 +17,11 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+from sqlalchemy import Engine, create_engine
+from sqlalchemy.exc import SQLAlchemyError
+
+from sonoraplay.config import database_url
+from sonoraplay.fuentes.carga import cargar
 from sonoraplay.fuentes.f5_publicidad import CAMPOS_F5, generar_f5
 from sonoraplay.fuentes.f6_tasas import (
     FRANKFURTER,
@@ -68,8 +73,39 @@ def escribir_atomico(destino: Path, contenido: str) -> None:
             temporal.unlink(missing_ok=True)
 
 
-def ejecutar(mes: str, salida: Path, semilla: int = 2026, diarias: bool = False) -> None:
-    """Valida primero; reemplaza cada archivo de forma atómica, no los tres juntos."""
+def escribir_conjunto(archivos: dict[Path, str]) -> None:
+    """Escribe todos los temporales primero y solo después los reemplaza.
+
+    Si falla la escritura de cualquier temporal, no se reemplaza ningún archivo.
+    """
+    temporales: dict[Path, Path] = {}
+    try:
+        for destino, contenido in archivos.items():
+            destino.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8", newline="", dir=destino.parent, delete=False
+            ) as fh:
+                temporales[destino] = Path(fh.name)
+                fh.write(contenido)
+        for destino, temporal in temporales.items():
+            os.replace(temporal, destino)
+    finally:
+        for temporal in temporales.values():
+            temporal.unlink(missing_ok=True)
+
+
+def ejecutar(
+    mes: str,
+    salida: Path,
+    semilla: int = 2026,
+    diarias: bool = True,
+    engine: Engine | None = None,
+) -> dict[str, int] | None:
+    """Descarga y valida F6/F7, genera F5, carga en PostgreSQL y escribe los archivos.
+
+    Orden: 1) validar todo; 2) cargar en PostgreSQL en una sola transacción (si hay
+    `engine`); 3) escribir los archivos. Si algo falla antes, no queda nada a medias.
+    """
     import io
 
     cierre = ultimo_dia(mes)
@@ -91,34 +127,46 @@ def ejecutar(mes: str, salida: Path, semilla: int = 2026, diarias: bool = False)
     escritor = csv.DictWriter(buffer, fieldnames=CAMPOS_F5, lineterminator="\n")
     escritor.writeheader()
     escritor.writerows(filas)
-    # Escribe el manifiesto después de validar; la sustitución de cada archivo es atómica.
-    escribir_atomico(salida / f"f5_publicidad_{mes}.csv", buffer.getvalue())
-    escribir_atomico(
-        salida / f"f6_tasas_{fecha}.json", json.dumps(tasas, ensure_ascii=False, indent=2) + "\n"
-    )
-    escribir_atomico(
-        salida / "f7_paises.json", json.dumps(paises, ensure_ascii=False, indent=2) + "\n"
-    )
+
+    conteos = None
+    if engine is not None:
+        conteos = cargar(engine, paises, tasas, serie_diaria, filas, semilla)
+
+    def a_json(datos: object) -> str:
+        return json.dumps(datos, ensure_ascii=False, indent=2) + "\n"
+
+    archivos = {
+        salida / f"f5_publicidad_{mes}.csv": buffer.getvalue(),
+        salida / f"f6_tasas_{fecha}.json": a_json(tasas),
+        salida / "f7_paises.json": a_json(paises),
+    }
     if serie_diaria is not None:
-        escribir_atomico(
-            salida / f"f6_tasas_diarias_{mes}.json",
-            json.dumps(serie_diaria, ensure_ascii=False, indent=2) + "\n",
-        )
+        archivos[salida / f"f6_tasas_diarias_{mes}.json"] = a_json(serie_diaria)
+    escribir_conjunto(archivos)
+    return conteos
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="EG-30: descargar F6/F7 y generar F5")
+    parser = argparse.ArgumentParser(description="EG-30: descargar F6/F7, generar F5 y cargar")
     parser.add_argument("--mes", required=True, help="AAAA-MM")
     parser.add_argument("--salida", type=Path, default=Path("data/generated/eg30"))
     parser.add_argument("--semilla", type=int, default=2026)
-    parser.add_argument("--diarias", action="store_true", help="incluir observaciones F6 diarias")
+    parser.add_argument(
+        "--sin-diarias", action="store_true", help="solo la tasa de cierre, sin la serie diaria"
+    )
+    parser.add_argument(
+        "--cargar", action="store_true", help="cargar en PostgreSQL (usa DATABASE_URL)"
+    )
     args = parser.parse_args()
     try:
-        ejecutar(args.mes, args.salida, args.semilla, args.diarias)
-    except (OSError, ValueError) as exc:
+        engine = create_engine(database_url()) if args.cargar else None
+        conteos = ejecutar(args.mes, args.salida, args.semilla, not args.sin_diarias, engine)
+    except (OSError, ValueError, SQLAlchemyError) as exc:
         print(f"Error EG-30: {exc}", file=sys.stderr)
         raise SystemExit(1) from None
     print(f"F5/F6/F7 generados en {args.salida}")
+    if conteos is not None:
+        print("Cargado en PostgreSQL: " + ", ".join(f"{t}={n}" for t, n in conteos.items()))
 
 
 if __name__ == "__main__":
