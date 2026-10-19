@@ -97,3 +97,12 @@ Pruebas de `tests/catalogo/test_catalogo_f1.py` sobre `data/samples/f1_muestra.c
 - pandas — `DataFrame.drop_duplicates` y `sort_values(kind="mergesort")` (orden estable): https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.drop_duplicates.html
 - Python — `uuid.uuid5` (identificadores deterministas): https://docs.python.org/3/library/uuid.html#uuid.uuid5
 - Python — `random.Random` (generador con semilla): https://docs.python.org/3/library/random.html
+
+
+---
+
+## English — Decision summary
+
+**Accepted (October 2, 2026; EG-12).** Keep exactly one catalog row per `track_id`; choose its primary genre from the row with highest popularity (alphabetical tie-breaker), while preserving all distinct genres in the `track_generos` bridge. Discard invalid catalog rows and do **not** merge different track IDs merely because names and artists match. `artista_principal` is the text before the first semicolon in `artists`; rights-holder assignment is based on that value.
+
+**Traceability:** The original Spanish sections above remain the full decision record, including context, options, consequences, and acceptance criteria. This English summary does not change the ADR status or introduce a new decision.

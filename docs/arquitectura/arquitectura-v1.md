@@ -173,3 +173,14 @@ Se confirma en la HU 23.
 - El flujo ⑩ termina en S3 Bronze y el ⑪ incluye el deploy en ECS.
 - Se corrigió el riesgo de la NAT: además de F6/F7, por ella pasan ECR, CloudWatch Logs y SSM.
 - Nueva sección 6 con los elementos que esta versión deja fuera y su prioridad.
+
+
+---
+
+## English — Architecture v1: scope and deployment status
+
+**Deliverable:** E-01 v1, revision 1.2 (October 9, 2026), EG-16. **Design decision:** ADR-0001. **Operating windows:** ADR-0020. The detailed service matrix, diagram, and references above are the authoritative architecture specification; the following section provides its English operational summary.
+
+The proposed AWS architecture separates public entry points from private compute and storage. An HTTPS Application Load Balancer exposes the rights-holder API; the contracts API, RabbitMQ, Airflow, and PostgreSQL remain private. ECS Fargate runs application services, while Spark runs as on-demand tasks. S3 holds Bronze/Silver/Gold data, RDS PostgreSQL stores transactional and reporting data, and CloudWatch, CloudTrail, SSM Parameter Store, AWS Budgets, and GitHub Actions provide observability, audit, secrets, budget alerts, and CI/CD. Terraform defines infrastructure. The design uses short deployment windows to limit costs, with resources destroyed after the demonstration.
+
+**Important distinction:** an accepted architectural design and successful CI do **not** establish that the AWS environment has been provisioned, that ECS services are reachable, or that an AWS invoice exists. Terraform `apply`, endpoint checks, security evidence, and actual billing records must be verified separately. Any infrastructure changes require the technical lead's review.

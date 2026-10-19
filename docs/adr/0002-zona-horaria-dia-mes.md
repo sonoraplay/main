@@ -65,3 +65,12 @@ Reglas de implementación:
 - PostgreSQL — `timestamp with time zone`: https://www.postgresql.org/docs/16/datatype-datetime.html
 - Spark SQL — `spark.sql.session.timeZone`: https://spark.apache.org/docs/latest/configuration.html
 - ISO 8601 / RFC 3339 para timestamps: https://www.rfc-editor.org/rfc/rfc3339
+
+
+---
+
+## English — Decision summary
+
+**Accepted working assumption (October 2, 2026; EG-11).** UTC defines the day and month for RN-02, RN-04, RN-05, and RN-07. F2 timestamps use ISO 8601 ending in `Z`; corrected device timestamps also remain UTC. The configuration key is `ZONA_HORARIA_REGLAS = "UTC"`. A local day may begin at a different wall-clock time; instructor clarification could require a replacement ADR. Month-end exchange-rate selection is subject to the separate F6 closing-date policy (ADR-0021).
+
+**Traceability:** The original Spanish sections above remain the full decision record, including context, options, consequences, and acceptance criteria. This English summary does not change the ADR status or introduce a new decision.

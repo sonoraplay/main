@@ -223,3 +223,4 @@ data/processed/
 node_modules/
 .docusaurus/
 .cache-loader/
+data/generated/

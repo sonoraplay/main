@@ -129,3 +129,25 @@ Royalty per rights holder and country = (subscription component × paid share + 
 2. When an answer arrives, update its row: answer type changes from **Assumption** (or **Team decision**, when an ADR already records it) to **Instructor**, with date and name.
 3. If the answer changes an assumption, update the affected story, tests, `config.py` value and ADR in the same PR, and comment on the Jira story.
 4. Related ADRs: ADR-0002 (Q4, Accepted), ADR-0003 (Q9), ADR-0005 (Q2, Q3), ADR-0007 (Q3), ADR-0008 (Q6, Q8).
+
+
+---
+
+## Español — Guía de lectura y estado de las decisiones
+
+Este documento registra **diez preguntas (Q1–Q10)** de interpretación de reglas de negocio. La tabla anterior es la fuente detallada de cada pregunta, su supuesto, impacto, historia y ADR asociado. **El estado «Assumption» significa supuesto de trabajo del equipo, no aprobación del docente.** No debe convertirse una hipótesis en requisito confirmado por el simple hecho de traducirla o publicarla en Docusaurus.
+
+| Pregunta | Tema que debe verificarse |
+|---|---|
+| Q1 | Continuidad de los 30 segundos de reproducción (RN-01) |
+| Q2 | Ventana para contar oyentes únicos de un artista (RN-03) |
+| Q3 | Alcance temporal de la exclusión de cuentas sospechosas (RN-03) |
+| Q4 | Zona horaria para el día y el mes (RN-02 / RN-04) |
+| Q5 | Definición de ingreso neto de suscripciones (RN-05) |
+| Q6 | País de facturación de cuentas familiares (RN-10) |
+| Q7 | Porcentaje contractual por territorio (RN-06) |
+| Q8 | Tratamiento del plan gratuito en el denominador |
+| Q9 | Pistas duplicadas en el catálogo F1 |
+| Q10 | Volumen de demostración en AWS |
+
+**Control de cambios:** cuando el docente responda, actualizar en el mismo PR la respuesta, fecha, persona que respondió, historia afectada, pruebas, valores de `config.py` y ADR relacionados. Hasta entonces, las decisiones que dependan de Q1–Q10 deben etiquetarse como supuestos.

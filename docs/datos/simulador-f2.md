@@ -103,3 +103,47 @@ Esta versión solo genera tráfico **limpio y online** de un día. La EG-51 agre
 - eventos offline sincronizados después (RN-04);
 - los 5 defectos de `eventos-f2.md`: evento sin fin, reloj desfasado, track desconocido, duplicado por reintento y país de facturación distinto;
 - carga pico y publicación en RabbitMQ (con la EG-29).
+
+
+---
+
+## English — Minimal F2 simulator (EG-19)
+
+The minimal F2 simulator generates playback events for the local walking skeleton (EG-24). Given identical inputs and a fixed seed, its JSON Lines output is **byte-for-byte deterministic**. EG-51 (Sprint 3) is responsible for extending it.
+
+**Source:** `src/sonoraplay/simulador/f2_minimo.py`, `src/sonoraplay/reglas/sesiones.py`. **Configuration:** `SimuladorConfig`. **Tests:** `tests/simulador/test_f2_minimo.py` and `tests/reglas/test_sesiones.py`.
+
+### Output and validity
+
+The default output is `data/processed/eventos_f2.jsonl`: UTF-8 JSON Lines, one event per line, LF line endings, and schema-required key order. Events are ordered by `device_ts`. Each event passes `schemas/f2_evento.schema.json` with `FormatChecker` before the file is written. Users come from active F3 subscriptions; tracks come from F1 and must have a valid general F4 contract. A session starts with `start` at position zero and ends with `end` (at track duration) or `skip` (early stop); no events follow termination. Timestamps use UTC `Z` with milliseconds; server time is 100–500 ms after device time, and all generated sessions are online. Playback country follows F3 billing country, with a stable generated fallback for null values. Each user has one derived Android device and non-overlapping sessions separated by 30 seconds to five minutes.
+
+### Determinism
+
+Random values come from `random.Random(f"{semilla}:f2")`, IDs from deterministic UUID5, and the fixed base date is `2026-09-15`. Input users and tracks are sorted; output uses fixed key order and compact JSON. `generar(fuentes, cfg)` is pure; `leer_fuentes` and `ejecutar` handle I/O.
+
+### Required scenarios
+
+| Scenario | Playback events | Expected outcome |
+|---|---|---|
+| A | `start(0) → skip(29 s)` | Invalid: `DURACION_INSUFICIENTE` |
+| B | `start(0) → skip(30 s)` | Valid at the 30-second boundary |
+| C | `start(0) → pause(15 s) → resume(15 s) → skip(35 s)` | Invalid: longest continuous segment is 20 seconds; separate segments cannot be added |
+| D | 11 `start → end` sessions for the same user and track | 10 `PAGABLE`, 1 `TOPE_DIARIO` |
+
+The required scenarios total **30 events**. A request for 29 events fails. Remaining events are generated in complete sessions of two, three, or four events, reaching the requested total without truncating a session. If exactly one extra event is needed, scenario A uses a three-event variant.
+
+### Run locally
+
+First load F1, F3, and F4 using the commands in the Spanish section above; F4 must refer to the **same F1 catalog** passed to the simulator. Then run:
+
+```bash
+uv run --env-file .env python -m sonoraplay.simulador --eventos 100 --semilla 42
+```
+
+Options: `--eventos` defaults to 100 (minimum 30), `--semilla` defaults to 42, `--salida` defaults to `data/processed/eventos_f2.jsonl`, and `--datos-f1` defaults to `data/processed`. Missing users, catalog, or contracts produce actionable errors.
+
+### Event reconstruction and limitations
+
+`reconstruir(eventos)` deduplicates by `event_id` (earliest `server_ts` wins), groups by `session_id`, orders by device time (then server time), and measures continuous segments opened by `start`/`resume` and closed by `pause`/`skip`/`end`. Each segment contributes at most the lesser of position delta and elapsed time; incomplete segments contribute zero. A session without `start` produces no playback. Its output includes session ID, account ID, start time, and maximum continuous listening duration.
+
+The minimal simulator does **not** generate fraud farms, late offline events, injected defects, peak traffic, or RabbitMQ publishing; these are EG-51/EG-29 follow-ups. The minimal reconstruction does not perform the full Silver quality and quarantine process.

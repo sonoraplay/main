@@ -99,3 +99,12 @@ Los casos en el límite (exactamente 20 h, 70 %, 1.000 oyentes, 5 cuentas) **no*
 - [ADR-0002](0002-zona-horaria-dia-mes.md) — UTC para el día y el mes.
 - Python `datetime` — objetos *aware* y `datetime.UTC`: https://docs.python.org/3/library/datetime.html
 - Matriz de confusión, sensibilidad y tasa de falsos positivos: https://en.wikipedia.org/wiki/Confusion_matrix
+
+
+---
+
+## English — Decision summary
+
+**Accepted (October 2, 2026; EG-18).** Flag suspected streaming farms when listening exceeds **20 hours in any rolling 24-hour window**, or more than **70%** of a month's plays target an artist with **fewer than 1,000 monthly unique listeners**, or a device is used by **more than five accounts** in the month. Boundary values alone do not trigger flags. A flagged account's entire month enters `en_revision`; records are retained, not deleted. Cleared cases are paid later as append-only adjustments under ADR-0007.
+
+**Traceability:** The original Spanish sections above remain the full decision record, including context, options, consequences, and acceptance criteria. This English summary does not change the ADR status or introduce a new decision.

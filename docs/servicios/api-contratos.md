@@ -175,3 +175,21 @@ uv run --env-file .env python -m pytest tests/api_contratos -v
 - `test_services.py` prueba las reglas puras, sin base de datos.
 - `test_repositories.py` prueba la vigencia contra PostgreSQL.
 - `test_http.py` prueba los endpoints con `TestClient`, con la sesión apuntada a la base de prueba (`TEST_DATABASE_URL`).
+
+
+---
+
+## English — F4 contracts API: technical summary
+
+**Story:** EG-20. **Implementation:** FastAPI + SQLModel under `src/sonoraplay/api_contratos/`; tests under `tests/api_contratos/`. The schema is defined by `db/ddl/002_f4_contratos.sql`; the API maps existing tables and does not create them.
+
+This is an **internal** API intended for Spark's royalty settlement processing. The proposed AWS design places it on private ECS Fargate behind private DNS, not the public ALB. This describes the target architecture, **not a verified live deployment**.
+
+- `GET /health` performs a database `SELECT 1` and returns 200 when healthy or 503 when PostgreSQL is unavailable.
+- `GET /titulares/{titular_id}/porcentaje` accepts a UUID rights holder, mandatory `fecha` (`YYYY-MM-DD`), and optional `track_id` and ISO-2 `pais`. The response describes the selected contract, percentage, territory, validity, and exclusion flag.
+- **RN-07:** `valido_desde` and `valido_hasta` are inclusive; a condition ending on the 14th is followed by the new one starting on the 15th.
+- **RN-08:** a country excluded by the general condition yields `excluido: true` and `porcentaje: 0` with HTTP 200, even if a territorial condition exists.
+- **Q7 (pending instructor validation):** country-specific terms take precedence over general terms unless the country is excluded. Without an applicable condition, the endpoint returns 404.
+- Without `track_id`, the service selects the alphabetically first eligible track; this relies on the seed's shared conditions per rights holder and must be revisited if contracts become track-specific.
+
+The full request/response tables, examples, error mapping, and development commands are specified in the Spanish technical section above. They must be kept aligned when the API contract changes.

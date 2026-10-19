@@ -123,3 +123,12 @@ En `tests/reglas/test_liquidacion.py` (58 pruebas, puras):
 - EG-22: [atribucion-offline.md](../datos/atribucion-offline.md).
 - Python `decimal` (modos de redondeo y `quantize`): https://docs.python.org/3/library/decimal.html
 - Método del mayor residuo (Hamilton): https://en.wikipedia.org/wiki/Largest_remainders_method
+
+
+---
+
+## English — Decision summary
+
+**Accepted (October 13, 2026; EG-23).** Published monthly settlements are **append-only**: corrections create a new settlement version and retain prior published versions. The reports API selects the latest published version. Late offline plays and released fraud-review records are included as adjustments in the next eligible settlement, paid from that settlement month's pool, but contract percentage follows the **original playback date**. Monetary distribution uses exact Decimal calculations and **largest-remainder cent allocation** by country and component, preserving component totals.
+
+**Traceability:** The original Spanish sections above remain the full decision record, including context, options, consequences, and acceptance criteria. This English summary does not change the ADR status or introduce a new decision.

@@ -297,3 +297,21 @@ uv run --env-file .env python -m pytest tests/api_titulares -v
 - `test_http.py`: criterios 1, 3 y 4, arranque sin secreto, `/health` y OpenAPI.
 
 Las pruebas firman los tokens con un secreto **de prueba** puesto con `monkeypatch`; no leen el secreto de `.env`.
+
+
+---
+
+## English — Rights-holder reports API: technical summary
+
+**Story:** EG-21. **Implementation:** FastAPI + SQLModel under `src/sonoraplay/api_titulares/`; tests under `tests/api_titulares/`; read-only reporting schema in `db/ddl/003_reportes_regalias.sql`. EG-23 and EG-37 are responsible for populating report data. The API must never claim settlement records exist before they are loaded.
+
+The target architecture exposes this API through an HTTPS ALB, with ECS Fargate and RDS in private subnets. Local Docker Compose exposes it on port 8001. **This is not evidence of a public AWS endpoint.**
+
+- Clients authenticate with a signed **HS256 JWT** containing `sub` (rights-holder UUID), `iss=sonoraplay`, `aud=api-titulares`, `iat`, and `exp`. The signing secret belongs in SSM Parameter Store for AWS and a non-versioned `.env` for local development.
+- Missing, expired, malformed, or incorrectly signed tokens produce **401** with `WWW-Authenticate: Bearer`.
+- Accessing another rights holder's path produces **403**, without first opening a database session; this prevents cross-holder data disclosure (RN-11, CA-08).
+- `GET /me/reportes` is the preferred route: the holder identity comes from the token. `GET /titulares/{titular_id}/reportes` requires the path UUID to match the token subject.
+- Optional `periodo` (`YYYY-MM`) and `pais` (uppercase ISO-2) filter reports. The repository always filters by the authenticated holder and selects the latest published settlement for each period.
+- `GET /health` checks PostgreSQL connectivity without authentication.
+
+The Spanish technical section above remains the detailed reference for all response fields, examples, error cases, development token generation, and tests. Tokens, secrets, and real personal information must not be placed in published screenshots.

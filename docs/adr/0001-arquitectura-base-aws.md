@@ -57,3 +57,12 @@ Como referencia se revisó una arquitectura web genérica de AWS (ELB + EC2 con 
 - Precios de Amazon VPC (NAT Gateway, IPv4 públicas): https://aws.amazon.com/vpc/pricing/
 - Precios de Amazon MQ: https://aws.amazon.com/amazon-mq/pricing/
 - Precios de Amazon MWAA: https://aws.amazon.com/managed-workflows-for-apache-airflow/pricing/
+
+
+---
+
+## English — Decision summary
+
+**Accepted (September 30, 2026; EG-16).** The team selected a cost-conscious hybrid AWS architecture to ingest playback events, run Spark settlement, protect each rights holder's reports, and meet the course's mandatory service coverage. Always-on services are active **only while the environment is provisioned and running**; ADR-0020 supersedes the original continuous-operation assumption with limited testing windows. This decision describes a design, not proof of deployed infrastructure.
+
+**Traceability:** The original Spanish sections above remain the full decision record, including context, options, consequences, and acceptance criteria. This English summary does not change the ADR status or introduce a new decision.
