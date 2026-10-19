@@ -68,7 +68,7 @@ def escribir_atomico(destino: Path, contenido: str) -> None:
             temporal.unlink(missing_ok=True)
 
 
-def ejecutar(mes: str, salida: Path, semilla: int = 2026, diarias: bool = False) -> None:
+def ejecutar(\n    mes: str, salida: Path, semilla: int = 2026, diarias: bool = False,\n    database_url: str | None = None,\n) -> None:
     """Valida primero; reemplaza cada archivo de forma atómica, no los tres juntos."""
     import io
 
@@ -91,7 +91,7 @@ def ejecutar(mes: str, salida: Path, semilla: int = 2026, diarias: bool = False)
     escritor = csv.DictWriter(buffer, fieldnames=CAMPOS_F5, lineterminator="\n")
     escritor.writeheader()
     escritor.writerows(filas)
-    # Escribe el manifiesto después de validar; la sustitución de cada archivo es atómica.
+    if database_url is not None:\n        import psycopg\n\n        from sonoraplay.fuentes.persistencia import guardar_fuentes\n\n        with psycopg.connect(database_url) as conexion:\n            guardar_fuentes(\n                conexion, mes=mes, paises=paises, tasas_cierre=tasas,\n                tasas_diarias=serie_diaria or [], publicidad=filas,\n            )\n        return\n    # Escribe el manifiesto después de validar; la sustitución de cada archivo es atómica.
     escribir_atomico(salida / f"f5_publicidad_{mes}.csv", buffer.getvalue())
     escribir_atomico(
         salida / f"f6_tasas_{fecha}.json", json.dumps(tasas, ensure_ascii=False, indent=2) + "\n"
@@ -112,13 +112,13 @@ def main() -> None:
     parser.add_argument("--salida", type=Path, default=Path("data/generated/eg30"))
     parser.add_argument("--semilla", type=int, default=2026)
     parser.add_argument("--diarias", action="store_true", help="incluir observaciones F6 diarias")
-    args = parser.parse_args()
+    parser.add_argument(\n        "--database-url", default=None,\n        help="PostgreSQL DSN; stores sources transactionally instead of writing files",\n    )\n    args = parser.parse_args()
     try:
-        ejecutar(args.mes, args.salida, args.semilla, args.diarias)
+        ejecutar(args.mes, args.salida, args.semilla, args.diarias, args.database_url)
     except (OSError, ValueError) as exc:
         print(f"Error EG-30: {exc}", file=sys.stderr)
         raise SystemExit(1) from None
-    print(f"F5/F6/F7 generados en {args.salida}")
+    if args.database_url:\n        print("F5/F6/F7 guardados transaccionalmente en PostgreSQL")\n    else:\n        print(f"F5/F6/F7 generados en {args.salida}")
 
 
 if __name__ == "__main__":
