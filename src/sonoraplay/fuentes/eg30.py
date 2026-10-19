@@ -91,8 +91,7 @@ def ejecutar(
         serie_diaria = validar_tasas_diarias(obtener_json(url_diaria), MONEDAS, inicio, cierre)
     filas = generar_f5(mes, paises, semilla)
     buffer = io.StringIO()
-    escritor = csv.DictWriter(buffer, fieldnames=CAMPOS_F5, lineterminator="
-")
+    escritor = csv.DictWriter(buffer, fieldnames=CAMPOS_F5, lineterminator="\n")
     escritor.writeheader()
     escritor.writerows(filas)
     if database_url is not None:
@@ -109,18 +108,15 @@ def ejecutar(
     # Escribe el manifiesto después de validar; la sustitución de cada archivo es atómica.
     escribir_atomico(salida / f"f5_publicidad_{mes}.csv", buffer.getvalue())
     escribir_atomico(
-        salida / f"f6_tasas_{fecha}.json", json.dumps(tasas, ensure_ascii=False, indent=2) + "
-"
+        salida / f"f6_tasas_{fecha}.json", json.dumps(tasas, ensure_ascii=False, indent=2) + "\n"
     )
     escribir_atomico(
-        salida / "f7_paises.json", json.dumps(paises, ensure_ascii=False, indent=2) + "
-"
+        salida / "f7_paises.json", json.dumps(paises, ensure_ascii=False, indent=2) + "\n"
     )
     if serie_diaria is not None:
         escribir_atomico(
             salida / f"f6_tasas_diarias_{mes}.json",
-            json.dumps(serie_diaria, ensure_ascii=False, indent=2) + "
-",
+            json.dumps(serie_diaria, ensure_ascii=False, indent=2) + "\n",
         )
 
 
