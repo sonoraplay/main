@@ -69,7 +69,10 @@ def escribir_atomico(destino: Path, contenido: str) -> None:
 
 
 def ejecutar(
-    mes: str, salida: Path, semilla: int = 2026, diarias: bool = False,
+    mes: str,
+    salida: Path,
+    semilla: int = 2026,
+    diarias: bool = False,
     database_url: str | None = None,
 ) -> None:
     """Valida primero; reemplaza cada archivo de forma atómica, no los tres juntos."""
@@ -101,8 +104,12 @@ def ejecutar(
 
         with psycopg.connect(database_url) as conexion:
             guardar_fuentes(
-                conexion, mes=mes, paises=paises, tasas_cierre=tasas,
-                tasas_diarias=serie_diaria or [], publicidad=filas,
+                conexion,
+                mes=mes,
+                paises=paises,
+                tasas_cierre=tasas,
+                tasas_diarias=serie_diaria or [],
+                publicidad=filas,
             )
         return
     # Escribe el manifiesto después de validar; la sustitución de cada archivo es atómica.
@@ -127,7 +134,8 @@ def main() -> None:
     parser.add_argument("--semilla", type=int, default=2026)
     parser.add_argument("--diarias", action="store_true", help="incluir observaciones F6 diarias")
     parser.add_argument(
-        "--database-url", default=None,
+        "--database-url",
+        default=None,
         help="PostgreSQL DSN; stores sources transactionally instead of writing files",
     )
     args = parser.parse_args()
