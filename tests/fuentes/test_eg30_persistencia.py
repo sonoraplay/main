@@ -54,8 +54,7 @@ class Connection:
 
 def payload():
     paises = [
-        {"pais": f"{chr(65 + n // 26)}{chr(65 + n % 26)}",
-         "region": "Other", "monedas": ["USD"]}
+        {"pais": f"{chr(65 + n // 26)}{chr(65 + n % 26)}", "region": "Other", "monedas": ["USD"]}
         for n in range(200)
     ]
     paises[0] = {"pais": "ZZ", "region": "Other", "monedas": ["USD"]}
@@ -63,18 +62,30 @@ def payload():
     return {
         "mes": "2026-09",
         "paises": paises,
-        "tasas_cierre": [{
-            "moneda": "COP", "fecha": "2026-09-30",
-            "fecha_observacion": "2026-09-30",
-            "unidades_por_usd": "4000.12", "proveedor": "Frankfurter v2",
-        }],
-        "tasas_diarias": [{
-            "moneda": "COP", "fecha": "2026-09-30",
-            "unidades_por_usd": "4000.12", "proveedor": "Frankfurter v2",
-        }],
-        "publicidad": [{
-            "pais": "CO", "moneda": "COP", "ingresos_publicidad": "120.00",
-        }],
+        "tasas_cierre": [
+            {
+                "moneda": "COP",
+                "fecha": "2026-09-30",
+                "fecha_observacion": "2026-09-30",
+                "unidades_por_usd": "4000.12",
+                "proveedor": "Frankfurter v2",
+            }
+        ],
+        "tasas_diarias": [
+            {
+                "moneda": "COP",
+                "fecha": "2026-09-30",
+                "unidades_por_usd": "4000.12",
+                "proveedor": "Frankfurter v2",
+            }
+        ],
+        "publicidad": [
+            {
+                "pais": "CO",
+                "moneda": "COP",
+                "ingresos_publicidad": "120.00",
+            }
+        ],
     }
 
 
