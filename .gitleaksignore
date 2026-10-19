@@ -1,0 +1,3 @@
+# Hallazgos de gitleaks revisados (falsos positivos).
+# Valor de ejemplo en .env.example, cambiado por error y revertido en 0a6e6d6; no es una contraseña real.
+2cd44e88e48f2516076652ad9005391d2707035e:.env.example:generic-api-key:2
