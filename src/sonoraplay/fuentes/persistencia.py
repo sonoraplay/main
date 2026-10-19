@@ -51,8 +51,11 @@ def guardar_fuentes(
                            proveedor=EXCLUDED.proveedor,
                            extraido_en_utc=EXCLUDED.extraido_en_utc""",
                     (
-                        t["moneda"], date.fromisoformat(t["fecha"]),
-                        Decimal(t["unidades_por_usd"]), t["proveedor"], instante,
+                        t["moneda"],
+                        date.fromisoformat(t["fecha"]),
+                        Decimal(t["unidades_por_usd"]),
+                        t["proveedor"],
+                        instante,
                     ),
                 )
             for t in tasas_cierre:
@@ -67,9 +70,12 @@ def guardar_fuentes(
                            proveedor=EXCLUDED.proveedor,
                            extraido_en_utc=EXCLUDED.extraido_en_utc""",
                     (
-                        t["moneda"], date.fromisoformat(t["fecha"]),
+                        t["moneda"],
+                        date.fromisoformat(t["fecha"]),
                         date.fromisoformat(t["fecha_observacion"]),
-                        Decimal(t["unidades_por_usd"]), t["proveedor"], instante,
+                        Decimal(t["unidades_por_usd"]),
+                        t["proveedor"],
+                        instante,
                     ),
                 )
             for f in publicidad:
@@ -81,7 +87,9 @@ def guardar_fuentes(
                        SET moneda=EXCLUDED.moneda,
                            ingresos_publicidad=EXCLUDED.ingresos_publicidad""",
                     (
-                        periodo, f["pais"], f["moneda"],
+                        periodo,
+                        f["pais"],
+                        f["moneda"],
                         Decimal(f["ingresos_publicidad"]),
                     ),
                 )
