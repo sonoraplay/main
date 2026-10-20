@@ -102,7 +102,11 @@ def ejecutar(
 
         from sonoraplay.fuentes.persistencia import guardar_fuentes
 
-        with psycopg.connect(database_url) as conexion:
+        url_conexion = database_url
+        if url_conexion.startswith("postgresql+psycopg://"):
+            url_conexion = url_conexion.replace("postgresql+psycopg://", "postgresql://", 1)
+
+        with psycopg.connect(url_conexion) as conexion:
             guardar_fuentes(
                 conexion,
                 mes=mes,
@@ -143,6 +147,16 @@ def main() -> None:
     except (OSError, ValueError) as exc:
         print(f"Error EG-30: {exc}", file=sys.stderr)
         raise SystemExit(1) from None
+    except Exception as exc:
+        import psycopg
+
+        if isinstance(exc, psycopg.Error):
+            print(
+                f"Error EG-30: no fue posible conectar o guardar datos en PostgreSQL: {exc}",
+                file=sys.stderr,
+            )
+            raise SystemExit(1) from None
+        raise
     if args.database_url:
         print(f"F5/F6/F7 guardados en PostgreSQL y generados en {args.salida}")
     else:

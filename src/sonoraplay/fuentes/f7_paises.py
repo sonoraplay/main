@@ -1,6 +1,6 @@
 """F7: validación de países y monedas según REST Countries."""
 
-REST_COUNTRIES = "https://restcountries.com/v3.1/all?fields=cca2,name,region,currencies"
+REST_COUNTRIES = "https://raw.githubusercontent.com/mledoze/countries/c2ac0049c14edcf2436c7aa1b2493222a020b462/countries.json"
 
 
 def validar_paises(datos: object) -> list[dict]:
