@@ -123,14 +123,34 @@ Eso confirma que la red privada, la NAT, el endpoint de S3, la regla `airflow �
 
 ### Cómo repetir la ventana
 
+Se corre en AWS CloudShell (us-east-1), desde la raíz del repo con la rama de la EG-26. CloudShell solo tiene 1 GB en `$HOME`, así que el código y los proveedores de Terraform van en `/tmp`.
+
 ```bash
-# Parte 1: crear y verificar (unos 15 min)
-bash ventana-eg26-parte1-crear.sh
-# Parte 2: destruir el mismo día
-bash ventana-eg26-parte2-destruir.sh
+# 0. Preparar (cada sesión de CloudShell)
+export AWS_REGION=us-east-1 TF_PLUGIN_CACHE_DIR=/tmp/tf-plugin-cache
+mkdir -p "$TF_PLUGIN_CACHE_DIR"
+git clone https://github.com/sonoraplay/main.git /tmp/sonoraplay && cd /tmp/sonoraplay
+git checkout feature/EG-26-iam-vpc-s3-rds
+CUENTA=$(aws sts get-caller-identity --query Account --output text)
+
+# 1. Solo la primera vez en la cuenta: bucket del estado (persistente)
+terraform -chdir=infra/terraform/bootstrap init
+terraform -chdir=infra/terraform/bootstrap apply
+
+# 2. Crear (RDS tarda 10–15 min)
+printf 'bucket = "sonoraplay-%s-tfstate"\nregion = "us-east-1"\n' "$CUENTA" > infra/terraform/backend.hcl
+terraform -chdir=infra/terraform init -backend-config=backend.hcl
+terraform -chdir=infra/terraform plan -out=ventana.tfplan
+terraform -chdir=infra/terraform apply ventana.tfplan
+
+# 3. Verificar los criterios (ver el README de infra/terraform)
+
+# 4. Destruir el mismo día y buscar huérfanos
+terraform -chdir=infra/terraform destroy
+bash infra/terraform/verificar-huerfanos.sh
 ```
 
-Los dos scripts se corren en AWS CloudShell (us-east-1) y guardan la evidencia en `~/evidencia-eg26`.
+Si `verificar-huerfanos.sh` todavía lista recursos justo después del `destroy`, se repite a los 10 minutos: la API de etiquetas tarda en actualizarse.
 
 ## English
 
@@ -209,4 +229,10 @@ In the 15 October window, the skeleton ([EG-24](../esqueleto.md)) ran against th
 
 ### How to repeat the window
 
-Run `bash ventana-eg26-parte1-crear.sh` (create and verify, about 15 minutes) and then `bash ventana-eg26-parte2-destruir.sh` on the same day, in AWS CloudShell (us-east-1). Both scripts save the evidence in `~/evidencia-eg26`.
+Run it in AWS CloudShell (us-east-1) from the repo root on the EG-26 branch. CloudShell has only 1 GB in `$HOME`, so the code and the Terraform providers go in `/tmp`. The commands are the same as in the Spanish section above:
+
+1. Prepare the session: set `AWS_REGION` and `TF_PLUGIN_CACHE_DIR`, clone `sonoraplay/main` into `/tmp` and check out `feature/EG-26-iam-vpc-s3-rds`.
+2. First time only in the account: `terraform -chdir=infra/terraform/bootstrap init` and `apply`, which create the persistent state bucket.
+3. Create: write `infra/terraform/backend.hcl` with the state bucket, then run `init -backend-config=backend.hcl`, `plan -out=ventana.tfplan` and `apply ventana.tfplan`. RDS takes 10–15 minutes.
+4. Verify the criteria (see the `infra/terraform` README).
+5. Destroy on the same day with `terraform -chdir=infra/terraform destroy`, then run `bash infra/terraform/verificar-huerfanos.sh`. If it still lists resources right after the `destroy`, run it again 10 minutes later: the tagging API takes time to update.
