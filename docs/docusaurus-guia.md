@@ -70,7 +70,7 @@ The locale selector is configured, but **historical technical documents have not
 
 - **Traducción técnica completa añadida:** modelos de datos F3 y F4 (secciones equivalentes en inglés dentro de cada página).
 - **Resumen técnico en inglés añadido:** arquitectura v1 y APIs de contratos y titulares; las tablas detalladas y ejemplos originales permanecen en español.
-- **Documentos bilingües:** guía de Docusaurus, entrega del portal, EG-30 y ADR-0021.
+- **Documentos bilingües:** guía de Docusaurus, entrega del portal, EG-30 y ADR-0021 y evidencia en AWS de la EG-26.
 - **Pendiente para cobertura completa:** traducción íntegra de eventos F2, análisis de ambigüedades, ADR históricos; revisión editorial de las nuevas secciones inglesas de simulador F2 y atribución offline y los detalles extensos de las APIs y arquitectura. No debe afirmarse que todo el portal está traducido.
 - **Coherencia:** distinguir diseño AWS, código local y despliegue real. Las pruebas CI usan datos simulados para EG-30; no demuestran acceso a APIs externas ni a AWS.
 
@@ -78,7 +78,7 @@ The locale selector is configured, but **historical technical documents have not
 
 - **Full technical translation added:** F3 and F4 data models (equivalent English sections in each page).
 - **English technical summaries added:** architecture v1 and contracts/rights-holder APIs; original detailed tables and examples remain in Spanish.
-- **Bilingual documents:** Docusaurus guide, portal handoff, EG-30 and ADR-0021.
+- **Bilingual documents:** Docusaurus guide, portal handoff, EG-30 and ADR-0021 and EG-26 AWS evidence.
 - **Remaining for full coverage:** complete translation of F2 events, ambiguity analysis, and historical ADRs; editorial review of the new English sections for the F2 simulator and offline attribution, and detailed API and architecture content. Do not claim the whole portal is translated.
 - **Consistency:** distinguish AWS design, locally implemented code, and live deployment. EG-30 CI uses mocked data and does not establish external API or AWS availability.
 
