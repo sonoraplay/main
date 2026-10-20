@@ -85,7 +85,7 @@ def ejecutar(
     url = f"{FRANKFURTER}?date={fecha}&base=USD&quotes={','.join(MONEDAS)}"
     tasas = validar_tasas(obtener_json(url), cierre=cierre)
     serie_diaria = None
-    if diarias:
+    if diarias or database_url is not None:
         inicio = cierre.replace(day=1)
         url_diaria = (
             f"{FRANKFURTER}?from={inicio.isoformat()}&to={fecha}"
@@ -111,7 +111,6 @@ def ejecutar(
                 tasas_diarias=serie_diaria or [],
                 publicidad=filas,
             )
-        return
     # Escribe el manifiesto después de validar; la sustitución de cada archivo es atómica.
     escribir_atomico(salida / f"f5_publicidad_{mes}.csv", buffer.getvalue())
     escribir_atomico(
@@ -136,7 +135,7 @@ def main() -> None:
     parser.add_argument(
         "--database-url",
         default=None,
-        help="PostgreSQL DSN; stores sources transactionally instead of writing files",
+        help="PostgreSQL DSN; stores sources transactionally and also writes output files",
     )
     args = parser.parse_args()
     try:
@@ -145,7 +144,7 @@ def main() -> None:
         print(f"Error EG-30: {exc}", file=sys.stderr)
         raise SystemExit(1) from None
     if args.database_url:
-        print("F5/F6/F7 guardados transaccionalmente en PostgreSQL")
+        print(f"F5/F6/F7 guardados en PostgreSQL y generados en {args.salida}")
     else:
         print(f"F5/F6/F7 generados en {args.salida}")
 
