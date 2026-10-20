@@ -1,4 +1,5 @@
 import os
+from decimal import InvalidOperation
 
 import psycopg
 import pytest
@@ -42,7 +43,7 @@ def test_rollback_postgresql():
             }
         ]
 
-        with pytest.raises(Exception):
+        with pytest.raises(InvalidOperation):
             guardar_fuentes(
                 conexion,
                 mes="2026-09",
