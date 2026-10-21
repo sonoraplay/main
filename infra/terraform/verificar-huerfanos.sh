@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Criterio 1 de la EG-26: después de `terraform destroy` no queda ningún recurso con
-# Project=sonoraplay, salvo el bucket del estado (bootstrap, persistente por ADR-0020).
+# Project=sonoraplay, salvo los persistentes por diseño (ADR-0020): el bucket del estado
+# (bootstrap) y los repositorios de ECR `sonoraplay/<servicio>` (stack infra/terraform/ecr).
 #
 # Uso: ./verificar-huerfanos.sh [region]
 # La API de etiquetas puede mostrar durante unos minutos recursos recién borrados: si aparece
@@ -14,7 +15,7 @@ restantes=$(
     --region "$region" \
     --tag-filters Key=Project,Values=sonoraplay \
     --query 'ResourceTagMappingList[].ResourceARN' \
-    --output text | tr '\t' '\n' | grep -v -- '-tfstate$' | grep -v '^$' || true
+    --output text | tr '\t' '\n' | grep -v -E -- '-tfstate$|:repository/sonoraplay/' | grep -v '^$' || true
 )
 
 # IAM es global y la API de etiquetas no siempre lista roles ni perfiles: se revisan por nombre.
