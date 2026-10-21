@@ -33,3 +33,6 @@ skip-check:
   - CKV_AWS_260  # Puerto 80 abierto en el ALB: solo redirige a 443 (arquitectura v1, sección 3)
   - CKV2_AWS_34  # Parámetros String de RDS: host, puerto, base y usuario no son secretos; la contraseña es SecureString
   - CKV_AWS_394  # Fijar AZ por ID: se usan siempre las 2 primeras AZ disponibles de la región
+
+  # --- EG-32 · presupuesto y alarma ---
+  - CKV_AWS_26   # Cifrado del tema SNS: AWS Budgets no puede publicar en un tema con la clave aws/sns; una CMK cuesta 1 USD/mes

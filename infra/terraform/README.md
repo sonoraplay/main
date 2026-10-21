@@ -21,6 +21,7 @@ Decisiones: [ADR-0009](../../docs/adr/0009-region-aws.md) (región), [ADR-0010](
 | `rds.tf` | PostgreSQL 16 `db.t4g.micro`, Single-AZ, 20 GB gp3 cifrados, `publicly_accessible = false`, backups de `rds_backup_retention_days` días (7 en el diseño, 1 mientras dure el plan gratuito: [ADR-0022](../../docs/adr/0022-excepcion-plan-gratuito-rds-nat.md)), TLS obligatorio; parámetros `/sonoraplay/rds/*` en SSM | 5 |
 | `iam.tf` | Por servicio de ECS (api-titulares, api-contratos, simulador, consumidor, spark): rol de ejecución y rol de tarea. Por EC2 (nat, rabbitmq, airflow): rol y perfil de instancia | 3 |
 | `bootstrap/` | Bucket del estado de Terraform (persistente, se crea una sola vez) | — |
+| `presupuesto/` | Stack persistente con el presupuesto mensual (50 USD), el tema SNS y la suscripción de correo. Ver `docs/infraestructura/eg32-presupuesto-alarma.md` | EG-32 |
 
 Todo lleva `Project=sonoraplay`, `Environment=dev` y `ManagedBy=terraform` (`default_tags`).
 

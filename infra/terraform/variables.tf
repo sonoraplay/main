@@ -10,6 +10,12 @@ variable "proyecto" {
   default     = "sonoraplay"
 }
 
+variable "owner" {
+  description = "Valor de la etiqueta Owner: a quién se atribuye el costo en Cost Explorer (EG-32)."
+  type        = string
+  default     = "sonoraplay-equipo"
+}
+
 variable "entorno" {
   description = "Nombre del entorno; solo hay uno (ADR-0020)."
   type        = string
