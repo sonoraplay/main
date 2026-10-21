@@ -1,5 +1,9 @@
 # EG-31 — Dimensional model and Data Lake / Modelo dimensional y Data Lake
 
+> **Design precedence / Precedencia:** The section **Design correction v2** below supersedes earlier references to one Gold row per F2 event, the earlier `fact_settlement` detail grain, and event-based Gold SQL checks. / La sección **Corrección de diseño v2** reemplaza esas definiciones anteriores. Earlier SQL is illustrative only and must be adapted to `play_id` before execution.
+
+
+
 **Status / Estado:** Proposed design / Diseño propuesto — 2026-10-21. This is a design contract, **not** evidence that Spark tables or Parquet partitions are deployed.
 
 ## English
