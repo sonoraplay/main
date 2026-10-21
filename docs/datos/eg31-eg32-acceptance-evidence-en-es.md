@@ -14,12 +14,14 @@ This file is a **traceability register**, not a claim of deployed AWS infrastruc
 | CA4: Bronze/Silver/Gold Parquet partitions + ADR-0014 | [ADR-0014](../adr/0014-data-lake-parquet-partitions.md) | proposed layer paths, partition policy | Design documented; ADR proposed / diseño, ADR propuesto | run Parquet read/write, verify S3 layout and accept ADR |
 | CA5: churn and engagement | [model / modelo](eg31-modelo-dimensional-en-es.md) | F3 churn semantics, F2 session metrics | Design documented / diseño documentado | run EG-42 sample calculations and Power BI queries |
 
+**EG-31 pending — only these two / Pendiente de EG-31, únicamente:** (1) technical approval of ADR-0014 by Julián; (2) Spark/Parquet execution tests (EG-35/37). The five criteria are documented as design in the aligned v2 model. / (1) aprobación técnica del ADR-0014 por Julián; (2) pruebas de Spark/Parquet.
+
 ## EG-32 — Cost analysis v1 and budget alarm
 
 | Criterion / Criterio | Deliverable / Entregable | Evidence / Evidencia | Status / Estado | Next verification / Siguiente verificación |
 |---|---|---|---|---|
-| CA1: priced inventory and calculator | [cost draft / borrador](../costos/eg32-aws-cost-analysis-v1-en-es.md) | inventory and rate formula, but **no unit prices or shareable calculator URL** | Incomplete / incompleto | obtain official priced AWS calculator share URL |
-| CA2: 24/7 vs test windows | [cost draft / borrador](../costos/eg32-aws-cost-analysis-v1-en-es.md), [ADR-0020](../adr/0020-ventanas-encendido-aws.md) | scenario assumptions, six-week historical estimate | Partial / parcial | same inventory priced for both scenarios, per-month totals |
+| CA1: priced inventory and calculator | [cost draft / borrador](../costos/eg32-aws-cost-analysis-v1-en-es.md) | priced worksheet with official AWS list prices (v1.1): about USD 126/month always on; **no shareable calculator URL yet** | Partial / parcial | generate the Calculator URL (steps in the cost doc) |
+| CA2: 24/7 vs test windows | [cost draft / borrador](../costos/eg32-aws-cost-analysis-v1-en-es.md), [ADR-0020](../adr/0020-ventanas-encendido-aws.md) | same inventory priced for both scenarios (v1.1): about USD 126/month always on vs USD 5.6/month in windows; reconciles with the ADR-0020 six-week figures | Done as worksheet / hecho en hoja | reconcile with Cost Explorer after each window |
 | CA3: AWS Budget + SNS email | [cost checklist / lista](../costos/eg32-aws-cost-analysis-v1-en-es.md) | procedure only; no AWS evidence | Blocked / bloqueado | Julián configures and proves notification |
 | CA4: `Project` and `Owner` tags | EG-26 Terraform branch and [cost draft](../costos/eg32-aws-cost-analysis-v1-en-es.md) | Jira EG-32 reports `Owner` absent | Blocked / bloqueado | Julián adds tag and verifies in AWS |
 | CA5: docs in `docs/costos/` and architecture link | [cost draft](../costos/eg32-aws-cost-analysis-v1-en-es.md), [architecture](../arquitectura/arquitectura-v1.md) | both files changed in PR #7 | Implemented in draft / implementado en borrador | review and merge PR |
@@ -41,9 +43,9 @@ GitHub: [PR #3](https://github.com/sonoraplay/main/pull/3), [PR #7](https://gith
 
 - **EG-31 CA1:** design v2 explicitly separates F2 message `event_id` from reconstructed `play_id`; Gold `fact_plays` is one row per play, not per message. **Design correction documented; EG-35 test pending.** / Se separan eventos y reproducciones; falta probar EG-35.
 - **EG-31 CA2:** `fact_settlement` reporting grain is holder × billing country × month × version, with `fact_settlement_detail` for component/contract percentage and `fact_country_pool` to avoid double-counting. **Review and EG-37 reconciliation pending.** / Grano corregido, conciliación pendiente.
-- **EG-31 CA3:** canonical `settlement_id` plus append-only play/settlement bridge, with explicit adjustment history. **Approval of canonical settlement policy and EG-37 execution pending.** / Falta aprobar la política de liquidación principal y ejecutarla.
+- **EG-31 CA3:** canonical `settlement_id` plus append-only play/settlement bridge, with explicit adjustment history. **The canonical-settlement policy is exercised by the EG-37 reconciliation tests (Spark).** / La política de liquidación principal se prueba en la conciliación de EG-37.
 - **EG-31 CA4/5:** ADR-0014 and analytics contracts remain proposed; no real Parquet or churn/engagement test is claimed. / No hay prueba real de Parquet ni de analítica.
-- **EG-32 CA1/2:** same-inventory monthly price template added; all missing unit prices and AWS Calculator link remain `PENDING`. / Falta cotización real.
+- **EG-32 CA1/2:** priced worksheet v1.1 added with official AWS list prices for the same inventory in both scenarios; the AWS Calculator link remains `PENDING`, as do Cloud Map/DNS, CloudTrail, KMS, Budgets and EKS. / Hoja cotizada con tarifas oficiales; falta el enlace de la calculadora.
 - **EG-32 CA3:** distinguish SNS-only delivery test from required AWS Budgets-originated threshold email. **Neither is claimed passed.** / No confundir pruebas.
 - **EG-32 CA4:** correct required tag to `Project=sonoraplay` and verify `Owner`, actual resource tags, and Billing cost allocation activation. / Falta evidencia desplegada.
 - **EG-32 CA5:** documentation remains in draft PR #7. / Pendiente revisión/fusión.
