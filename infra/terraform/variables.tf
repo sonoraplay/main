@@ -23,7 +23,7 @@ variable "vpc_cidr" {
 }
 
 variable "nat_instance_type" {
-  description = "Tipo de la instancia NAT (ADR-0010). ARM64. t4g.micro porque el plan gratuito de AWS no permite t4g.nano."
+  description = "Tipo de la instancia NAT (ADR-0010). ARM64. t4g.micro porque el plan gratuito de AWS no permite t4g.nano (ADR-0022)."
   type        = string
   default     = "t4g.micro"
 }
@@ -44,7 +44,8 @@ variable "rds_backup_retention_days" {
   description = <<-EOT
     Días de backups automáticos de RDS (criterio 5 de la EG-26). El diseño pide 7.
     La cuenta está en el plan gratuito de AWS, que no permite más de 1 día: las ventanas
-    de prueba usan 1 (ver ADR-0020). Volver a 7 al pasar la cuenta a plan pago.
+    de prueba usan 1 (excepción en ADR-0022). Volver a 7 antes del encendido continuo de la
+    última semana (ADR-0020) o al pasar la cuenta a plan pago.
   EOT
   type        = number
   default     = 1

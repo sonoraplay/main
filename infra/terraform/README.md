@@ -18,7 +18,7 @@ Decisiones: [ADR-0009](../../docs/adr/0009-region-aws.md) (región), [ADR-0010](
 | `red.tf` | VPC `10.0.0.0/16`, 2 subredes públicas y 2 privadas en 2 AZ, Internet Gateway, tablas de rutas, endpoint gateway de S3, instancia NAT `t4g.micro` (`nat_instance_type`) con alarma de recuperación, SG por defecto sin reglas | 2 |
 | `security_groups.tf` | Los 10 SG de la arquitectura v1 (sección 3); cada uno solo acepta tráfico de otro SG, salvo el ALB y la NAT | 2 |
 | `s3.tf` | Buckets `sonoraplay-<cuenta>-bronze`, `-silver` y `-gold`: SSE-S3, Block Public Access, sin ACL, solo TLS | 4 |
-| `rds.tf` | PostgreSQL 16 `db.t4g.micro`, Single-AZ, 20 GB gp3 cifrados, `publicly_accessible = false`, backups de `rds_backup_retention_days` días (1 en el plan gratuito), TLS obligatorio; parámetros `/sonoraplay/rds/*` en SSM | 5 |
+| `rds.tf` | PostgreSQL 16 `db.t4g.micro`, Single-AZ, 20 GB gp3 cifrados, `publicly_accessible = false`, backups de `rds_backup_retention_days` días (7 en el diseño, 1 mientras dure el plan gratuito: [ADR-0022](../../docs/adr/0022-excepcion-plan-gratuito-rds-nat.md)), TLS obligatorio; parámetros `/sonoraplay/rds/*` en SSM | 5 |
 | `iam.tf` | Por servicio de ECS (api-titulares, api-contratos, simulador, consumidor, spark): rol de ejecución y rol de tarea. Por EC2 (nat, rabbitmq, airflow): rol y perfil de instancia | 3 |
 | `bootstrap/` | Bucket del estado de Terraform (persistente, se crea una sola vez) | — |
 
@@ -123,7 +123,7 @@ Guarda en la HU 17 la salida de `apply`, la de `destroy` y la del script como ev
    - El job `secretos` del CI (gitleaks) no encuentra llaves en el historial.
 4. **S3.** En cada bucket de `terraform output buckets`, `aws s3api get-public-access-block --bucket <b>` muestra los cuatro valores en `true` y `aws s3api get-bucket-encryption --bucket <b>` muestra `AES256`.
 5. **RDS.**
-   - `aws rds describe-db-instances --db-instance-identifier sonoraplay-dev --query 'DBInstances[0].[PubliclyAccessible,BackupRetentionPeriod,StorageEncrypted]'` devuelve `[false, 7, true]`.
+   - `aws rds describe-db-instances --db-instance-identifier sonoraplay-dev --query 'DBInstances[0].[PubliclyAccessible,BackupRetentionPeriod,StorageEncrypted]'` devuelve `[false, 7, true]` (`[false, 1, true]` mientras dure el plan gratuito, ADR-0022).
    - `aws ssm get-parameter --name /sonoraplay/rds/password --with-decryption` devuelve la contraseña.
    - `terraform state pull | grep -c "<contraseña>"` devuelve `0`: la contraseña no está en el estado.
 6. **NAT** (ADR-0010). Desde una instancia privada, `curl -s https://checkip.amazonaws.com` devuelve la IP pública de la NAT.

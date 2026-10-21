@@ -9,6 +9,8 @@
 | Revisó | Pendiente (revisor del PR) |
 | Referencias | E-06, tema 6, ADR-0001, ADR-0009, ADR-0020, arquitectura v1 (secciones 2, 6 y 8) |
 
+> **Nota (2026-10-21):** mientras la cuenta esté en el plan gratuito de AWS, que no permite `t4g.nano`, las ventanas usan `t4g.micro`. Ver [ADR-0022](0022-excepcion-plan-gratuito-rds-nat.md).
+
 ## 1. Contexto
 
 El criterio 2 de la EG-26 pone el cómputo y los datos en **subredes privadas**: las tareas de Fargate, las EC2 de RabbitMQ y Airflow, y RDS. Aun así, varias de esas piezas necesitan salir a internet:
