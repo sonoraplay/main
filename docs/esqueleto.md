@@ -164,6 +164,8 @@ GET /me/reportes?periodo=2026-09  →  HTTP 200
 - Con el token de otro titular (`d3aee405-…`) la misma URL devuelve **solo su fila** (89.35 USD), no la del primero.
 - Sin token: `HTTP 401 {"detail": "Falta el token de acceso"}`.
 
+**Re-ejecución (21 oct).** `docker compose --profile esqueleto start` vuelve a correr el esqueleto, que publica una segunda liquidación del mismo período (`302bccfb-0ac3-4574-bf70-4c00eaedad78`). `reporte_regalias` queda con las dos (append-only, 4 filas cada una), y la API devuelve **solo la última**, con el mismo monto (2340.00 USD): la re-liquidación no duplica regalías (ADR-0007). Para reanudar sin publicar otra vez, usa `docker compose start postgres api-contratos api-titulares`.
+
 **Pruebas:** `uv run --env-file .env python -m pytest tests/esqueleto -v` → **23 passed**, incluida `test_calculo_a_mano.py` (criterio 3).
 
 | Criterio | Resultado |
@@ -182,6 +184,7 @@ Run on a Mac (Apple Silicon, Docker 29.6.1) from a fresh clone of `develop` (`cf
 - The skeleton read **100 F2 events**, built 38 plays (4 too short, 1 over the daily cap), and published settlement `e0b3730f-72d2-46d8-8cd1-e70be9037ba7` for CO, 2026-09, with 4 rows for 4 rights holders.
 - `GET /me/reportes?periodo=2026-09` with the top rights holder's token returns HTTP 200 with `liquidacion_id`, `reproducciones_validas: 1` and `regalia_usd: 2340.00`. Another holder's token returns only its own row; no token returns 401.
 - `pytest tests/esqueleto`: **23 passed**, including the hand-calculation test.
+- Re-run (Oct 21): `docker compose --profile esqueleto start` runs the skeleton again and publishes a second settlement for the same period (`302bccfb…`). Both stay in `reporte_regalias` (append-only), and the API returns **only the latest**, with the same amount: re-settling does not duplicate royalties (ADR-0007). To resume without publishing again, start only `postgres api-contratos api-titulares`.
 
 All five EG-24 acceptance criteria are met (see the table above).
 
