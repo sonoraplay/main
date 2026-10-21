@@ -94,3 +94,60 @@ Use the following formula for **each** metered service and each scenario. This i
 **Responsibility / Responsables:** María Clara owns the estimate and its bilingual documentation. Julián owns account-level approvals, AWS Budget/SNS configuration and Terraform tag fixes. Andrea supplies ECS/ALB utilization assumptions. No cloud resource should be created to fill a documentation gap without cost approval.
 
 **Consistency note / Nota de coherencia:** ADR-0020 contains *six-week total project estimates*; do not silently convert them to monthly costs. The current architecture still describes a 7-day RDS backup requirement; Julián's 1-day exception must be documented in the authoritative EG-26 decision before updating the baseline.
+
+
+## Corrective implementation checklist v2 (English) — EG-32
+
+**Acceptance remains OPEN.** This section is an executable handoff, not an AWS price quote or evidence of a sent notification.
+
+### Pricing evidence contract — CA1 and CA2
+
+Record one **identical Terraform-derived inventory** for both scenarios. For each row record: service, SKU/instance type, region, quantity, hourly rate and pricing date/source, active hours, storage GB-month and rate, requests and rate, data transfer GB and rate, other fees, calculated monthly USD, and estimate URL. Keep the following **monthly worksheet template** in the PR and replace `PENDING` with verified calculator values:
+
+| Service group | Quantity / SKU | Rate source | 24/7 monthly USD | Window monthly USD | Verification |
+|---|---|---|---|---|---|
+| NAT EC2 + EBS + public IPv4 | PENDING | PENDING | PENDING | PENDING | EG-26 |
+| ALB + LCU | PENDING | PENDING | PENDING | PENDING | EG-27 |
+| ECS Fargate API + consumers | PENDING | PENDING | PENDING | PENDING | EG-27/33 |
+| RabbitMQ + Airflow EC2/EBS | PENDING | PENDING | PENDING | PENDING | EG-34 |
+| Spark jobs / Spot | PENDING | PENDING | PENDING | PENDING | EG-35/37 |
+| RDS + storage + backups | PENDING | PENDING | PENDING | PENDING | EG-26/28 |
+| S3 + ECR + requests | PENDING | PENDING | PENDING | PENDING | EG-26/40 |
+| CloudWatch + CloudTrail + transfer | PENDING | PENDING | PENDING | PENDING | EG-26 |
+| Budgets + SNS + other billed services | PENDING | PENDING | PENDING | PENDING | Julián |
+| **Monthly total, excluding EKS** | same inventory | calculator | **PENDING** | **PENDING** | María Clara |
+| **EKS separate incremental total** | PENDING | calculator | **PENDING** | **PENDING** | EG-41 |
+
+Formula per SKU: `monthly = quantity × rate_per_hour × active_hours + storage_GB_month × rate_per_GB_month + request_count/1000 × rate_per_1000 + transfer_GB × rate_per_GB + fixed_and_other_charges`. Model **persisted storage, public IPv4, backups and retained logs even when compute is off**; do not multiply those costs by the compute duty cycle without billing evidence. For 24/7 use a disclosed ~730-hour planning month; for windows use the approved schedule and actual teardown logs. Record **monthly** totals separately from the historical **six-week** ADR-0020 estimates. No prices, savings percentages, or shareable calculator URL have yet been verified.
+
+**Required proof:** dated shareable AWS Pricing Calculator estimate in `us-east-1`, two fully priced totals, Terraform SKU inventory snapshot, assumptions and currency. Cost Explorer actuals are a separate post-execution reconciliation, not a substitute for the estimate.
+
+### Budget/SNS test — CA3
+
+**Owner Julián, prior authorization required.** (1) Agree a maximum USD budget and notification recipient privately. (2) Create a monthly cost budget with actual and forecast thresholds and SNS topic/email subscription as supported by the account. (3) Confirm the email subscription; inspect the topic policy so AWS Budgets can publish. (4) Conduct an authorized **SNS test publish** and retain a redacted received email plus timestamp; **this proves SNS delivery only**. (5) Independently retain evidence that AWS Budgets is configured to notify this topic and, when an actual/forecast threshold event genuinely occurs, retain the Budgets-originated email. **CA3 requires the end-to-end Budgets → SNS → email event**; an SNS-only test must not be marked CA3 passed. Do not force costs to trigger a budget alert.
+
+### Tag verification — CA4
+
+Terraform must consistently use the Jira-mandated value `Project=sonoraplay` (lowercase), not `Project=SonoraPlay`, and a team-approved `Owner` value. Configure provider `default_tags` for supported resources and explicit tags for resources not covered; inventory any untaggable AWS resources separately. After an approved deployment, verify actual resource tags with AWS resource tagging APIs/console and activate both user-defined cost allocation tags in Billing where supported. **Tags on a resource are not proof that Cost Explorer can yet allocate its costs**; activation and billing-data lag must be documented. Do not commit personal email addresses or account IDs.
+
+### Approval and audit fields
+
+| Gate | Evidence to attach | Approver | State |
+|---|---|---|---|
+| Budget maximum and test window | written approval and scope | Julián | PENDING |
+| CA1/CA2 priced comparison | calculator URL, rates, inventory, dated monthly totals | Julián / María Clara | PENDING |
+| CA3 end-to-end alarm | Budget settings, SNS topic/subscription, redacted Budgets-originated email | Julián | PENDING |
+| CA4 tags | Terraform diff, resource inspection, activated cost allocation tags | Julián | PENDING |
+| CA5 docs | PR #7 review + merged architecture backlink | reviewer | IN DRAFT |
+
+## Lista correctiva v2 (Español) — EG-32
+
+**La historia continúa abierta.** Se agrega una plantilla verificable, no una cotización ni una alarma ejecutada.
+
+**CA1/CA2:** cotizar el **mismo inventario Terraform** en dos escenarios mensuales, indicando por servicio región, SKU, cantidad, precio unitario con fecha y fuente, horas, almacenamiento, solicitudes, transferencia, otros cargos y total. La tabla anterior tiene valores **PENDING** hasta obtener una cotización compartible de AWS Pricing Calculator. Los costos persistentes (almacenamiento, IPv4, copias y logs) pueden seguir existiendo cuando las instancias están apagadas. No convertir los presupuestos históricos de seis semanas en facturas mensuales. EKS se cotiza por separado.
+
+**CA3:** Julián aprueba el límite y configura AWS Budget, SNS y la suscripción de correo. Una publicación de prueba en SNS **solo verifica el transporte de correo**, no demuestra que AWS Budgets dispare la alerta. Para aceptar CA3 se necesita evidencia real del recorrido **Budgets → SNS → correo** cuando ocurra el umbral, sin gastar deliberadamente para forzarlo.
+
+**CA4:** usar `Project=sonoraplay` exactamente como exige EG-26 y `Owner` con valor aprobado; verificar etiquetas en recursos desplegados y su activación en Billing/Cost Explorer. Etiquetar Terraform por sí solo no demuestra atribución de costos.
+
+**CA5:** la documentación y el enlace arquitectónico están en el PR #7, pero siguen sujetos a revisión/fusión. No declarar EG-32 completada hasta contar con las pruebas y aprobaciones registradas.
