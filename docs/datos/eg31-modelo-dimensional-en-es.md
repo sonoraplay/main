@@ -71,3 +71,48 @@ erDiagram
 - **Control:** reconciliar eventos Silver/Gold, totales de regalías con `reporte_regalias` y referencias a liquidaciones publicadas.
 
 **Pendiente para cerrar EG-31:** aprobación del diseño, materialización de tablas, validación de integridad y consultas sobre datos reales. Las cinco condiciones de Jira quedan descritas como diseño, no como ejecución comprobada.
+
+
+## Traceability and delivery sequence / Trazabilidad y secuencia de entrega
+
+| Requirement / Requisito | Source → transformation → destination / Fuente → transformación → destino | Verification / Verificación | Owner / Responsable |
+|---|---|---|---|
+| EG-31 CA1; F2, RN-01/02/03/04 | F2 JSON → EG-29/33 Bronze → EG-35/36 Silver → `fact_plays` Gold | one event_id per play; all eight dimensions linked or explicit unknown member | María Clara |
+| EG-31 CA2; RF-09, EG-23 | F3 subscriptions + F4 contracts + F5/F6/F7 → EG-37 settlement → `fact_settlement` + `reporte_regalias` | holder × billing country × month × version reconciliation; original/adjustment immutable | Andrea / María Clara |
+| EG-31 CA3; RNF-03 | `fact_plays.event_id` → `bridge_play_settlement` → `liquidaciones.liquidacion_id` | valid paid events reference published settlement; invalid events have null settlement_id | María Clara / Andrea |
+| EG-31 CA4; ADR-0014, EG-26/33 | RabbitMQ → S3 Bronze → Spark Silver → Spark Gold | Parquet partitions by year/month/country; rerun stable counts; S3 encrypted/private | Julián / Andrea / María Clara |
+| EG-31 CA5; RN-09, EG-42/44 | F3 subscription states + F2 valid sessions → Gold cohort and engagement marts → Power BI | sample cohort churn and hours/tracks per session match hand-calculated values | María Clara |
+| EG-32 CA1/2; E-07 | EG-26 Terraform inventory → AWS Pricing Calculator → 24/7 vs test windows | exported shareable estimate + priced per-service assumptions | María Clara / Julián |
+| EG-32 CA3/4/5; E-07 | AWS Budget/SNS + Terraform Project/Owner tags → Cost Explorer → `docs/costos/` | test notification, verified tags and architecture link | Julián / María Clara |
+
+**Implementation order / Orden:** EG-26 and EG-29 unblock EG-33; EG-30 and EG-31 define source and analytical contracts; EG-33 feeds EG-35; EG-35 and EG-36 feed EG-37; EG-37 feeds EG-38 and EG-45; EG-42/43 feed EG-44. EG-32 controls AWS spending across every infrastructure step.
+
+### Executable verification contract / Contrato de verificación ejecutable
+
+The following are **checks to implement in EG-35/37**, not claims of passed tests:
+
+```sql
+-- CA1: no duplicated source play after replay
+SELECT event_id, COUNT(*) FROM fact_plays GROUP BY event_id HAVING COUNT(*) > 1;
+
+-- CA3: rejected plays are never paid
+SELECT event_id FROM fact_plays
+WHERE validity_status = 'invalid' AND settlement_id IS NOT NULL;
+
+-- CA3: every settlement referenced by a paid play exists and is published
+SELECT p.event_id FROM fact_plays p
+LEFT JOIN liquidaciones l ON l.liquidacion_id = p.settlement_id
+WHERE p.settlement_id IS NOT NULL AND (l.liquidacion_id IS NULL OR l.publicada_en IS NULL);
+
+-- CA2: settlement detail must have a version and recognized type
+SELECT settlement_id FROM fact_settlement
+WHERE settlement_version IS NULL OR settlement_type NOT IN ('original', 'adjustment');
+```
+
+**Important:** SQL is conceptual and assumes future Gold tables exist in a SQL-accessible catalog; do not execute against the current PostgreSQL reporting schema as-is. Its existing tables are `liquidaciones` and `reporte_regalias`, not the proposed Gold facts.
+
+### Evidencia y consecutividad
+
+Los criterios de EG-31 se consideran **diseñados y trazados**, pero solo estarán **aceptados** cuando exista ejecución de Spark/Parquet y pruebas reproducibles. No confundir el esquema de reportes de PostgreSQL (`db/ddl/003_reportes_regalias.sql`) con el esquema analítico Gold. EG-37 debe publicar versiones de liquidación sin sobrescribirlas, y EG-45 debe conciliar la salida de Gold con la API.
+
+Los controles SQL anteriores son **contratos de prueba pendientes de implementación**; no son resultados de pruebas reales. Las dependencias siguen el orden de historias y evitan marcar EG-31 como terminada antes de integrar sus consumidores.
