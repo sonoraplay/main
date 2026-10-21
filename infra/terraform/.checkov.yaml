@@ -30,6 +30,17 @@ skip-check:
   - CKV_AWS_293  # Protección contra borrado de RDS: impediría el destroy limpio; se activa con destruccion_limpia=false
   - CKV_AWS_161  # Autenticación IAM en RDS: las credenciales viven en SSM (criterio 5); se evalúa en HU 18
   - CKV_AWS_88   # IP pública en la NAT: una instancia NAT la necesita para salir a internet (ADR-0010)
-  - CKV_AWS_260  # Puerto 80 abierto en el ALB: solo redirige a 443 (arquitectura v1, sección 3)
+  - CKV_AWS_260  # Puerto 80 abierto en el ALB: redirige a 443 con certificado; sin dominio sirve HTTP en las ventanas (ADR-0012)
   - CKV2_AWS_34  # Parámetros String de RDS: host, puerto, base y usuario no son secretos; la contraseña es SecureString
   - CKV_AWS_394  # Fijar AZ por ID: se usan siempre las 2 primeras AZ disponibles de la región
+
+  # --- EG-27 · ECS Fargate, ALB y ECR (ADR-0012) ---
+  - CKV_AWS_65   # Container Insights: costo extra por métrica; bastan los logs y las métricas básicas de ECS
+  - CKV_AWS_158  # KMS CMK en CloudWatch Logs: los logs ya se cifran con la clave de AWS; una CMK cuesta 1 USD/mes
+  - CKV_AWS_338  # Retención de 1 año: el criterio 5 de la EG-27 pide 7 días; el entorno se destruye por ventana
+  - CKV_AWS_136  # KMS CMK en ECR: AES256 cifra sin costo; las imágenes se regeneran desde el commit
+  - CKV_AWS_91   # Access logs del ALB: bucket y costo extra; los logs de la API quedan en CloudWatch
+  - CKV_AWS_150  # Protección contra borrado del ALB: impediría el destroy de cada ventana (ADR-0020)
+  - CKV2_AWS_28  # WAF: ≈ 5 USD/mes + reglas; la API ya exige JWT y aísla por titular (ADR-0006)
+  - CKV_AWS_2    # Listener HTTP: sin dominio no hay certificado de ACM; con certificado_acm_arn el 80 solo redirige a 443
+  - CKV_AWS_378  # Target group HTTP: el TLS termina en el ALB; el tramo ALB → tarea va dentro de la VPC

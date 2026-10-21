@@ -19,7 +19,7 @@
 | [0009](0009-region-aws.md) | Región AWS: us-east-1 (frente a sa-east-1 y us-east-2) | 17 | EG-26 | S3 | Andrea | Tema 5, costos, HU 23 |🟢 |
 | [0010](0010-instancia-nat.md) | Salida a internet: instancia NAT t4g.nano frente a NAT Gateway | 17 | EG-26 | S3 | Andrea | Tema 6, costos |🟢 |
 | [0011](0011-terraform.md) | Infraestructura como código con Terraform, estado en S3 con bloqueo nativo (frente a scripts CLI y CloudFormation) | 17 | EG-26 | S3 | Andrea | E-06, E-12 |🟢 |
-| 0012 | Cómputo de servicios y jobs: Fargate On-Demand, Fargate Spot y ARM64 | 18 | EG-27 | S3 | Andrea | Temas 8–9 y 16 | ⚪ |
+| [0012](0012-fargate-on-demand-spot-arm64.md) | Cómputo en Fargate ARM64: On-Demand para las APIs y Spot para simulador, consumidor y Spark | 18 | EG-27 | S3 | Andrea | Temas 8–9 y 16 | 🟡 |
 | 0013 | RabbitMQ en EC2 frente a Amazon MQ | 20 | EG-29 | S3 | Andrea | RNF-04, tema 10 | ⚪ |
 | 0014 | Formato y particionamiento del Data Lake (Parquet por año/mes/país) | 22 | EG-31 | S3 | María Clara | RNF-03, tema 15 | ⚪ |
 | 0015 | Airflow en EC2 con CeleryExecutor frente a MWAA | 25 | EG-34 | S4 | Joshua | Temas 11–12 | ⚪ |
