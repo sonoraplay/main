@@ -9,7 +9,9 @@ title: "EG-29 · Mensajería F2 con RabbitMQ / F2 messaging with RabbitMQ"
 Los eventos de reproducción (F2) viajan del productor a Bronze por RabbitMQ sin perder ninguno (RNF-04). Esta primera entrega cubre el productor, el consumidor, la DLQ y la **prueba de reinicio del consumidor**. La decisión de broker y topología queda para el ADR-0013.
 
 - **Código:** `src/sonoraplay/streaming/` (`config.py`, `topologia.py`, `productor.py`, `consumidor.py`, `bronze.py`, `prueba_reinicio.py`, `prueba_reinicio_broker.py`).
-- **Pruebas:** `tests/streaming/`. La de integración se salta si no hay `RABBITMQ_URL` (por eso la CI no necesita RabbitMQ).
+- **Pruebas:** `tests/streaming/`. Las dos de integración (reinicio del consumidor y del broker) necesitan `RABBITMQ_URL` y `RABBITMQ_REINICIO`; sin ellas se saltan. La CI levanta RabbitMQ 4.1.8 como servicio y las corre en cada PR.
+- **`.env`:** copia de `.env.example` las variables `RABBITMQ_USER`, `RABBITMQ_PASSWORD` y `RABBITMQ_URL` (con la misma contraseña). Sin `RABBITMQ_PASSWORD`, `docker compose` no arranca.
+- **Las pruebas no tocan `eventos.f2`:** usan sus propias colas (`prueba.eventos.f2` por defecto, o `--cola`) porque las vacían al empezar.
 - **Docker:** servicio `rabbitmq` (`rabbitmq:4.1.8-management-alpine`), volumen `rabbitmq-datos`, consola en `http://localhost:15672`.
 
 ### Cómo no se pierde ningún evento
@@ -76,7 +78,7 @@ Con los 100 eventos del simulador (semilla 42) que produjo la corrida del esquel
 
 - **A · Cola llena:** 101 mensajes antes y 101 después del reinicio. Las colas durables y los mensajes persistentes sobreviven al broker.
 - **B · A mitad del consumo:** el consumidor pierde la conexión (`CONNECTION_FORCED … shutdown`) y termina con código 1. En AWS, ECS lo reinicia. 35 + 67 = 102: un mensaje ya estaba en Bronze pero su ACK no llegó antes del corte. RabbitMQ lo reentregó y la deduplicación por `event_id` lo descartó, así que Bronze quedó con **0 duplicados**. Es la entrega «al menos una vez» de ADR-0004 funcionando.
-- `pytest tests/streaming` con `RABBITMQ_URL` y `RABBITMQ_REINICIO="docker restart sonoraplay-rabbitmq"`: **22 passed**. Sin esas variables, las dos pruebas de integración se saltan, por eso la CI no necesita RabbitMQ.
+- `pytest tests/streaming` con `RABBITMQ_URL` y `RABBITMQ_REINICIO="docker restart sonoraplay-rabbitmq"`: **22 passed**. En la CI corren contra el servicio `rabbitmq` del job.
 - Decisión de dónde corre el broker en AWS: [ADR-0013](../adr/0013-rabbitmq-ec2-frente-amazon-mq.md).
 
 ### Pendiente en la EG-29

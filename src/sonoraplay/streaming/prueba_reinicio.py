@@ -24,6 +24,19 @@ from sonoraplay.streaming.config import StreamingConfig
 from sonoraplay.streaming.productor import publicar
 from sonoraplay.streaming.topologia import declarar
 
+# La prueba purga su cola al empezar: por defecto usa una propia, nunca eventos.f2 (revisión
+# del PR #5). El exchange es el mismo; la llave de enrutamiento separa los mensajes.
+COLA_DE_PRUEBA = "prueba.eventos.f2"
+
+
+def config_de_prueba(cola: str, bronze: Path) -> StreamingConfig:
+    base = StreamingConfig.desde_entorno()
+    if cola == base.cola:
+        print(f"AVISO: la prueba va a vaciar la cola real {cola}.", flush=True)
+    return dataclasses.replace(
+        base, cola=cola, cola_dlq=f"{cola}.dlq", llave=cola, destino_bronze=bronze
+    )
+
 
 def _contar_lineas(ruta: Path) -> int:
     return len(ruta.read_bytes().splitlines()) if ruta.exists() else 0
@@ -129,9 +142,14 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--bronze", type=Path, default=Path("data/bronze/prueba_reinicio/f2.jsonl"))
     p.add_argument("--cortar-en", type=int, default=0, help="Por defecto, un tercio de la carga")
     p.add_argument("--retraso-ms", type=int, default=50)
+    p.add_argument(
+        "--cola",
+        default=COLA_DE_PRUEBA,
+        help="Cola de la prueba (se vacía al empezar); nunca la de producción por defecto",
+    )
     a = p.parse_args(argv)
     eventos = [ln for ln in a.entrada.read_text(encoding="utf-8").splitlines() if ln.strip()]
-    cfg = dataclasses.replace(StreamingConfig.desde_entorno(), destino_bronze=a.bronze)
+    cfg = config_de_prueba(a.cola, a.bronze)
     r = ejecutar(cfg, eventos, a.cortar_en or max(1, len(eventos) // 3), a.retraso_ms)
     sys.exit(0 if r["resultado"] == "OK" else 1)
 

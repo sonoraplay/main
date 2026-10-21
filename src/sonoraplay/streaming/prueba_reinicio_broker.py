@@ -16,7 +16,6 @@ en la DLQ. Necesita RabbitMQ y permiso para reiniciarlo (por defecto
 """
 
 import argparse
-import dataclasses
 import json
 import shlex
 import subprocess
@@ -27,9 +26,11 @@ from pathlib import Path
 from sonoraplay.streaming.config import StreamingConfig
 from sonoraplay.streaming.productor import publicar
 from sonoraplay.streaming.prueba_reinicio import (
+    COLA_DE_PRUEBA,
     _consumidor,
     _contar_lineas,
     _profundidad,
+    config_de_prueba,
     preparar,
 )
 
@@ -138,9 +139,14 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--reinicio", default=REINICIO_POR_DEFECTO, help="Comando que reinicia RabbitMQ")
     p.add_argument("--cortar-en", type=int, default=0, help="Por defecto, un tercio de la carga")
     p.add_argument("--retraso-ms", type=int, default=50)
+    p.add_argument(
+        "--cola",
+        default=COLA_DE_PRUEBA,
+        help="Cola de la prueba (se vacía al empezar); nunca la de producción por defecto",
+    )
     a = p.parse_args(argv)
     eventos = [ln for ln in a.entrada.read_text(encoding="utf-8").splitlines() if ln.strip()]
-    cfg = dataclasses.replace(StreamingConfig.desde_entorno(), destino_bronze=a.bronze)
+    cfg = config_de_prueba(a.cola, a.bronze)
     r = ejecutar(cfg, eventos, a.reinicio, a.cortar_en or max(1, len(eventos) // 3), a.retraso_ms)
     sys.exit(0 if r["resultado"] == "OK" else 1)
 
