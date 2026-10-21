@@ -96,3 +96,12 @@ Hay que fijar dos cosas: el contrato del evento (campos, tipos, formato de fecha
 - RabbitMQ, confirmaciones y garantías de entrega: https://www.rabbitmq.com/docs/reliability
 - [ADR-0002](0002-zona-horaria-dia-mes.md) (UTC) y [ADR-0005](0005-umbrales-granjas.md) (`Reproduccion` de RN-03).
 - Supuestos de negocio: [ambiguedades-rn.md](../analisis/ambiguedades-rn.md) (Q1, Q4, Q6).
+
+
+---
+
+## English — Decision summary
+
+**Accepted (October 7, 2026; EG-15).** Deduplicate F2 events by the device-generated `event_id`, preserving the earliest `server_ts`. Ingestion and Silver both enforce deduplication, including the previous month for late offline arrivals. `device_ts` and API-generated `server_ts` are required UTC timestamps ending in `Z`. The schema is closed (`additionalProperties: false`), all fields are mandatory, and `schema_version` is `1.0`. A seek is encoded as `pause` plus `resume`; listened duration is reconstructed from positions and timestamps.
+
+**Traceability:** The original Spanish sections above remain the full decision record, including context, options, consequences, and acceptance criteria. This English summary does not change the ADR status or introduce a new decision.

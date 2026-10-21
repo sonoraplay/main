@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | Propuesto |
+| Estado | Aceptado |
 | Fecha | 2026-10-13 |
 | Historia que lo origina | HU 14 · EG-23 |
 | Responsable | Andrea Zárate y María Clara Manjarrés |
-| Revisó | Pendiente (revisor del PR) |
+| Revisó | Joshua — aprobado el 2026-10-13, validado en la práctica por el esqueleto de la EG-24 (PR #25) |
 | Referencias | RN-05, RN-06, RN-08, RN-10, RNF-02, EG-11 Q5 / Q6 / Q7 / Q8, ADR-0002, ADR-0007 |
 
 ## 1. Contexto
@@ -122,6 +122,7 @@ En `tests/reglas/test_liquidacion.py`:
   - `test_conversion_rechaza_tasa_de_otra_fecha_o_moneda`;
   - `test_ultimo_dia_del_mes`, con un año bisiesto.
 - **Precedencia (RN-08, Q7):** `test_paridad_con_elegir_condicion` (20 combinaciones de país y día) comprueba que la liquidación elige la misma condición que la API de contratos (EG-20).
+- **De punta a punta (EG-24):** `tests/esqueleto/test_calculo_a_mano.py::test_regalia_coincide_con_el_calculo_a_mano` liquida 100 eventos simulados contra PostgreSQL y recalcula a mano la bolsa del país de facturación (52 % de los pagos aprobados + 45 % de la publicidad), con un denominador por componente (± 0,01).
 - **Cuando el docente responda Q8:** se actualiza [ambiguedades-rn.md](../analisis/ambiguedades-rn.md) y, si cambia, este ADR.
 
 ## 7. Fuentes
@@ -132,3 +133,12 @@ En `tests/reglas/test_liquidacion.py`:
 - [ADR-0002](0002-zona-horaria-dia-mes.md) (UTC), [ADR-0007](0007-cierre-mes-ajustes-reliquidacion.md) (cierre, ajustes y redondeo).
 - ISO 3166-1 alfa-2 (códigos de país): https://www.iso.org/iso-3166-country-codes.html
 - Python `decimal`: https://docs.python.org/3/library/decimal.html
+
+
+---
+
+## English — Decision summary
+
+**Accepted (October 13, 2026; EG-23).** The revenue pool country is the **F3 billing country**, not playback country; family members inherit the family account holder's billing country. A missing billing country is a data-quality error, not a reason to invent a country. Each approved subscription payment counts once. The pool has **two components**: 52% of net subscription revenue and 45% of advertising revenue, with separate eligible-play denominators (paid-plan plays versus free-plan plays). Advertising revenue is converted to USD using the monthly closing exchange rate; territorial exclusions still use playback country.
+
+**Traceability:** The original Spanish sections above remain the full decision record, including context, options, consequences, and acceptance criteria. This English summary does not change the ADR status or introduce a new decision.

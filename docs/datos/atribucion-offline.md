@@ -81,3 +81,34 @@ Un ajuste se paga con la bolsa del mes en que se liquida, no con la de su mes re
 ## Seguimientos
 
 - La estrategia de corrección del reloj de las sesiones **offline** sigue abierta: hoy se confía en su `device_ts`. Si un dispositivo offline tiene el reloj mal, la escucha puede caer en otro mes; se puede detectar comparando con el `device_ts` y el `server_ts` de los eventos online del mismo dispositivo.
+
+
+---
+
+## English — Offline playback attribution (RN-04 · EG-22)
+
+This document specifies how an F2 playback is assigned to a settlement month. It complements the F2 session clock correction and the append-only closing policy in ADR-0007. **Code:** `src/sonoraplay/reglas/atribucion.py`; **configuration:** `AtribucionOfflineConfig`; **tests:** `tests/reglas/test_atribucion.py`, `test_reloj_sesion.py`, and `test_sesiones.py`. All dates and cutoffs are in UTC (ADR-0002).
+
+### Session clock correction
+
+`corregir_reloj_sesion` uses the median of `server_ts - device_ts` across the session. When the absolute offset exceeds the configured 60-second tolerance, the **same offset** is added to all session event timestamps, preserving continuous listening durations. Sessions containing any offline event are **not corrected**: their server timestamps may represent a later synchronization rather than playback time. `corregir_reloj_online` is the single-event variant; callers must explicitly pass `es_offline`.
+
+### Settlement month and cutoff
+
+`atribuir_reproduccion` returns `ResultadoAtribucion(mes_reproduccion, mes_liquidacion, tipo)`. Settlement month **M** closes on day 2 of **M+1** at 23:59 UTC, including the entire final minute.
+
+| Situation | Settlement month | Type |
+|---|---|---|
+| Online, or synchronized in playback month | Playback month | `normal` |
+| Offline synchronized by the next month's day-2 cutoff | Playback month | `normal` |
+| Offline synchronized after that cutoff | First settlement month still open | `ajuste` |
+
+For a late adjustment synchronized in month **S**, the first open settlement is **S−1** if synchronization is within S's day-2 cutoff; otherwise it is **S**. It is never earlier than the month following playback.
+
+**September 28 playback examples:** synchronized October 2 at 23:59:59 → September (`normal`); October 3 or 4 → October (`ajuste`); November 1 → October (`ajuste`, still open); November 3 → November (`ajuste`). A December 28 playback synchronized February 1 is attributed to January.
+
+A late adjustment is paid from the revenue pool of the **settlement month**, not the original playback month. This pure function does not reopen or modify a published settlement.
+
+### Open limitation
+
+Offline sessions currently trust the device timestamp. If the offline device clock is wrong, playback may be attributed to the wrong month; future detection may compare online events from the same device. This is an identified limitation, not a resolved behavior.

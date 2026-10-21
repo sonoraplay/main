@@ -58,3 +58,41 @@ erDiagram
 1. El volumen es un objetivo: la última familia puede sumar hasta 5 usuarios extra.
 2. Otra semilla sobre una base cargada agrega un segundo conjunto de datos aparte.
 3. Cambiar la tasa de defectos exige base vacía (`docker compose down -v`), porque las filas existentes no se actualizan.
+
+
+---
+
+## English — F3 subscription model (HU 04 · EG-13)
+
+F3 is a PostgreSQL source containing users, plans, family groups, subscription periods, and payments. It supports RN-05 (country revenue pool), RN-09 (churn), and RN-10 (one family account produces one payment). The ER diagram and table/column identifiers above are shared by both languages.
+
+### Relationships and business rules
+
+- A user can have several historical subscription periods, but only one active period; `ux_suscripcion_activa` enforces this with a partial unique index.
+- A family plan belongs to its account holder and has a single subscription and payment. Other family members are users and group members, but do not hold separate subscriptions (RN-10).
+- When the family is canceled or not renewed, member termination dates follow the holder's termination date, or the member's joining date if later.
+- A plan change closes the previous period with `motivo_fin = 'cambio_plan'` and is **not churn**. Cancellation and non-renewal count as churn (RN-09).
+- `seed_defectos` records deliberately injected data-quality defects.
+
+### Assumed plans
+
+| Plan | ID | USD/month | Maximum members | Share of slots |
+|---|---:|---:|---:|---:|
+| free | 1 | 0.00 | 1 | 45% |
+| individual | 2 | 5.99 | 1 | 30% |
+| familiar | 3 | 9.99 | 6 | 10% |
+| estudiante | 4 | 2.99 | 1 | 15% |
+
+These are **simulation assumptions**, not actual market prices.
+
+### Reproducibility and constraints
+
+- Primary keys use deterministic UUID5 values derived from the seed, entity, and index. `ON CONFLICT DO NOTHING` avoids duplicate inserts on a repeated seed run.
+- A separate `random.Random(f"{semilla}:slot:{i}")` per slot prevents changes to other slots when volume or defect rate changes.
+- The fixed reference date is `2026-09-30`; using the current time would break reproducibility.
+- The `trg_max_6_miembros` trigger enforces the six-member maximum; a row-level `CHECK` cannot count related rows.
+- Injected defects use a separate random generator and are recorded in `seed_defectos`.
+
+### Open question and operational limitations
+
+Whether downgrading a paid plan to `free` counts as churn remains unresolved; the seed avoids this case and only generates paid-to-paid and free-to-individual changes. The final family may add up to five extra users beyond the requested volume. A different seed adds another dataset. Changing the defect rate requires a fresh database (`docker compose down -v`) because existing rows are not rewritten.
