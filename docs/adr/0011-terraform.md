@@ -100,3 +100,11 @@ Cómo queda organizado (`infra/terraform/`):
 - Proveedor AWS, `aws_db_instance` (`password_wo`): https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/db_instance
 - Checkov: https://www.checkov.io/
 - [ADR-0001](0001-arquitectura-base-aws.md), [ADR-0020](0020-ventanas-encendido-aws.md).
+
+---
+
+## English — Decision summary
+
+**Proposed (October 14, 2026; EG-26).** Infrastructure is code with **Terraform ≥ 1.11** and the `hashicorp/aws` 6.x provider. It is the only option with both a state-based `destroy` (protects against the −10 % penalty for leftover resources) and secrets kept out of the state through ephemeral resources and write-only attributes (protects against the −15 % penalty). State lives in a versioned, encrypted S3 bucket with native S3 locking (`use_lockfile`). A one-time `bootstrap/` stack creates that bucket, and the root stack is created and destroyed in each test window (ADR-0020). CI runs `fmt`, `validate` and Checkov.
+
+**Traceability:** The Spanish sections above are the full decision record. This summary introduces no new decision.

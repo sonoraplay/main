@@ -70,3 +70,11 @@ En Terraform la región es una variable (`var.region`, por defecto `us-east-1`) 
 - Precios de Amazon RDS para PostgreSQL: https://aws.amazon.com/rds/postgresql/pricing/
 - AWS Pricing Calculator: https://calculator.aws/
 - [ADR-0001](0001-arquitectura-base-aws.md), [ADR-0020](0020-ventanas-encendido-aws.md) y la [arquitectura v1](../arquitectura/arquitectura-v1.md).
+
+---
+
+## English — Decision summary
+
+**Proposed (October 14, 2026; EG-26).** The project runs in **us-east-1**: it is the cheapest region that offers every service in the architecture, and it keeps the HU 23 cost estimate valid. The extra latency from Latin America does not matter for batch jobs or for an API that serves monthly reports. The region is a Terraform variable (`var.region`) and never appears hard-coded in names or ARNs.
+
+**Traceability:** The Spanish sections above are the full decision record. This summary introduces no new decision.

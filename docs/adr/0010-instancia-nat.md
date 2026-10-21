@@ -95,3 +95,11 @@ En cada ventana de prueba (ADR-0020), después de `terraform apply`:
 - Precios de Amazon VPC (NAT Gateway, IPv4 públicas, endpoints): https://aws.amazon.com/vpc/pricing/
 - Recuperación automática de instancias EC2: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-recover.html
 - [ADR-0001](0001-arquitectura-base-aws.md), [ADR-0009](0009-region-aws.md), [ADR-0020](0020-ventanas-encendido-aws.md).
+
+---
+
+## English — Decision summary
+
+**Proposed (October 14, 2026; EG-26).** Private subnets reach the internet through a **NAT instance** on ARM64, not a NAT Gateway: about one fifth of the cost for the project's low traffic (S3 goes through the free gateway endpoint). It has `source_dest_check = false`, iptables masquerading, no SSH (Session Manager only), IMDSv2, an encrypted disk, and a CloudWatch alarm that recovers the instance. While the account is on the AWS free plan, the type is `t4g.micro` instead of `t4g.nano` ([ADR-0022](0022-excepcion-plan-gratuito-rds-nat.md)).
+
+**Traceability:** The Spanish sections above are the full decision record. This summary introduces no new decision.
