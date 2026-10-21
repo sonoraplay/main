@@ -35,3 +35,20 @@ This file is a **traceability register**, not a claim of deployed AWS infrastruc
 **Review responsibility / Revisión:** María Clara prepares design and estimate; Julián approves ADRs, infrastructure and budget; Andrea validates API/Gold interface and ECS usage. **No Jira status change or PR merge is implied. / No implica cambio de estado en Jira ni fusión de PR.**
 
 GitHub: [PR #3](https://github.com/sonoraplay/main/pull/3), [PR #7](https://github.com/sonoraplay/main/pull/7). Jira: [EG-30](https://claram04.atlassian.net/browse/EG-30), [EG-31](https://claram04.atlassian.net/browse/EG-31), [EG-32](https://claram04.atlassian.net/browse/EG-32).
+
+
+## Corrective review 2026-10-21 / Revisión correctiva
+
+- **EG-31 CA1:** design v2 explicitly separates F2 message `event_id` from reconstructed `play_id`; Gold `fact_plays` is one row per play, not per message. **Design correction documented; EG-35 test pending.** / Se separan eventos y reproducciones; falta probar EG-35.
+- **EG-31 CA2:** `fact_settlement` reporting grain is holder × billing country × month × version, with `fact_settlement_detail` for component/contract percentage and `fact_country_pool` to avoid double-counting. **Review and EG-37 reconciliation pending.** / Grano corregido, conciliación pendiente.
+- **EG-31 CA3:** canonical `settlement_id` plus append-only play/settlement bridge, with explicit adjustment history. **Approval of canonical settlement policy and EG-37 execution pending.** / Falta aprobar la política de liquidación principal y ejecutarla.
+- **EG-31 CA4/5:** ADR-0014 and analytics contracts remain proposed; no real Parquet or churn/engagement test is claimed. / No hay prueba real de Parquet ni de analítica.
+- **EG-32 CA1/2:** same-inventory monthly price template added; all missing unit prices and AWS Calculator link remain `PENDING`. / Falta cotización real.
+- **EG-32 CA3:** distinguish SNS-only delivery test from required AWS Budgets-originated threshold email. **Neither is claimed passed.** / No confundir pruebas.
+- **EG-32 CA4:** correct required tag to `Project=sonoraplay` and verify `Owner`, actual resource tags, and Billing cost allocation activation. / Falta evidencia desplegada.
+- **EG-32 CA5:** documentation remains in draft PR #7. / Pendiente revisión/fusión.
+- **EG-30:** PR #3 and ADR-0021 remain separate review gates. Changing REST Countries to `mledoze/countries` requires formal source-contract approval, and month-end holiday/weekend behavior must be decided and tested. / EG-30 no está cerrada.
+
+**Dependencies / Dependencias:** EG-26 and EG-29 → EG-33 → EG-35/36 → EG-37 → EG-38/45; EG-30/23 feed EG-37; EG-31 contract review precedes Gold schema freeze; EG-32 budget authorization precedes any new AWS test. Jira issue links are not yet configured. / No hay vínculos de bloqueo en Jira verificados.
+
+**Acceptance rule / Regla:** a proposed schema, template, SQL snippet or procedure is not a passing integration test. / Un diseño o procedimiento no sustituye evidencia de ejecución.
