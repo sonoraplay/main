@@ -116,6 +116,78 @@ uv run --env-file .env python -m sonoraplay.esqueleto --periodo 2026-09 --pais C
 uv run --env-file .env python -m pytest tests/esqueleto -v
 ```
 
+## Evidencia: corrida desde cero (20 oct 2026) / Run from scratch (Oct 20, 2026)
+
+### Español
+
+Corrida en una Mac (Apple Silicon, Docker 29.6.1) con un clon nuevo de `develop` (`cf39c43`), sin imágenes ni volúmenes previos del proyecto. El `.env` salió de `.env.example`; las contraseñas y la clave JWT se generaron en la máquina y no aparecen aquí. `PG_PORT=5433` porque la máquina ya tenía un PostgreSQL en el 5432.
+
+```bash
+git clone https://github.com/sonoraplay/main.git && cd main && git checkout develop
+cp .env.example .env            # y cambiar POSTGRES_PASSWORD, DATABASE_URL y API_TITULARES_JWT_SECRET
+docker compose --profile esqueleto up --build -d
+docker compose --profile esqueleto logs esqueleto
+```
+
+**Estado final** (`docker compose ps -a`): `seed`, `simulador` y `esqueleto` terminan con `Exited (0)`; `postgres`, `api-contratos` y `api-titulares` quedan `healthy`.
+
+**Resumen del esqueleto** (extracto del log):
+
+```text
+== Esqueleto EG-24 · liquidación publicada
+ID de liquidación: e0b3730f-72d2-46d8-8cd1-e70be9037ba7
+Período: 2026-09   País de facturación: CO
+Eventos F2: 100   Reproducciones: 38   Ajustes de meses anteriores: 0
+Descartadas: duracion_insuficiente=4, tope_diario=1
+Pagables por país: AR=6, CL=4, CO=13, MX=2, PE=8
+Bolsa (USD): suscripción 1819.96 · publicidad 9000.00 (PROVISIONAL) · repartido 4926.88
+Filas por titular (4 titulares, 4 filas)
+Titular con mayor regalía: fb950a36-dd51-59f6-af5f-200916631894 (2340.00 USD)
+```
+
+**Consulta del sello** con su token (`docker compose exec api-titulares python -m sonoraplay.api_titulares.tokens --titular fb950a36-…`; el token no se publica):
+
+```json
+GET /me/reportes?periodo=2026-09  →  HTTP 200
+{
+  "titular_id": "fb950a36-dd51-59f6-af5f-200916631894",
+  "filas": [{ "periodo": "2026-09", "pais": "CO", "componente": "publicidad",
+              "reproducciones_validas": 1, "participacion": "0.500000",
+              "porcentaje_contractual": "52.00", "regalia_usd": "2340.00",
+              "liquidacion_id": "e0b3730f-72d2-46d8-8cd1-e70be9037ba7" }],
+  "totales": [{ "periodo": "2026-09", "pais": "CO", "reproducciones_validas": 1,
+                "regalia_usd": "2340.00",
+                "liquidacion_id": "e0b3730f-72d2-46d8-8cd1-e70be9037ba7" }]
+}
+```
+
+- Con el token de otro titular (`d3aee405-…`) la misma URL devuelve **solo su fila** (89.35 USD), no la del primero.
+- Sin token: `HTTP 401 {"detail": "Falta el token de acceso"}`.
+
+**Re-ejecución (21 oct).** `docker compose --profile esqueleto start` vuelve a correr el esqueleto, que publica una segunda liquidación del mismo período (`302bccfb-0ac3-4574-bf70-4c00eaedad78`). `reporte_regalias` queda con las dos (append-only, 4 filas cada una), y la API devuelve **solo la última**, con el mismo monto (2340.00 USD): la re-liquidación no duplica regalías (ADR-0007). Para reanudar sin publicar otra vez, usa `docker compose start postgres api-contratos api-titulares`.
+
+**Pruebas:** `uv run --env-file .env python -m pytest tests/esqueleto -v` → **23 passed**, incluida `test_calculo_a_mano.py` (criterio 3).
+
+| Criterio | Resultado |
+|---|---|
+| 1 · Un comando, 100 eventos hasta la base | ✅ 100 eventos, liquidación `e0b3730f…` publicada |
+| 2 · El sello consulta con su token | ✅ HTTP 200 con su token; 401 sin token; aislamiento entre sellos |
+| 3 · Cálculo a mano (± 0,01 USD) | ✅ `test_calculo_a_mano.py` |
+| 4 · ID de liquidación y reproducciones (RNF-03) | ✅ `liquidacion_id` y `reproducciones_validas` en filas y totales |
+| 5 · Corre en otra máquina con el README | ✅ clon nuevo, sin imágenes ni volúmenes previos, siguiendo solo el README y esta guía |
+
+### English
+
+Run on a Mac (Apple Silicon, Docker 29.6.1) from a fresh clone of `develop` (`cf39c43`), with no previous project images or volumes. `.env` came from `.env.example`; passwords and the JWT key were generated locally and are not shown. `PG_PORT=5433` because the machine already had PostgreSQL on 5432.
+
+- `docker compose --profile esqueleto up --build -d`: `seed`, `simulador` and `esqueleto` exit 0; `postgres` and both APIs stay healthy.
+- The skeleton read **100 F2 events**, built 38 plays (4 too short, 1 over the daily cap), and published settlement `e0b3730f-72d2-46d8-8cd1-e70be9037ba7` for CO, 2026-09, with 4 rows for 4 rights holders.
+- `GET /me/reportes?periodo=2026-09` with the top rights holder's token returns HTTP 200 with `liquidacion_id`, `reproducciones_validas: 1` and `regalia_usd: 2340.00`. Another holder's token returns only its own row; no token returns 401.
+- `pytest tests/esqueleto`: **23 passed**, including the hand-calculation test.
+- Re-run (Oct 21): `docker compose --profile esqueleto start` runs the skeleton again and publishes a second settlement for the same period (`302bccfb…`). Both stay in `reporte_regalias` (append-only), and the API returns **only the latest**, with the same amount: re-settling does not duplicate royalties (ADR-0007). To resume without publishing again, start only `postgres api-contratos api-titulares`.
+
+All five EG-24 acceptance criteria are met (see the table above).
+
 ## Seguimientos
 
 - Tabla de incidentes (RN-08) y persistencia desde el esqueleto y la EG-37.
