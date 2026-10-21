@@ -1,4 +1,8 @@
-"""F7: validación de países y monedas según REST Countries."""
+"""F7: validación de países y monedas.
+
+Fuente (ADR-0021): dataset público ``mledoze/countries``, licencia ODbL 1.0, fijado a un commit.
+Atribución: https://github.com/mledoze/countries . Cambiar el commit solo con revisión.
+"""
 
 REST_COUNTRIES = "https://raw.githubusercontent.com/mledoze/countries/c2ac0049c14edcf2436c7aa1b2493222a020b462/countries.json"
 

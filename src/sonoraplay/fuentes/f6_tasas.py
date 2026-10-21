@@ -7,12 +7,21 @@ from sonoraplay.fuentes.f5_publicidad import PAIS_MONEDA
 
 FRANKFURTER = "https://api.frankfurter.dev/v2/rates"
 MONEDAS = tuple(PAIS_MONEDA.values())
+# ADR-0021: la cotización de cierre no puede ser más vieja que esto (fin de semana o festivo).
+MAX_ANTIGUEDAD_DIAS = 5
 
 
 def validar_tasas(
-    datos: object, monedas: tuple[str, ...] = MONEDAS, cierre: date | None = None
+    datos: object,
+    monedas: tuple[str, ...] = MONEDAS,
+    cierre: date | None = None,
+    max_antiguedad_dias: int = MAX_ANTIGUEDAD_DIAS,
 ) -> list[dict]:
-    """Normaliza Frankfurter v2; conserva fecha real y fecha de cierre UTC."""
+    """Normaliza Frankfurter v2; conserva fecha real y fecha de cierre UTC.
+
+    Toma, por moneda, la última cotización del mes anterior o igual al cierre. Si es más
+    antigua que ``max_antiguedad_dias`` días corridos, falla en lugar de aceptarla (ADR-0021).
+    """
     if not isinstance(datos, list):
         raise ValueError("Respuesta F6 inválida: se esperaba lista v2")
     if cierre is None:
@@ -45,6 +54,16 @@ def validar_tasas(
     faltantes = sorted(set(monedas) - set(por_moneda))
     if faltantes:
         raise ValueError(f"F6 sin cobertura para: {', '.join(faltantes)}")
+    viejas = sorted(
+        f"{moneda} ({fila['fecha_observacion']})"
+        for moneda, fila in por_moneda.items()
+        if (cierre - date.fromisoformat(fila["fecha_observacion"])).days > max_antiguedad_dias
+    )
+    if viejas:
+        raise ValueError(
+            f"F6 con cotización de más de {max_antiguedad_dias} días antes del cierre "
+            f"{cierre.isoformat()}: {', '.join(viejas)}"
+        )
     return [por_moneda[moneda] for moneda in monedas]
 
 
