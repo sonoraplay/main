@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | Propuesto |
+| Estado | Aceptado |
 | Fecha | 2026-10-14 |
 | Historia que lo origina | HU 17 · EG-26 |
 | Responsable | Andrea Zárate |
-| Revisó | Pendiente (revisor del PR) |
+| Revisó | Julián: aprobó el [PR #8](https://github.com/sonoraplay/main/pull/8) el 2026-10-21 |
 | Referencias | E-06, E-12, temas 5–7, ADR-0001, ADR-0017, ADR-0020, penalizaciones de −10 % (infraestructura sin destruir) y −15 % (credencial expuesta) |
 
 ## 1. Contexto
@@ -105,6 +105,6 @@ Cómo queda organizado (`infra/terraform/`):
 
 ## English — Decision summary
 
-**Proposed (October 14, 2026; EG-26).** Infrastructure is code with **Terraform ≥ 1.11** and the `hashicorp/aws` 6.x provider. It is the only option with both a state-based `destroy` (protects against the −10 % penalty for leftover resources) and secrets kept out of the state through ephemeral resources and write-only attributes (protects against the −15 % penalty). State lives in a versioned, encrypted S3 bucket with native S3 locking (`use_lockfile`). A one-time `bootstrap/` stack creates that bucket, and the root stack is created and destroyed in each test window (ADR-0020). CI runs `fmt`, `validate` and Checkov.
+**Accepted (proposed October 14, 2026; approved October 21, 2026 in PR #8; EG-26).** Infrastructure is code with **Terraform ≥ 1.11** and the `hashicorp/aws` 6.x provider. It is the only option with both a state-based `destroy` (protects against the −10 % penalty for leftover resources) and secrets kept out of the state through ephemeral resources and write-only attributes (protects against the −15 % penalty). State lives in a versioned, encrypted S3 bucket with native S3 locking (`use_lockfile`). A one-time `bootstrap/` stack creates that bucket, and the root stack is created and destroyed in each test window (ADR-0020). CI runs `fmt`, `validate` and Checkov.
 
 **Traceability:** The Spanish sections above are the full decision record. This summary introduces no new decision.

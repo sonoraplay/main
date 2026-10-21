@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | Propuesto |
+| Estado | Aceptado |
 | Fecha | 2026-10-14 |
 | Historia que lo origina | HU 17 · EG-26 |
 | Responsable | Andrea Zárate |
-| Revisó | Pendiente (revisor del PR) |
+| Revisó | Julián: aprobó el [PR #8](https://github.com/sonoraplay/main/pull/8) el 2026-10-21 |
 | Referencias | E-06, tema 5, ADR-0001, ADR-0020, arquitectura v1 (sección 7), HU 23 |
 
 ## 1. Contexto
@@ -75,6 +75,6 @@ En Terraform la región es una variable (`var.region`, por defecto `us-east-1`) 
 
 ## English — Decision summary
 
-**Proposed (October 14, 2026; EG-26).** The project runs in **us-east-1**: it is the cheapest region that offers every service in the architecture, and it keeps the HU 23 cost estimate valid. The extra latency from Latin America does not matter for batch jobs or for an API that serves monthly reports. The region is a Terraform variable (`var.region`) and never appears hard-coded in names or ARNs.
+**Accepted (proposed October 14, 2026; approved October 21, 2026 in PR #8; EG-26).** The project runs in **us-east-1**: it is the cheapest region that offers every service in the architecture, and it keeps the HU 23 cost estimate valid. The extra latency from Latin America does not matter for batch jobs or for an API that serves monthly reports. The region is a Terraform variable (`var.region`) and never appears hard-coded in names or ARNs.
 
 **Traceability:** The Spanish sections above are the full decision record. This summary introduces no new decision.

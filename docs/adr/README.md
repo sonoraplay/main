@@ -16,9 +16,9 @@
 | [0006](0006-autenticacion-aislamiento-sellos.md) | Autenticación de sellos con JWT HS256 y aislamiento entre titulares (403 antes de leer la base) | 12 | EG-21 | S2 | Andrea | RN-11, CA-08, RF-05 | 🟢 |
 | [0007](0007-cierre-mes-ajustes-reliquidacion.md) | Cierre de mes append-only, ajustes en la liquidación siguiente y redondeo por mayor residuo | 14 | EG-23 | S2 | Andrea y María Clara | RF-09, CA-07, RNF-02 | 🟢 |
 | [0008](0008-pais-bolsa-dos-componentes.md) | País que define la bolsa (facturación) y bolsa de dos componentes con denominadores separados | 14 | EG-23 | S2 | Andrea y María Clara | RN-05, RN-06, RN-10, Q6, Q8 | 🟢 |
-| [0009](0009-region-aws.md) | Región AWS: us-east-1 (frente a sa-east-1 y us-east-2) | 17 | EG-26 | S3 | Andrea | Tema 5, costos, HU 23 | 🟡 |
-| [0010](0010-instancia-nat.md) | Salida a internet: instancia NAT t4g.nano frente a NAT Gateway | 17 | EG-26 | S3 | Andrea | Tema 6, costos | 🟡 |
-| [0011](0011-terraform.md) | Infraestructura como código con Terraform, estado en S3 con bloqueo nativo (frente a scripts CLI y CloudFormation) | 17 | EG-26 | S3 | Andrea | E-06, E-12 | 🟡 |
+| [0009](0009-region-aws.md) | Región AWS: us-east-1 (frente a sa-east-1 y us-east-2) | 17 | EG-26 | S3 | Andrea | Tema 5, costos, HU 23 |🟢 |
+| [0010](0010-instancia-nat.md) | Salida a internet: instancia NAT t4g.nano frente a NAT Gateway | 17 | EG-26 | S3 | Andrea | Tema 6, costos |🟢 |
+| [0011](0011-terraform.md) | Infraestructura como código con Terraform, estado en S3 con bloqueo nativo (frente a scripts CLI y CloudFormation) | 17 | EG-26 | S3 | Andrea | E-06, E-12 |🟢 |
 | 0012 | Cómputo de servicios y jobs: Fargate On-Demand, Fargate Spot y ARM64 | 18 | EG-27 | S3 | Andrea | Temas 8–9 y 16 | ⚪ |
 | 0013 | RabbitMQ en EC2 frente a Amazon MQ | 20 | EG-29 | S3 | Andrea | RNF-04, tema 10 | ⚪ |
 | 0014 | Formato y particionamiento del Data Lake (Parquet por año/mes/país) | 22 | EG-31 | S3 | María Clara | RNF-03, tema 15 | ⚪ |
