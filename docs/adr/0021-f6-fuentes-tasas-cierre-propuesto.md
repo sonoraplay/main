@@ -2,11 +2,11 @@
 
 | Campo / Field | Valor / Value |
 |---|---|
-| Estado / Status | **Propuesto / Proposed — NO aprobado / NOT approved** |
+| Estado / Status | **Aceptado / Accepted** — 2026-10-21 (Julián) |
 | Fecha / Date | 2026-10-15 |
 | Historia / Story | EG-30 (F5, F6, F7) |
 | Responsable / Owner | María Clara (propuesta para revisión del TL) |
-| Revisor / Reviewer | Julián — pendiente de aprobación formal / pending formal approval |
+| Revisor / Reviewer | Julián — aprobó el 2026-10-21 / approved on 2026-10-21 |
 | Referencias / References | ADR-0002; `TasaCambio`, `convertir_a_usd` en `reglas/liquidacion.py`; F3 |
 
 ## Español
@@ -151,7 +151,7 @@ The EG-30 owner reports that Joshua authorized **Frankfurter** and instructed th
 
 ## Decisión solicitada a Julián / Decision requested from Julián — 2026-10-21
 
-**Estado / Status:** Propuesto / Proposed. Nada de lo siguiente está aprobado hasta que Julián lo confirme en GitHub. / Nothing below is approved until Julián confirms it on GitHub.
+**Estado / Status:** **Aceptado / Accepted** el 2026-10-21 por Julián. / Accepted on 2026-10-21 by Julián.
 
 ### Español
 
@@ -167,12 +167,12 @@ The EG-30 owner reports that Joshua authorized **Frankfurter** and instructed th
 
 **Decisión 3 · Frankfurter v2 con tasas combinadas.** Son tasas de mercado (mid-market), no la tasa oficial de cada país. Falta aprobar esa semántica y la atribución del proveedor.
 
-**Cómo responder (marcar y confirmar en el PR):**
-- [ ] Apruebo la fuente F7 `mledoze/countries` con las condiciones (a), (b) y (c).
-- [ ] Apruebo la regla de cierre: opción A / opción B (tachar la que no aplique).
-- [ ] Apruebo Frankfurter v2 con tasas combinadas.
+**Resolución (2026-10-21):**
+- [x] **Fuente F7 `mledoze/countries`: aprobada** con las condiciones (a), (b) y (c).
+- [x] **Regla de cierre: opción B** (tope de 5 días corridos). Julián delegó la elección («la que veas mejor») y se adopta la B porque evita aceptar en silencio una cotización antigua.
+- [x] **Frankfurter v2 con tasas combinadas: aprobado.**
 
-**Al aprobar:** el ADR-0021 pasa a Aceptado, se registran las atribuciones, se implementa la opción elegida, y el PR #3 puede salir de borrador para la revisión final de EG-30.
+**Implementado:** `validar_tasas` rechaza cotizaciones de más de 5 días antes del cierre (`MAX_ANTIGUEDAD_DIAS`), con pruebas de festivo, del límite exacto (5 días), del rechazo a los 6 días y del tope por moneda; la atribución ODbL queda en el registro de fuentes y en `f7_paises.py`. **Pendiente:** revisión del PR #3, prueba real de un cierre en fin de semana o festivo, y que el contrato de persistencia no cambie.
 
 ### English
 
@@ -188,9 +188,9 @@ The EG-30 owner reports that Joshua authorized **Frankfurter** and instructed th
 
 **Decision 3 · Frankfurter v2 combined rates.** These are mid-market rates, not each country's official rate. The semantics and the provider attribution still need approval.
 
-**How to answer (tick and confirm on the PR):**
-- [ ] I approve the F7 source `mledoze/countries` with conditions (a), (b) and (c).
-- [ ] I approve the closing rule: option A / option B (strike the one that does not apply).
-- [ ] I approve Frankfurter v2 combined rates.
+**Resolution (2026-10-21):**
+- [x] **F7 source `mledoze/countries`: approved** with conditions (a), (b) and (c).
+- [x] **Closing rule: option B** (5-calendar-day cap). Julián delegated the choice ("whichever you think is best") and B is adopted because it avoids silently accepting a stale quotation.
+- [x] **Frankfurter v2 combined rates: approved.**
 
-**On approval:** ADR-0021 becomes Accepted, the attributions are recorded, the chosen option is implemented, and PR #3 can leave draft for the final EG-30 review.
+**Implemented:** `validar_tasas` rejects quotations more than 5 days before the closing date (`MAX_ANTIGUEDAD_DIAS`), with tests for a holiday, the exact 5-day limit, rejection at 6 days and the per-currency cap; the ODbL attribution is in the sources register and in `f7_paises.py`. **Pending:** PR #3 review, a live test of a weekend or holiday closing, and keeping the persistence contract unchanged.
