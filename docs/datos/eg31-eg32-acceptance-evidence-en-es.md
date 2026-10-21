@@ -1,0 +1,37 @@
+# EG-31 and EG-32 — Acceptance evidence register / Registro de evidencia de aceptación
+
+**As of / Corte:** 2026-10-21 · **Review state / Estado:** awaiting technical review / pendiente revisión técnica.
+
+This file is a **traceability register**, not a claim of deployed AWS infrastructure or completed Spark processing. / Este archivo es un **registro de trazabilidad**, no una afirmación de despliegue AWS ni de ejecución Spark terminada.
+
+## EG-31 — Dimensional model and Data Lake
+
+| Criterion / Criterio | Deliverable / Entregable | Evidence / Evidencia | Status / Estado | Next verification / Siguiente verificación |
+|---|---|---|---|---|
+| CA1: `fact_plays` + eight dimensions | [model / modelo](eg31-modelo-dimensional-en-es.md) | grain, keys, Mermaid relationships | Design documented / diseño documentado | review joins and run Silver/Gold materialization |
+| CA2: `fact_settlement` holder × country × month × version, original/adjustment | [model / modelo](eg31-modelo-dimensional-en-es.md) | versioning, existing PostgreSQL report contract `db/ddl/003_reportes_regalias.sql` | Design documented / diseño documentado | validate original + adjustment settlement on real data |
+| CA3: paid play has settlement ID | [model / modelo](eg31-modelo-dimensional-en-es.md) | nullable `settlement_id`, bridge proposal, SQL verification contract | Pending implementation / pendiente implementar | run integrity query after EG-37 |
+| CA4: Bronze/Silver/Gold Parquet partitions + ADR-0014 | [ADR-0014](../adr/0014-data-lake-parquet-partitions.md) | proposed layer paths, partition policy | Design documented; ADR proposed / diseño, ADR propuesto | run Parquet read/write, verify S3 layout and accept ADR |
+| CA5: churn and engagement | [model / modelo](eg31-modelo-dimensional-en-es.md) | F3 churn semantics, F2 session metrics | Design documented / diseño documentado | run EG-42 sample calculations and Power BI queries |
+
+## EG-32 — Cost analysis v1 and budget alarm
+
+| Criterion / Criterio | Deliverable / Entregable | Evidence / Evidencia | Status / Estado | Next verification / Siguiente verificación |
+|---|---|---|---|---|
+| CA1: priced inventory and calculator | [cost draft / borrador](../costos/eg32-aws-cost-analysis-v1-en-es.md) | inventory and rate formula, but **no unit prices or shareable calculator URL** | Incomplete / incompleto | obtain official priced AWS calculator share URL |
+| CA2: 24/7 vs test windows | [cost draft / borrador](../costos/eg32-aws-cost-analysis-v1-en-es.md), [ADR-0020](../adr/0020-ventanas-encendido-aws.md) | scenario assumptions, six-week historical estimate | Partial / parcial | same inventory priced for both scenarios, per-month totals |
+| CA3: AWS Budget + SNS email | [cost checklist / lista](../costos/eg32-aws-cost-analysis-v1-en-es.md) | procedure only; no AWS evidence | Blocked / bloqueado | Julián configures and proves notification |
+| CA4: `Project` and `Owner` tags | EG-26 Terraform branch and [cost draft](../costos/eg32-aws-cost-analysis-v1-en-es.md) | Jira EG-32 reports `Owner` absent | Blocked / bloqueado | Julián adds tag and verifies in AWS |
+| CA5: docs in `docs/costos/` and architecture link | [cost draft](../costos/eg32-aws-cost-analysis-v1-en-es.md), [architecture](../arquitectura/arquitectura-v1.md) | both files changed in PR #7 | Implemented in draft / implementado en borrador | review and merge PR |
+
+## Sequential dependency gate / Puertas de dependencias
+
+1. **EG-30:** PR #3 needs ADR-0021 decision, source approval, and month-end behavior confirmation. / Requiere decisión ADR-0021 y cierre de mes.
+2. **EG-31:** approve dimensional contract and ADR-0014 before EG-35/37 implementation locks Gold schemas. / Aprobar contrato dimensional antes de fijar esquemas Gold.
+3. **EG-26 and EG-29:** infrastructure and reliable messaging unblock EG-33 Bronze. / Infraestructura y mensajería desbloquean Bronze.
+4. **EG-33 → EG-35/36 → EG-37 → EG-38/45:** Bronze to Silver to Gold to monthly settlement. / Flujo de ingesta a liquidación.
+5. **EG-32:** budget controls must precede any new AWS test window. / Controles de gasto antes de nuevas ventanas AWS.
+
+**Review responsibility / Revisión:** María Clara prepares design and estimate; Julián approves ADRs, infrastructure and budget; Andrea validates API/Gold interface and ECS usage. **No Jira status change or PR merge is implied. / No implica cambio de estado en Jira ni fusión de PR.**
+
+GitHub: [PR #3](https://github.com/sonoraplay/main/pull/3), [PR #7](https://github.com/sonoraplay/main/pull/7). Jira: [EG-30](https://claram04.atlassian.net/browse/EG-30), [EG-31](https://claram04.atlassian.net/browse/EG-31), [EG-32](https://claram04.atlassian.net/browse/EG-32).
