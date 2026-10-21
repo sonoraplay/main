@@ -26,3 +26,12 @@
 **Alternativas.** Una única capa reduce configuración pero dificulta auditoría; particionar por usuario produce demasiados archivos pequeños.
 
 **Validación pendiente.** Confirmar país, retención, datos tardíos, compactación, cifrado e IAM con EG-26/EG-33/EG-35. Probar lectura/escritura Parquet real y conciliación antes de aprobar el ADR.
+
+
+## Amendment — event/play grain and partition semantics (English)
+
+**Proposed, not approved.** Bronze raw transport events retain their original JSON/body and `event_id`; Parquet is required for Silver/Gold, not for raw Bronze payloads. Silver event deduplication uses `event_id`, then reconstructed logical plays use `play_id`; Gold `fact_plays` is one row per `play_id`. Preserve a play-to-event bridge. Use **playback country** for play facts and **billing country** for settlement/pool facts; never silently interchange them. UTC event time determines event/play partition, while the **settlement period** determines settlement partition. For missing country, use an explicitly documented unknown bucket or quarantine policy rather than fabricate a country. Record schema/rule version and late-arrival reprocessing windows; compaction must not mutate published settlement versions. The test gate must compare distinct reconstructed plays and published settlements, not only raw event counts.
+
+## Enmienda — eventos, reproducciones y particiones (Español)
+
+**Propuesta, no aprobada.** Bronze conserva mensajes originales con `event_id`; Silver y Gold usan Parquet. Silver deduplica eventos por `event_id`, reconstruye reproducciones por `play_id` y conserva la tabla puente; Gold tiene una fila por `play_id`. El país de reproducción corresponde a reproducciones y el país de facturación a liquidaciones y bolsas. La partición de eventos se deriva del tiempo UTC; la de liquidación, del período liquidado. Los países faltantes se ponen en cuarentena o en una partición desconocida explícita. Se registra versión de esquema/reglas, ventana de datos tardíos y compactación sin alterar liquidaciones publicadas. Validar conteos de reproducciones lógicas, no solamente mensajes.
