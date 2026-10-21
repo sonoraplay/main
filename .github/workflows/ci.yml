@@ -43,13 +43,15 @@ jobs:
     env:
       TEST_DATABASE_URL: postgresql+psycopg://sonora:sonora_ci@localhost:5432/sonoraplay_test
       RABBITMQ_URL: amqp://sonora:sonora_ci@localhost:5672/%2F
-      # La prueba de reinicio del broker reinicia el contenedor de servicio del job.
-      RABBITMQ_REINICIO: docker restart ${{ job.services.rabbitmq.id }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --locked
       - run: uv run pytest --cov=sonoraplay --cov-report=term-missing
+        env:
+          # La prueba de reinicio del broker reinicia el contenedor de servicio del job.
+          # El contexto job solo existe dentro de los pasos, no en el env del job.
+          RABBITMQ_REINICIO: docker restart ${{ job.services.rabbitmq.id }}
 
   secretos:
     runs-on: ubuntu-latest
