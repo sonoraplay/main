@@ -1,0 +1,5 @@
+# Copia este archivo como backend.hcl (no se versiona) y pon el bucket que imprime el bootstrap:
+#   terraform -chdir=infra/terraform/bootstrap output -raw bucket_estado
+# Luego: terraform -chdir=infra/terraform init -backend-config=backend.hcl
+bucket = "sonoraplay-<ID_DE_LA_CUENTA>-tfstate"
+region = "us-east-1"

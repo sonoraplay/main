@@ -37,6 +37,24 @@ jobs:
       - run: uv sync --locked
       - run: uv run pytest --cov=sonoraplay --cov-report=term-missing
 
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.6
+      - run: terraform fmt -check -recursive infra/terraform
+      # Sin backend ni credenciales: valida la sintaxis y los tipos, no toca AWS.
+      - run: |
+          for d in infra/terraform infra/terraform/bootstrap; do
+            terraform -chdir="$d" init -backend=false -input=false
+            terraform -chdir="$d" validate
+          done
+      - uses: astral-sh/setup-uv@v6
+      # Excepciones justificadas en infra/terraform/.checkov.yaml (EG-26).
+      - run: uvx checkov==3.3.29 -d infra/terraform --config-file infra/terraform/.checkov.yaml
+
   secretos:
     runs-on: ubuntu-latest
     steps:

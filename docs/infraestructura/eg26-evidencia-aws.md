@@ -27,21 +27,21 @@ Las imágenes muestran la salida real de los comandos, en español. El ID de la 
 | **C2** · VPC en 2 AZ con subredes públicas y privadas | ✅ | 4 subredes /24 en us-east-1a y us-east-1b; solo la NAT en una subred pública |
 | **C3** · Un rol de mínimo privilegio por servicio, sin llaves | ✅ | 13 roles, 0 usuarios IAM; el consumidor escribe en Bronze y no en Gold |
 | **C4** · Bronze, Silver y Gold privados y cifrados | ✅ | Block Public Access completo y `AES256` |
-| **C5** · RDS privada, backups de 7 días, credenciales en SSM | ⚠️ | Privada y cifrada, contraseña como `SecureString`; **backups de 1 día** por el plan gratuito, excepción pendiente de aprobación (ver abajo) |
+| **C5** · RDS privada, backups de 7 días, credenciales en SSM | ⚠️ | Privada y cifrada, contraseña como `SecureString`; **backups de 1 día** por el plan gratuito, excepción aprobada por Julián el 20 oct (PR #4) y registrada en [ADR-0022](../adr/0022-excepcion-plan-gratuito-rds-nat.md) |
 | **C6** · ADR-0009, 0010 y 0011 | ✅ | Escritos en la rama de la EG-26 |
 
 ### Puntos abiertos
 
-:::warning Excepción del criterio C5: pendiente de aprobación
-La cuenta de AWS del proyecto está en el **plan gratuito**, que rechaza RDS con más de 1 día de backups (`FreeTierRestrictionError`) y no permite instancias `t4g.nano`. Por eso el commit `1057f25` usa `rds_backup_retention_days = 1` y la NAT `t4g.micro`. El criterio C5 pide 7 días, así que **esta excepción debe aprobarla Julián** antes de dar la historia por terminada. Si no se acepta, hay dos caminos: pasar la cuenta a plan pago (los créditos se conservan) y volver a poner 7 días y `t4g.nano` sin otros cambios, o repetir la ventana en una cuenta con plan pago.
+:::warning Excepción del criterio C5: aprobada
+La cuenta de AWS del proyecto está en el **plan gratuito**, que rechaza RDS con más de 1 día de backups (`FreeTierRestrictionError`) y no permite instancias `t4g.nano`. Por eso el commit `1057f25` usa `rds_backup_retention_days = 1` y la NAT `t4g.micro`. El criterio C5 pide 7 días. La excepción está registrada en [ADR-0022](../adr/0022-excepcion-plan-gratuito-rds-nat.md): 1 día y `t4g.micro` mientras dure el plan gratuito, y vuelta a 7 días y `t4g.nano` antes del encendido continuo de la última semana. **Julián la aprobó el 20 oct** en su revisión del PR #4. Si no se acepta, hay dos caminos: pasar la cuenta a plan pago (los créditos se conservan) y volver a poner 7 días y `t4g.nano` sin otros cambios, o repetir la ventana en una cuenta con plan pago.
 :::
 
 | Ajuste | Estado | Dónde se resuelve |
 |---|---|---|
-| La contraseña de RDS y la de SSM se desincronizan tras un `apply` parcial | **Sin resolver en el código.** En la ventana se corrigió a mano con `terraform apply -var rds_password_version=2` | En la misma EG-26, antes de fusionar su rama: `depends_on = [aws_db_instance.principal]` en `aws_ssm_parameter.rds_password` |
-| `rds.force_ssl` aparece como cambio en cada `plan` | **Sin resolver.** Es cosmético: el valor sigue en `1` y no reinicia nada | En la misma EG-26: `apply_method = "pending-reboot"` en el bloque `parameter` de `rds.tf` |
+| La contraseña de RDS y la de SSM se desincronizan tras un `apply` parcial | **Resuelto en la rama de la EG-26.** En la ventana se corrigió a mano con `terraform apply -var rds_password_version=2` | `aws_ssm_parameter.rds_password` tiene `depends_on = [aws_db_instance.principal]`: si RDS falla, SSM no guarda una contraseña que RDS nunca recibió (commit `f9fd9f1`) |
+| `rds.force_ssl` aparece como cambio en cada `plan` | **Resuelto en la rama de la EG-26.** Era cosmético: el valor sigue en `1` y no reinicia nada | `apply_method = "pending-reboot"` en el bloque `parameter` de `rds.tf` |
 
-Ninguno de los dos cambia lo que muestra esta evidencia. Por eso esta página puede fusionarse sin ellos, y los dos ajustes quedan como condición para fusionar la rama de infraestructura de la EG-26.
+Ninguno de los dos cambia lo que muestra esta evidencia. Los dos ajustes ya están en la rama de infraestructura de la EG-26 y pasan `terraform validate` y Checkov; falta comprobarlos en la próxima ventana (un `plan` justo después del `apply` debe salir sin cambios).
 
 ### 1. Creación (`apply`)
 
@@ -174,21 +174,21 @@ The images show the actual command output; labels and comments in them are in Sp
 | **C2** · VPC across 2 AZs with public and private subnets | ✅ | 4 /24 subnets in us-east-1a and us-east-1b; only the NAT is in a public subnet |
 | **C3** · One least-privilege role per service, no keys | ✅ | 13 roles, 0 IAM users; the consumer can write to Bronze but not to Gold |
 | **C4** · Private, encrypted Bronze, Silver and Gold | ✅ | Full Block Public Access and `AES256` |
-| **C5** · Private RDS, 7-day backups, credentials in SSM | ⚠️ | Private and encrypted, password as `SecureString`; **1-day backups** because of the free plan, exception pending approval (see below) |
+| **C5** · Private RDS, 7-day backups, credentials in SSM | ⚠️ | Private and encrypted, password as `SecureString`; **1-day backups** because of the free plan, exception approved by Julián on Oct 20 (PR #4) and recorded in [ADR-0022](../adr/0022-excepcion-plan-gratuito-rds-nat.md) |
 | **C6** · ADR-0009, 0010 and 0011 | ✅ | Written in the EG-26 branch |
 
 ### Open items
 
-:::warning C5 exception: pending approval
-The project's AWS account is on the **free plan**, which rejects RDS with more than 1 day of backups (`FreeTierRestrictionError`) and does not allow `t4g.nano` instances. That is why commit `1057f25` uses `rds_backup_retention_days = 1` and a `t4g.micro` NAT. Criterion C5 asks for 7 days, so **Julián must approve this exception** before the story is marked done. If it is not accepted, there are two options: upgrade the account to a paid plan (remaining credits are kept) and set 7 days and `t4g.nano` back with no other changes, or repeat the window in an account on a paid plan.
+:::warning C5 exception: approved
+The project's AWS account is on the **free plan**, which rejects RDS with more than 1 day of backups (`FreeTierRestrictionError`) and does not allow `t4g.nano` instances. That is why commit `1057f25` uses `rds_backup_retention_days = 1` and a `t4g.micro` NAT. Criterion C5 asks for 7 days. The exception is recorded in [ADR-0022](../adr/0022-excepcion-plan-gratuito-rds-nat.md): 1 day and `t4g.micro` while the free plan lasts, back to 7 days and `t4g.nano` before the continuous final-week deployment. **Julián approved it on Oct 20** in his review of PR #4. If it is not accepted, there are two options: upgrade the account to a paid plan (remaining credits are kept) and set 7 days and `t4g.nano` back with no other changes, or repeat the window in an account on a paid plan.
 :::
 
 | Fix | Status | Where it is handled |
 |---|---|---|
-| RDS and SSM passwords drift apart after a partial `apply` | **Not fixed in the code yet.** It was fixed by hand during the window with `terraform apply -var rds_password_version=2` | In EG-26 itself, before its branch is merged: `depends_on = [aws_db_instance.principal]` on `aws_ssm_parameter.rds_password` |
-| `rds.force_ssl` shows as a change on every `plan` | **Not fixed yet.** It is cosmetic: the value stays `1` and nothing reboots | In EG-26 itself: `apply_method = "pending-reboot"` in the `parameter` block of `rds.tf` |
+| RDS and SSM passwords drift apart after a partial `apply` | **Fixed in the EG-26 branch.** It was fixed by hand during the window with `terraform apply -var rds_password_version=2` | `aws_ssm_parameter.rds_password` has `depends_on = [aws_db_instance.principal]`: if RDS fails, SSM does not store a password RDS never received (commit `f9fd9f1`) |
+| `rds.force_ssl` shows as a change on every `plan` | **Fixed in the EG-26 branch.** It was cosmetic: the value stays `1` and nothing reboots | `apply_method = "pending-reboot"` in the `parameter` block of `rds.tf` |
 
-Neither fix changes what this evidence shows. This page can therefore be merged without them, and both fixes become a condition for merging the EG-26 infrastructure branch.
+Neither fix changes what this evidence shows. Both are now in the EG-26 infrastructure branch and pass `terraform validate` and Checkov; they still need to be checked in the next window (a `plan` right after `apply` must show no changes).
 
 ### 1. Creation (`apply`)
 
