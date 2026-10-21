@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | Propuesto |
+| Estado | Aceptado |
 | Fecha | 2026-10-14 |
 | Historia que lo origina | HU 17 · EG-26 |
 | Responsable | Andrea Zárate |
-| Revisó | Pendiente (revisor del PR) |
+| Revisó | Julián: aprobó el [PR #8](https://github.com/sonoraplay/main/pull/8) el 2026-10-21 |
 | Referencias | E-06, tema 6, ADR-0001, ADR-0009, ADR-0020, arquitectura v1 (secciones 2, 6 y 8) |
 
 > **Nota (2026-10-21):** mientras la cuenta esté en el plan gratuito de AWS, que no permite `t4g.nano`, las ventanas usan `t4g.micro`. Ver [ADR-0022](0022-excepcion-plan-gratuito-rds-nat.md).
@@ -100,6 +100,6 @@ En cada ventana de prueba (ADR-0020), después de `terraform apply`:
 
 ## English — Decision summary
 
-**Proposed (October 14, 2026; EG-26).** Private subnets reach the internet through a **NAT instance** on ARM64, not a NAT Gateway: about one fifth of the cost for the project's low traffic (S3 goes through the free gateway endpoint). It has `source_dest_check = false`, iptables masquerading, no SSH (Session Manager only), IMDSv2, an encrypted disk, and a CloudWatch alarm that recovers the instance. While the account is on the AWS free plan, the type is `t4g.micro` instead of `t4g.nano` ([ADR-0022](0022-excepcion-plan-gratuito-rds-nat.md)).
+**Accepted (proposed October 14, 2026; approved October 21, 2026 in PR #8; EG-26).** Private subnets reach the internet through a **NAT instance** on ARM64, not a NAT Gateway: about one fifth of the cost for the project's low traffic (S3 goes through the free gateway endpoint). It has `source_dest_check = false`, iptables masquerading, no SSH (Session Manager only), IMDSv2, an encrypted disk, and a CloudWatch alarm that recovers the instance. While the account is on the AWS free plan, the type is `t4g.micro` instead of `t4g.nano` ([ADR-0022](0022-excepcion-plan-gratuito-rds-nat.md)).
 
 **Traceability:** The Spanish sections above are the full decision record. This summary introduces no new decision.
