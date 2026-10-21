@@ -61,3 +61,36 @@ Region `us-east-1`. Architecture: [v1](../arquitectura/arquitectura-v1.md); oper
 **Pendientes con Julián:** (1) acordar límite en USD y correo de alertas; (2) generar y compartir cotización del [AWS Pricing Calculator](https://calculator.aws/#/); (3) crear AWS Budget y notificación SNS, confirmar suscripción y guardar prueba de correo; (4) agregar `Owner` a las etiquetas de Terraform, además de `Project`, y comprobar Cost Explorer; (5) obtener costos reales por servicio de la ventana AWS y reconciliar la estimación. **No se ha realizado ninguna configuración AWS desde este documento.**
 
 **Criterios de Jira:** inventario y escenarios en borrador; precios reales, enlace de cotización, alarma probada, etiquetas y enlace desde arquitectura siguen pendientes de validación. No cerrar EG-32 todavía.
+
+
+## Reproducible estimation worksheet / Hoja de cálculo reproducible
+
+Use the following formula for **each** metered service and each scenario. This is a calculation method, **not** a validated AWS quote.
+
+`estimated_monthly_usd = hourly_rate_usd × active_hours + storage_rate_usd_per_gb_month × stored_gb + request_rate_usd_per_1000 × requests/1000 + data_transfer_rate_usd_per_gb × transfer_gb + other_service_specific_charges`
+
+| Input / Entrada | Always on / Siempre activo | Windows / Ventanas | Source / Fuente |
+|---|---|---|---|
+| Calendar basis / Mes de referencia | 730 h/month planning assumption | actual approved test hours | ADR-0020 and EG-26 logs |
+| Compute instance count / Instancias | inventory from Terraform | same inventory when on | EG-26 branch |
+| RDS storage / Almacenamiento RDS | allocated GB × monthly rate | GB-month prorated per billing terms | AWS calculator |
+| S3 / S3 | stored GB and PUT/GET | stored GB and PUT/GET | S3 usage and calculator |
+| EKS / EKS | separate, not included in historical totals | separate short authorized window | EG-41, approval required |
+| AWS prices / Precios AWS | **PENDING: quote by SKU and region** | **PENDING: quote by SKU and region** | https://calculator.aws/#/ |
+| Actual AWS costs / Costos reales | **PENDING** | **PENDING** | Cost Explorer by service and tag |
+
+**Do not mark CA1 complete** until the unit rates, monthly totals by service, timestamped calculator estimate and shareable estimate URL have been recorded. **Do not mark CA3 complete** until the AWS Budget/SNS email notification is actually demonstrated. AWS Budget notifications may not fire instantly; do not spend money deliberately just to trigger one.
+
+### Acceptance trace / Trazabilidad de aceptación
+
+| CA | Deliverable / Entregable | Evidence required / Evidencia exigida | Status / Estado |
+|---|---|---|---|
+| 1 | per-service estimate + calculator URL / cotización por servicio | price, units, hours/GB/requests, shareable link | **Blocked: no verified quote** |
+| 2 | 24/7 vs windows / escenarios | two calculated scenario totals with the same service inventory | **Partial: qualitative comparison** |
+| 3 | AWS Budget → SNS → email | redacted proof of one received notification | **Blocked: AWS access** |
+| 4 | `Project` and `Owner` tags | Terraform code + deployed tag inspection + cost allocation activation | **Blocked: Owner tag missing** |
+| 5 | `docs/costos/` and architecture backlink | this file and architecture cross-link | **Implemented in PR #7; pending review/merge** |
+
+**Responsibility / Responsables:** María Clara owns the estimate and its bilingual documentation. Julián owns account-level approvals, AWS Budget/SNS configuration and Terraform tag fixes. Andrea supplies ECS/ALB utilization assumptions. No cloud resource should be created to fill a documentation gap without cost approval.
+
+**Consistency note / Nota de coherencia:** ADR-0020 contains *six-week total project estimates*; do not silently convert them to monthly costs. The current architecture still describes a 7-day RDS backup requirement; Julián's 1-day exception must be documented in the authoritative EG-26 decision before updating the baseline.
