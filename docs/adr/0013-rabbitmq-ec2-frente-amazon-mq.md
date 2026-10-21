@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | Propuesto (se acepta al aprobar el PR de la EG-29) |
+| Estado | **Aceptado** (aprobado por Julián el 2026-10-21 tras fusionar el PR #5) |
 | Fecha | 2026-10-21 |
 | Historia que lo origina | HU 20 · EG-29 |
 | Responsable | Andrea |
-| Revisó | Pendiente (Julián) |
+| Revisó | Julián: aprobó el ADR el 2026-10-21, incluido el riesgo residual de un solo nodo y de perder el volumen EBS |
 | Referencias | RNF-04, RF-01, tema 10, tema 12 (broker de Celery), [ADR-0001](0001-arquitectura-base-aws.md), [ADR-0004](0004-esquema-eventos-f2.md), [ADR-0020](0020-ventanas-encendido-aws.md), [mensajería F2](../servicios/mensajeria-rabbitmq.md) |
 
 ## 1. Contexto
@@ -82,7 +82,7 @@ En AWS: repetir `prueba_reinicio_broker` contra la EC2 en la siguiente ventana (
 
 ## English — Decision summary
 
-**Proposed (October 21, 2026; EG-29).** RabbitMQ 4.1 runs self-managed on one ARM EC2 `t4g.small` in a private subnet. It uses classic durable queues, persistent messages on EBS, publisher confirms, manual ACK after storing, and a dead-letter queue. This is the cheapest option that meets topic 10 and RNF-04 (≈ 14 USD/month versus ≈ 20–22 for Amazon MQ `mq.t3.micro`; list prices to confirm in HU 23). Quorum queues are left for a future cluster, because on a single node they add no fault tolerance.
+**Accepted (proposed October 21, 2026; approved by Julián on October 21, 2026, after PR #5 was merged; EG-29).** RabbitMQ 4.1 runs self-managed on one ARM EC2 `t4g.small` in a private subnet. It uses classic durable queues, persistent messages on EBS, publisher confirms, manual ACK after storing, and a dead-letter queue. This is the cheapest option that meets topic 10 and RNF-04 (≈ 14 USD/month versus ≈ 20–22 for Amazon MQ `mq.t3.micro`; list prices to confirm in HU 23). Quorum queues are left for a future cluster, because on a single node they add no fault tolerance.
 
 The EG-29 tests in docker compose support the single-node choice:
 
