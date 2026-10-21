@@ -34,3 +34,24 @@ def test_reinicio_sin_perdidas_ni_duplicados(tmp_path):
     )
     r = ejecutar(cfg, eventos, cortar_en=20, retraso_ms=30)
     assert r["resultado"] == "OK", r
+
+
+@pytest.mark.skipif(
+    not os.environ.get("RABBITMQ_REINICIO"),
+    reason="Necesita permiso para reiniciar RabbitMQ: define RABBITMQ_REINICIO "
+    "(p. ej. 'docker restart sonoraplay-rabbitmq')",
+)
+def test_reinicio_del_broker_sin_perdidas_ni_duplicados(tmp_path):
+    from sonoraplay.streaming.prueba_reinicio_broker import ejecutar
+
+    base = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(VALIDOS.glob("*.json"))]
+    eventos = [json.dumps(dict(base[i % len(base)], event_id=str(uuid.uuid4()))) for i in range(60)]
+    cfg = dataclasses.replace(
+        StreamingConfig.desde_entorno(),
+        cola="prueba.broker.f2",
+        cola_dlq="prueba.broker.f2.dlq",
+        llave="prueba.broker.f2",
+        destino_bronze=tmp_path / "f2.jsonl",
+    )
+    r = ejecutar(cfg, eventos, os.environ["RABBITMQ_REINICIO"], cortar_en=20, retraso_ms=30)
+    assert r["resultado"] == "OK", r

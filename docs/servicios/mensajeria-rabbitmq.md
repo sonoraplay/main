@@ -8,7 +8,7 @@ title: "EG-29 · Mensajería F2 con RabbitMQ / F2 messaging with RabbitMQ"
 
 Los eventos de reproducción (F2) viajan del productor a Bronze por RabbitMQ sin perder ninguno (RNF-04). Esta primera entrega cubre el productor, el consumidor, la DLQ y la **prueba de reinicio del consumidor**. La decisión de broker y topología queda para el ADR-0013.
 
-- **Código:** `src/sonoraplay/streaming/` (`config.py`, `topologia.py`, `productor.py`, `consumidor.py`, `bronze.py`, `prueba_reinicio.py`).
+- **Código:** `src/sonoraplay/streaming/` (`config.py`, `topologia.py`, `productor.py`, `consumidor.py`, `bronze.py`, `prueba_reinicio.py`, `prueba_reinicio_broker.py`).
 - **Pruebas:** `tests/streaming/`. La de integración se salta si no hay `RABBITMQ_URL` (por eso la CI no necesita RabbitMQ).
 - **Docker:** servicio `rabbitmq` (`rabbitmq:4.1.8-management-alpine`), volumen `rabbitmq-datos`, consola en `http://localhost:15672`.
 
@@ -57,11 +57,33 @@ Con los 100 eventos del simulador (semilla 42) que produjo la corrida del esquel
 - El evento inválido (`event_type` desconocido) terminó en la DLQ y no en Bronze.
 - `pytest tests/streaming`: **21 passed** (20 unitarias + la de integración con RabbitMQ). Suite completa: **483 passed**; `ruff check` y `ruff format --check` limpios.
 
+### Evidencia: prueba de reinicio del broker (21 oct 2026)
+
+`python -m sonoraplay.streaming.prueba_reinicio_broker` usa el mismo lote y reinicia RabbitMQ con `docker restart sonoraplay-rabbitmq` en dos momentos:
+
+```text
+== 2 · Publicar 100 válidos + 1 inválido (publisher confirms)
+   confirmados por el broker: 101; en cola: 101
+== 3 · Escenario A: reiniciar el broker con la cola llena
+   broker de vuelta en 3.1 s; en cola tras el reinicio: 101
+== 4 · Escenario B: consumidor a 50 ms por mensaje; reinicio en 33
+   broker de vuelta en 3.0 s; consumidor #1 terminó con código 1; en Bronze: 35; en cola: 67
+== 5 · Consumidor #2 hasta vaciar la cola      → guardados=65 duplicados=1 a_dlq=1
+== 6 · Verificación
+  guardados_en_bronze: 100   duplicados: 0   perdidos: 0   cola_al_final: 0   dlq_al_final: 1
+  resultado: OK
+```
+
+- **A · Cola llena:** 101 mensajes antes y 101 después del reinicio. Las colas durables y los mensajes persistentes sobreviven al broker.
+- **B · A mitad del consumo:** el consumidor pierde la conexión (`CONNECTION_FORCED … shutdown`) y termina con código 1. En AWS, ECS lo reinicia. 35 + 67 = 102: un mensaje ya estaba en Bronze pero su ACK no llegó antes del corte. RabbitMQ lo reentregó y la deduplicación por `event_id` lo descartó, así que Bronze quedó con **0 duplicados**. Es la entrega «al menos una vez» de ADR-0004 funcionando.
+- `pytest tests/streaming` con `RABBITMQ_URL` y `RABBITMQ_REINICIO="docker restart sonoraplay-rabbitmq"`: **22 passed**. Sin esas variables, las dos pruebas de integración se saltan, por eso la CI no necesita RabbitMQ.
+- Decisión de dónde corre el broker en AWS: [ADR-0013](../adr/0013-rabbitmq-ec2-frente-amazon-mq.md).
+
 ### Pendiente en la EG-29
 
-- ADR-0013: broker, colas classic frente a quorum, `prefetch` y la DLQ.
-- Prueba de **reinicio del broker** (`docker compose restart rabbitmq` con mensajes en cola).
-- Pasar el destino Bronze de un JSON Lines local a S3 (capa Bronze de la EG-26) y el consumidor a un contenedor.
+- Aceptar el ADR-0013 en la revisión del PR.
+- Pasar el destino Bronze de un JSON Lines local a S3 y el consumidor a un contenedor (con la infraestructura de la EG-26/EG-27).
+- Repetir las dos pruebas contra el broker en AWS en la siguiente ventana (ADR-0020).
 
 ## English
 
@@ -73,4 +95,11 @@ F2 play events travel from the producer to Bronze through RabbitMQ without losin
 
 **First restart test (Oct 20, 2026):** 100 valid events plus 1 invalid were published and confirmed by the broker. The consumer was killed with SIGKILL after storing 33; 68 unacknowledged messages went back to the queue. A second consumer drained it. Result: **100/100 stored, 0 duplicates, 0 lost, 1 message in the DLQ**. `tests/streaming`: 21 passed; full suite: 483 passed.
 
-**Still open in EG-29:** ADR-0013, a broker-restart test, and moving the Bronze sink to S3 with the consumer in a container.
+**Broker restart test (Oct 21, 2026):** RabbitMQ was restarted twice.
+
+- **With a full queue:** 101 messages before and after the restart (≈ 3 s).
+- **Mid-consumption:** the consumer lost its connection and exited with code 1 after 35 events were stored. One message was stored but not yet acknowledged; RabbitMQ redelivered it and `event_id` deduplication dropped it.
+- **Result:** 100/100 stored, 0 duplicates, 0 lost, 1 in the DLQ. `tests/streaming` with RabbitMQ: 22 passed.
+- **Where the broker runs in AWS:** [ADR-0013](../adr/0013-rabbitmq-ec2-frente-amazon-mq.md) (EC2 `t4g.small`, classic durable queues).
+
+**Still open in EG-29:** accept ADR-0013, move the Bronze sink to S3 with the consumer in a container, and repeat both tests on AWS.
