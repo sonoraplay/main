@@ -25,6 +25,9 @@ resource "aws_db_parameter_group" "postgres" {
   parameter {
     name  = "rds.force_ssl"
     value = "1"
+    # Es un parámetro estático: con "immediate" (el valor por defecto) AWS lo guarda como
+    # pending-reboot y el plan mostraba un cambio en cada ejecución (hallazgo de la ventana).
+    apply_method = "pending-reboot"
   }
 
   lifecycle {
@@ -77,6 +80,11 @@ resource "aws_ssm_parameter" "rds_password" {
   type             = "SecureString"
   value_wo         = ephemeral.random_password.rds.result
   value_wo_version = var.rds_password_version
+
+  # La contraseña efímera cambia en cada apply. Si RDS falla, SSM no debe quedar guardado con
+  # una contraseña que RDS nunca recibió (hallazgo de la ventana del 19 oct). Si ya pasó:
+  # terraform apply -var rds_password_version=2
+  depends_on = [aws_db_instance.principal]
 }
 
 resource "aws_ssm_parameter" "rds_conexion" {

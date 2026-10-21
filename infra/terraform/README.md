@@ -5,7 +5,7 @@ Base de la plataforma en AWS (HU 17, E-06, temas 5–7):
 - IAM de mínimo privilegio;
 - VPC en 2 AZ con subredes públicas y privadas e instancia NAT;
 - Data Lake en S3 por capas (Bronze, Silver, Gold);
-- RDS PostgreSQL privado con backups de 7 días y credenciales en SSM Parameter Store.
+- RDS PostgreSQL privado con backups (7 días en el diseño, 1 en el plan gratuito) y credenciales en SSM Parameter Store.
 
 Decisiones: [ADR-0009](../../docs/adr/0009-region-aws.md) (región), [ADR-0010](../../docs/adr/0010-instancia-nat.md) (instancia NAT), [ADR-0011](../../docs/adr/0011-terraform.md) (Terraform) y [ADR-0020](../../docs/adr/0020-ventanas-encendido-aws.md) (entorno apagado por defecto).
 
@@ -15,10 +15,10 @@ Decisiones: [ADR-0009](../../docs/adr/0009-region-aws.md) (región), [ADR-0010](
 
 | Archivo | Recursos | Criterio |
 |---|---|---|
-| `red.tf` | VPC `10.0.0.0/16`, 2 subredes públicas y 2 privadas en 2 AZ, Internet Gateway, tablas de rutas, endpoint gateway de S3, instancia NAT t4g.nano con alarma de recuperación, SG por defecto sin reglas | 2 |
+| `red.tf` | VPC `10.0.0.0/16`, 2 subredes públicas y 2 privadas en 2 AZ, Internet Gateway, tablas de rutas, endpoint gateway de S3, instancia NAT `t4g.micro` (`nat_instance_type`) con alarma de recuperación, SG por defecto sin reglas | 2 |
 | `security_groups.tf` | Los 10 SG de la arquitectura v1 (sección 3); cada uno solo acepta tráfico de otro SG, salvo el ALB y la NAT | 2 |
 | `s3.tf` | Buckets `sonoraplay-<cuenta>-bronze`, `-silver` y `-gold`: SSE-S3, Block Public Access, sin ACL, solo TLS | 4 |
-| `rds.tf` | PostgreSQL 16 `db.t4g.micro`, Single-AZ, 20 GB gp3 cifrados, `publicly_accessible = false`, backups de 7 días, TLS obligatorio; parámetros `/sonoraplay/rds/*` en SSM | 5 |
+| `rds.tf` | PostgreSQL 16 `db.t4g.micro`, Single-AZ, 20 GB gp3 cifrados, `publicly_accessible = false`, backups de `rds_backup_retention_days` días (1 en el plan gratuito), TLS obligatorio; parámetros `/sonoraplay/rds/*` en SSM | 5 |
 | `iam.tf` | Por servicio de ECS (api-titulares, api-contratos, simulador, consumidor, spark): rol de ejecución y rol de tarea. Por EC2 (nat, rabbitmq, airflow): rol y perfil de instancia | 3 |
 | `bootstrap/` | Bucket del estado de Terraform (persistente, se crea una sola vez) | — |
 
@@ -55,6 +55,28 @@ Los roles de IAM y los SG de esos servicios ya existen aquí. Sus historias debe
 | airflow (EC2) | — | Session Manager, `/sonoraplay/{airflow,rds,rabbitmq}/*`, `ecs:RunTask` solo de la tarea de Spark en el clúster `sonoraplay-dev`, `iam:PassRole` solo de los roles de Spark, y `s3:PutObject` en `bronze/f6/` y `bronze/f7/` |
 
 No hay usuarios IAM ni access keys. Los roles de ECS solo los puede asumir ECS desde esta cuenta y región (`aws:SourceAccount` y `aws:SourceArn`).
+
+## Plan gratuito de AWS
+
+La cuenta del proyecto está en el **plan gratuito**. Ese plan rechaza dos valores del diseño original:
+
+| Diseño (arquitectura v1) | Plan gratuito | Variable | Con plan pago |
+|---|---|---|---|
+| Backups de RDS de 7 días | Máximo 1 día (`FreeTierRestrictionError`) | `rds_backup_retention_days = 1` | `7` |
+| NAT `t4g.nano` | Solo tipos elegibles para la capa gratuita | `nat_instance_type = "t4g.micro"` | `"t4g.nano"` |
+
+Julián aprobó la excepción del criterio 5 (backups de 1 día) mientras la cuenta siga en el plan gratuito (PR #4).
+
+## Desde AWS CloudShell
+
+CloudShell sirve para las ventanas de prueba sin instalar nada en el PC, pero su `$HOME` solo tiene 1 GB y el proveedor de AWS pesa varios cientos de MB. Clona el repo y guarda los proveedores en `/tmp`:
+
+```bash
+export TF_PLUGIN_CACHE_DIR=/tmp/tf-plugin-cache && mkdir -p "$TF_PLUGIN_CACHE_DIR"
+git clone https://github.com/sonoraplay/main.git /tmp/sonoraplay && cd /tmp/sonoraplay
+```
+
+`/tmp` se borra al cerrar la sesión, pero el estado vive en S3: basta volver a hacer `terraform init -backend-config=backend.hcl`. Un entorno de CloudShell **dentro de la VPC** (para llegar a RDS) no permite subir archivos, y su interfaz de red impide el `destroy` de la VPC: hay que borrar ese entorno antes del paso 3.
 
 ## Requisitos
 
