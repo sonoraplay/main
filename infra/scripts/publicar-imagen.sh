@@ -14,7 +14,10 @@ DOCKERFILE="docker/${SERVICIO}.Dockerfile"
 
 cd "$(git rev-parse --show-toplevel)"
 [[ -f "$DOCKERFILE" ]] || { echo "No existe $DOCKERFILE"; exit 1; }
-if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+# `terraform init` reescribe los .terraform.lock.hcl (por ejemplo, para agregar hashes de la
+# plataforma del CI). No entran en la imagen (el Dockerfile solo copia el código), así que no
+# cuentan como "cambios sin commit".
+if [[ -n "$(git status --porcelain --untracked-files=no -- . ':(exclude,glob)**/.terraform.lock.hcl')" ]]; then
   echo "ALTO: hay cambios sin commit; la etiqueta no correspondería al contenido de la imagen."
   exit 1
 fi

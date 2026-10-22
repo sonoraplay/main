@@ -52,6 +52,16 @@ Con ADR-0020, los backups no sobreviven a una ventana, así que 7 días de reten
 - En las ventanas con plan gratuito, `aws rds describe-db-instances` devuelve `BackupRetentionPeriod = 1`, y el resto de la evidencia de la EG-26 se mantiene.
 - En el encendido continuo, el mismo comando devuelve `7` y la NAT es `t4g.nano` (`aws ec2 describe-instances`).
 
+## Nota del 2026-10-22 · NAT en `t4g.small` en la ventana de la EG-27
+
+Según el reporte de la ventana del 22 de octubre, **no había capacidad de `t4g.micro` en `us-east-1a`**, así que la instancia NAT quedó en **`t4g.small`** (verificado con `aws ec2 describe-instances`: `sonoraplay-dev-nat`, `t4g.small`, `us-east-1a`). Esto es distinto de la restricción del plan gratuito de esta excepción: aquí la causa es falta de capacidad de AWS en la zona.
+
+- **Costo:** `t4g.small` ≈ 0,0168 USD/h, el doble de `t4g.micro` (≈ 0,0084) y cuatro veces `t4g.nano` (≈ 0,0042). Para una ventana de 3 h son unos 0,03 USD más que con `t4g.micro`.
+- **Configuración:** no hace falta cambiar código. `nat_instance_type` ya es una variable; se pasa `-var nat_instance_type=t4g.small` al `apply` cuando la zona no tenga capacidad. El valor por defecto sigue siendo `t4g.micro`.
+- **Reversión:** igual que en la sección 4. Antes del encendido continuo de la última semana, `nat_instance_type = "t4g.nano"`.
+- **Verificación:** el comando de la sección 6 puede devolver `t4g.small` en una ventana concreta; es válido siempre que la causa quede anotada en la evidencia de esa ventana.
+- **Pendiente:** decidir si conviene fijar una zona alternativa o un tipo de reserva, en lugar de reintentar a mano. No se decidió aquí.
+
 ## 7. Fuentes
 
 - Amazon RDS, retención de backups: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_WorkingWithAutomatedBackups.BackupRetention.html
