@@ -55,5 +55,4 @@ def test_rollback_postgresql():
             cursor.execute("SELECT COUNT(*) FROM fuente_f7_paises")
             total_despues = cursor.fetchone()[0]
 
-
     assert total_antes == total_despues
