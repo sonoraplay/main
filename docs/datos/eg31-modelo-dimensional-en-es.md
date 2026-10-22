@@ -54,7 +54,7 @@ erDiagram
 5. Churn and engagement: **query-ready design**.
 
 **Pending before EG-31 is closed — only these two:**
-1. **Julián's technical approval of ADR-0014** (still Proposed).
+1. **Meeting the conditions of ADR-0014**, accepted with conditions by Julián on 2026-10-22 (real Parquet read/write, reconciliation by `play_id`, confirmation of country semantics, retention, late data, compaction, encryption and IAM).
 2. **Spark/Parquet execution tests** (EG-35/37) of the checks in the verification contract below. No Spark run is asserted here.
 
 ---
@@ -79,7 +79,7 @@ erDiagram
 - **Engagement:** horas reproducidas válidas y canciones distintas por sesión.
 - **Control:** reconciliar eventos Silver/Gold, totales de regalías con `reporte_regalias` y referencias a liquidaciones publicadas.
 
-**Pendiente para cerrar EG-31, únicamente:** (1) **aprobación técnica del ADR-0014 por Julián** (sigue Propuesto) y (2) **pruebas de Spark/Parquet** (EG-35/37) de los controles descritos abajo. Las cinco condiciones de Jira están descritas como diseño; no se afirma ninguna ejecución.
+**Pendiente para cerrar EG-31, únicamente:** (1) **cumplir las condiciones del ADR-0014**, aceptado con condiciones por Julián el 2026-10-22, y (2) **pruebas de Spark/Parquet** (EG-35/37) de los controles descritos abajo. Las cinco condiciones de Jira están descritas como diseño; no se afirma ninguna ejecución.
 
 
 ## Traceability and delivery sequence / Trazabilidad y secuencia de entrega

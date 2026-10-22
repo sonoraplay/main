@@ -21,7 +21,7 @@
 | [0011](0011-terraform.md) | Infraestructura como código con Terraform, estado en S3 con bloqueo nativo (frente a scripts CLI y CloudFormation) | 17 | EG-26 | S3 | Andrea | E-06, E-12 |🟢 |
 | 0012 | Cómputo de servicios y jobs: Fargate On-Demand, Fargate Spot y ARM64 | 18 | EG-27 | S3 | Andrea | Temas 8–9 y 16 | ⚪ |
 | [0013](0013-rabbitmq-ec2-frente-amazon-mq.md) | RabbitMQ en EC2 `t4g.small` (1 nodo, colas classic durables) frente a Amazon MQ | 20 | EG-29 | S3 | Andrea | RNF-04, tema 10 |🟢 |
-| 0014 | Formato y particionamiento del Data Lake (Parquet por año/mes/país) | 22 | EG-31 | S3 | María Clara | RNF-03, tema 15 | ⚪ |
+| 0014 | Formato y particionamiento del Data Lake (Parquet por año/mes/país) | 22 | EG-31 | S3 | María Clara | RNF-03, tema 15 | 🟢 (con condiciones) |
 | 0015 | Airflow en EC2 con CeleryExecutor frente a MWAA | 25 | EG-34 | S4 | Joshua | Temas 11–12 | ⚪ |
 | 0016 | Manejo del skew en Spark (salting, broadcast join) | 30 | EG-39 | S5 | Joshua | RNF-01, E-13 | ⚪ |
 | 0017 | CI/CD con OIDC y gestión de secretos en SSM Parameter Store | 31 | EG-40 | S5 | Andrea | CT-02, E-09 | ⚪ |
