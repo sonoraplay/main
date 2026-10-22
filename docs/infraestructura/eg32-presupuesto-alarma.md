@@ -18,11 +18,11 @@ title: "EG-32 · Presupuesto y alarma / Budget and alarm"
 | Tema SNS y suscripción de correo | Budgets publica en el tema y el tema envía el correo. El correo **no está en el repositorio**: se pasa al aplicar |
 | Etiqueta `Owner` | Valor `sonoraplay-equipo` en todos los recursos del stack principal, en el presupuesto y en el bootstrap |
 
-El límite de 50 USD sale de la estimación de EG-32: unos 35 USD en las seis semanas del proyecto (ventanas más la última semana encendida), con margen para imprevistos. Se cambia con `-var limite_usd=...`.
+El límite de **50 USD por mes calendario es una propuesta pendiente de aprobación del equipo**, no una cifra derivada directamente de los ~35 USD estimados **para seis semanas**. La hoja de EG-32 del PR #12 estima aproximadamente **5,6 USD por mes** en ventanas de prueba (8 × 3 h) y **126 USD por mes** en operación continua, con supuestos y exclusiones documentados. El escenario de seis semanas incluye una última semana encendida y no se debe comparar directamente con un límite mensual sin distribuir los costos por mes calendario. Antes del despliegue, registrar la proyección máxima de cada mes y confirmar el umbral elegido. **AWS Budgets avisa; no bloquea el gasto ni apaga recursos.** Se cambia con `-var limite_usd=...`.
 
 ### Aplicarlo (una sola vez, en CloudShell)
 
-El bucket del estado ya existe y `infra/terraform/backend.hcl` se arma como en las ventanas. Reemplaza `TU_CORREO` por el correo que recibirá las alertas:
+El bucket del estado ya existe y `infra/terraform/backend.hcl` se arma como en las ventanas. **Antes de ejecutar `apply`, confirmar con el equipo el umbral mensual, el correo receptor y el valor de `Owner`.** Reemplaza `TU_CORREO` por el correo que recibirá las alertas:
 
 ```bash
 cd /tmp/sonoraplay
@@ -57,7 +57,7 @@ El plan debe crear 4 recursos: el tema, su política, la suscripción y el presu
 ### Etiquetas `Project` y `Owner` (criterio 4)
 
 - El stack principal las pone en todos los recursos con `default_tags` (`Owner` sale de `var.owner`). Se ven tras el próximo `apply`.
-- El **bucket del estado ya existe** y no tiene `Owner`. Se agrega a mano, conservando las etiquetas actuales (este comando reemplaza todas):
+- El **bucket del estado ya existe** y no tiene `Owner`. **Primero consultar y guardar sus etiquetas actuales** con `aws s3api get-bucket-tagging --bucket "sonoraplay-$CUENTA-tfstate"`. El siguiente comando **reemplaza todas las etiquetas**, por lo que solo debe ejecutarse si las cuatro etiquetas listadas coinciden con las existentes más la nueva `Owner`; de lo contrario, preparar un `TagSet` que preserve todas las etiquetas actuales:
   ```bash
   aws s3api put-bucket-tagging --bucket "sonoraplay-$CUENTA-tfstate" --tagging \
     'TagSet=[{Key=Project,Value=sonoraplay},{Key=ManagedBy,Value=terraform},{Key=Stack,Value=bootstrap},{Key=Owner,Value=sonoraplay-equipo}]'
@@ -89,11 +89,11 @@ El plan debe crear 4 recursos: el tema, su política, la suscripción y el presu
 | SNS topic and email subscription | Budgets publishes to the topic and the topic sends the email. The email is **not in the repository**: it is passed at apply time |
 | `Owner` tag | Value `sonoraplay-equipo` on every main-stack resource, on the budget stack and on the bootstrap |
 
-The USD 50 limit comes from the EG-32 estimate: about USD 35 over the six project weeks (windows plus the always-on final week), with room for surprises. Change it with `-var limite_usd=...`.
+The **USD 50 per calendar month threshold is a proposal awaiting team approval**, not a direct conversion of the approximately **USD 35 six-week** project estimate. The EG-32 worksheet in PR #12 estimates approximately **USD 5.6/month** for test windows (8 × 3 h) and **USD 126/month** for always-on operations, subject to documented assumptions and exclusions. The six-week scenario includes a final always-on week and must be allocated to calendar months before comparing it to a monthly threshold. Before deployment, record the peak projected spend in each calendar month and approve the threshold. **AWS Budgets sends alerts; it does not cap spending or stop resources.** Change the threshold with `-var limite_usd=...`.
 
 ### Apply it (once, in CloudShell)
 
-The state bucket already exists and `infra/terraform/backend.hcl` is built as in the windows. Replace `TU_CORREO` with the address that will receive alerts. Run `init` with `-backend-config=../backend.hcl`, then `plan -var correo_alertas=TU_CORREO -out=presupuesto.tfplan` and `apply presupuesto.tfplan`, all with `-chdir=infra/terraform/presupuesto` (exact commands in the Spanish section above). The plan must create 4 resources: the topic, its policy, the subscription and the budget. `*.tfplan` is in `.gitignore`.
+The state bucket already exists and `infra/terraform/backend.hcl` is built as in the windows. **Before `apply`, obtain team confirmation of the monthly threshold, recipient email and `Owner` value.** Replace `TU_CORREO` with the address that will receive alerts. Run `init` with `-backend-config=../backend.hcl`, then `plan -var correo_alertas=TU_CORREO -out=presupuesto.tfplan` and `apply presupuesto.tfplan`, all with `-chdir=infra/terraform/presupuesto` (exact commands in the Spanish section above). The plan must create 4 resources: the topic, its policy, the subscription and the budget. `*.tfplan` is in `.gitignore`.
 
 ### Confirm and test
 
@@ -105,7 +105,7 @@ The state bucket already exists and `infra/terraform/backend.hcl` is built as in
 ### `Project` and `Owner` tags (criterion 4)
 
 - The main stack puts them on every resource through `default_tags` (`Owner` comes from `var.owner`). They show after the next `apply`.
-- The **state bucket already exists** and has no `Owner`. Add it by hand, keeping the current tags (the command replaces all of them): `aws s3api put-bucket-tagging` with `Project`, `ManagedBy`, `Stack` and `Owner` (full command in the Spanish section above).
+- The **state bucket already exists** and has no `Owner`. First inspect and save existing tags using `aws s3api get-bucket-tagging --bucket "sonoraplay-$CUENTA-tfstate"`. The following command **replaces every tag**: only use it if the four listed tags match all existing tags plus `Owner`; otherwise build a `TagSet` that preserves every existing tag: `aws s3api put-bucket-tagging` with `Project`, `ManagedBy`, `Stack` and `Owner` (full command in the Spanish section above).
 - For Cost Explorer to split costs, **activate the tags** in the console: Billing and Cost Management → Cost allocation tags → activate `Project` and `Owner`. They appear once resources carry them and can take up to about a day.
 - The ECR stack in PR #10 will also need `Owner` in its tags once merged.
 
