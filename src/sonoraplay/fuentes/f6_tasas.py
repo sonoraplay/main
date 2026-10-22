@@ -91,7 +91,11 @@ def validar_tasas_diarias(
             tasa = Decimal(str(item["rate"]))
         except (KeyError, TypeError, ValueError, ArithmeticError) as exc:
             raise ValueError(f"F6 diaria inválida para {moneda}") from exc
-        if not inicio <= fecha <= cierre or not tasa.is_finite() or tasa <= 0:
+        if fecha < inicio:
+            # Frankfurter arrastra la última cotización previa cuando el día 1 es festivo
+            # para esa moneda (CLP el 1 de mayo de 2026 trae 2026-04-30); no es del período.
+            continue
+        if fecha > cierre or not tasa.is_finite() or tasa <= 0:
             raise ValueError(f"Observación F6 diaria inválida: {moneda} {fecha}")
         clave = (moneda, fecha)
         if clave in observaciones and observaciones[clave]["unidades_por_usd"] != str(tasa):

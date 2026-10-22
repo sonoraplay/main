@@ -208,6 +208,36 @@ def test_f6_diaria_conserva_observaciones_sin_inventar_festivos():
     assert filas[0]["unidades_por_usd"] == "3800.25"
 
 
+def test_f6_diaria_ignora_cotizacion_arrastrada_del_mes_anterior():
+    # Respuesta real de Frankfurter para mayo de 2026: el 1 de mayo fue festivo en Chile y
+    # la API trae para CLP una fila del 30 de abril dentro del rango pedido.
+    datos = [
+        {"base": "USD", "quote": "CLP", "date": "2026-04-30", "rate": "903.03"},
+        {"base": "USD", "quote": "CLP", "date": "2026-05-04", "rate": "898.10"},
+        {"base": "USD", "quote": "BRL", "date": "2026-05-01", "rate": "5.0500"},
+    ]
+    filas = validar_tasas_diarias(datos, ("CLP", "BRL"), date(2026, 5, 1), date(2026, 5, 31))
+    assert {(f["moneda"], f["fecha"]) for f in filas} == {
+        ("CLP", "2026-05-04"),
+        ("BRL", "2026-05-01"),
+    }
+
+
+def test_f6_diaria_sigue_rechazando_fechas_posteriores_al_cierre_y_tasas_no_positivas():
+    futura = [{"base": "USD", "quote": "COP", "date": "2026-06-01", "rate": "3800"}]
+    with pytest.raises(ValueError, match="inválida"):
+        validar_tasas_diarias(futura, ("COP",), date(2026, 5, 1), date(2026, 5, 31))
+    cero = [{"base": "USD", "quote": "COP", "date": "2026-05-04", "rate": "0"}]
+    with pytest.raises(ValueError, match="inválida"):
+        validar_tasas_diarias(cero, ("COP",), date(2026, 5, 1), date(2026, 5, 31))
+
+
+def test_f6_diaria_falla_si_una_moneda_solo_trae_datos_del_mes_anterior():
+    datos = [{"base": "USD", "quote": "CLP", "date": "2026-04-30", "rate": "903.03"}]
+    with pytest.raises(ValueError, match="cobertura"):
+        validar_tasas_diarias(datos, ("CLP",), date(2026, 5, 1), date(2026, 5, 31))
+
+
 def test_f6_diaria_rechaza_faltantes_y_duplicados_contradictorios():
     datos = [{"base": "USD", "quote": "COP", "date": "2026-09-30", "rate": "4000"}]
     with pytest.raises(ValueError, match="cobertura"):
