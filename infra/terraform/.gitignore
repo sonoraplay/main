@@ -1,0 +1,15 @@
+# Terraform: estado, planes y configuración local nunca se versionan.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+backend.hcl
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+# .terraform.lock.hcl SÍ se versiona: fija las versiones exactas de los proveedores.

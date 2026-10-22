@@ -1,0 +1,35 @@
+# Excepciones de Checkov revisadas en la EG-26. Cada una tiene su motivo; si cambia el motivo,
+# se borra la excepción. Uso: uvx checkov -d infra/terraform --config-file infra/terraform/.checkov.yaml
+framework:
+  - terraform
+skip-path:
+  - .terraform
+compact: true
+quiet: true
+skip-check:
+  # --- Falsos positivos: Checkov no resuelve bien los for_each ---
+  - CKV2_AWS_6   # Block Public Access: existe para las tres capas (s3.tf)
+  - CKV2_AWS_61  # Ciclo de vida: existe para las tres capas (s3.tf)
+  - CKV2_AWS_5   # SG sin adjuntar: los usan RDS, la NAT y los servicios de HU 18, 20 y 25
+
+  # --- Costo: el enunciado pide el menor costo justificable (ADR-0001, ADR-0020) ---
+  - CKV2_AWS_11  # VPC Flow Logs: ingesta en CloudWatch sin requisito que la pida (arquitectura v1, sec. 6)
+  - CKV_AWS_18   # Access logging de S3: la auditoría la cubre CloudTrail (HU 31)
+  - CKV_AWS_144  # Réplica entre regiones: "Won't" en la arquitectura v1, sección 6
+  - CKV_AWS_145  # KMS CMK en S3: SSE-S3 cifra sin costo; una CMK cuesta 1 USD/mes por clave
+  - CKV_AWS_337  # KMS CMK en SSM: SecureString usa la clave aws/ssm, sin costo
+  - CKV_AWS_157  # Multi-AZ en RDS: duplica el costo; riesgo aceptado (arquitectura v1, sección 8)
+  - CKV_AWS_118  # Monitoreo mejorado de RDS: costo extra; observabilidad en HU 18
+  - CKV_AWS_353  # Performance Insights: costo extra sin requisito
+  - CKV_AWS_126  # Monitoreo detallado de EC2: costo extra; la alarma de recuperación usa métricas básicas
+  - CKV_AWS_129  # Logs de RDS a CloudWatch: crearían un grupo de logs fuera de Terraform (huérfano tras destroy)
+  - CKV2_AWS_62  # Notificaciones de eventos de S3: ningún flujo las usa
+
+  # --- Decisiones de diseño de la EG-26 ---
+  - CKV_AWS_21   # Versionado del Data Lake: los datos se regeneran (ADR-0020) y destroy debe vaciar los buckets
+  - CKV_AWS_293  # Protección contra borrado de RDS: impediría el destroy limpio; se activa con destruccion_limpia=false
+  - CKV_AWS_161  # Autenticación IAM en RDS: las credenciales viven en SSM (criterio 5); se evalúa en HU 18
+  - CKV_AWS_88   # IP pública en la NAT: una instancia NAT la necesita para salir a internet (ADR-0010)
+  - CKV_AWS_260  # Puerto 80 abierto en el ALB: solo redirige a 443 (arquitectura v1, sección 3)
+  - CKV2_AWS_34  # Parámetros String de RDS: host, puerto, base y usuario no son secretos; la contraseña es SecureString
+  - CKV_AWS_394  # Fijar AZ por ID: se usan siempre las 2 primeras AZ disponibles de la región
