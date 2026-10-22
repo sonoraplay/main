@@ -58,14 +58,13 @@ variable "limite_usd" {
 }
 
 variable "correo_alertas" {
-  description = "Correo que recibe las alertas. Vacío = se crea el tema pero no la suscripción."
+  description = "Correo obligatorio que recibe las alertas de presupuesto (EG-32)."
   type        = string
-  default     = ""
   sensitive   = true
 
   validation {
-    condition     = var.correo_alertas == "" || can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.correo_alertas))
-    error_message = "correo_alertas debe ser una dirección de correo válida o quedar vacío."
+    condition     = can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.correo_alertas))
+    error_message = "correo_alertas debe ser una dirección de correo válida."
   }
 }
 
@@ -139,8 +138,6 @@ resource "aws_sns_topic_policy" "alertas" {
 
 # La suscripción queda "pendiente de confirmación" hasta que alguien pulsa el enlace del correo.
 resource "aws_sns_topic_subscription" "correo" {
-  count = var.correo_alertas != "" ? 1 : 0
-
   topic_arn = aws_sns_topic.alertas.arn
   protocol  = "email"
   endpoint  = var.correo_alertas
