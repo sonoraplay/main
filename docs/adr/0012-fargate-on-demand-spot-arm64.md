@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | Propuesto (se acepta al aprobar el PR de la EG-27) |
+| Estado | **Aceptado** (aprobado por Julián el 2026-10-22 al fusionar el [PR #24](https://github.com/sonoraplay/main/pull/24)) |
 | Fecha | 2026-10-21 |
 | Historia que lo origina | HU 18 · EG-27 |
 | Responsable | Andrea |
-| Revisó | Pendiente (Julián) |
+| Revisó | Julián: aprobó el ADR el 2026-10-22 al fusionar el PR #24, incluida la operación en HTTP sin dominio, solo con datos sintéticos, mientras no haya certificado de ACM (sección 5) |
 | Referencias | RF-05, RN-11, RNF-04, temas 8–9 y 16, [ADR-0001](0001-arquitectura-base-aws.md), [ADR-0006](0006-autenticacion-aislamiento-sellos.md), ADR-0013 (EG-29), [ADR-0020](0020-ventanas-encendido-aws.md) |
 
 ## 1. Contexto
@@ -95,7 +95,7 @@ En la siguiente ventana de AWS (ADR-0020), `infra/scripts/verificar-eg27.sh` com
 
 ## English — Decision summary
 
-**Proposed (October 21, 2026; EG-27).** All ECS Fargate workloads run on **ARM64 (Graviton)**, about 20 % cheaper than x86 at list price. Capacity follows how much an interruption hurts:
+**Accepted (proposed October 21, 2026; approved October 22, 2026 by merging PR #24; EG-27).** All ECS Fargate workloads run on **ARM64 (Graviton)**, about 20 % cheaper than x86 at list price. Capacity follows how much an interruption hurts:
 
 - **Fargate On-Demand** for the two APIs: the rights holder API serves the labels (RF-05), and Spark queries the contracts API during settlement.
 - **Fargate Spot** (up to 70 % off) for the F2 simulator, the F2 consumer and the Spark jobs. Manual ACK, publisher confirms and Airflow retries make an interruption safe (RNF-04, RNF-01; tested in EG-29).
