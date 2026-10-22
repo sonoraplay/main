@@ -7,7 +7,7 @@ title: "EG-28 · Seed en RDS / Seed on RDS"
 
 ## Español
 
-**Estado: ejecutado el 2026-10-22 contra RDS** (datos sintéticos, opción A). Esta página es el procedimiento de la HU 19 (EG-28) y, al final de esta sección, la evidencia de esa ejecución. Criterios 1, 3 y 4 con evidencia; el criterio 2 se comparó con la corrida del 15 de octubre, no con las 12 tablas de una corrida local (ver «Pendiente»). Se ejecuta **solo si** la infraestructura está arriba en una ventana de prueba ([ADR-0020](../adr/0020-ventanas-encendido-aws.md)) **y** el costo está autorizado (EG-32).
+**Estado: ejecutado el 2026-10-22 contra RDS** (datos sintéticos, opción A). Esta página es el procedimiento de la HU 19 (EG-28) y, al final de esta sección, la evidencia de esa ejecución. Los cuatro criterios tienen evidencia; el criterio 2 se comparó con las 12 tablas de una corrida local el mismo día (ver «Comparación con una corrida local»). Se ejecuta **solo si** la infraestructura está arriba en una ventana de prueba ([ADR-0020](../adr/0020-ventanas-encendido-aws.md)) **y** el costo está autorizado (EG-32).
 
 ### Criterios de Jira
 
@@ -117,7 +117,7 @@ Debe devolver `false`.
 
 - **Contraseña con caracteres especiales:** si se arma la URL sin codificarla, la conexión falla con un error de autenticación. El paso 2 la codifica.
 - **Python 3.12:** CloudShell trae una versión anterior. `uv` descarga la correcta, pero necesita salida a internet por la NAT.
-- **Sin conteos de referencia completos:** solo hay cinco cifras documentadas de la corrida local. Para cerrar el criterio 2 hay que sacar el conteo de las 12 tablas en local.
+- **Conteos de referencia:** la comparación de las 12 tablas con una corrida local está en la evidencia de abajo (2026-10-22). Si cambian el seed, la semilla o el catálogo, hay que repetirla.
 - **Si falla a la mitad:** el seed corta en el primer error y se puede repetir sin duplicar. Si el fallo fue de conexión, repite desde el paso 4.
 
 ### Qué falta para ejecutarlo
@@ -133,7 +133,7 @@ Entorno: ventana de pruebas de AWS en `us-east-1`, RDS `sonoraplay-dev`, CloudSh
 | Criterio | Evidencia |
 |---|---|
 | 1 · `DATABASE_URL` desde SSM, sin cambios de código | El procedimiento de arriba, tal cual; el seed corrió contra RDS sin tocar código. |
-| 2 · mismos conteos que la corrida de referencia | Coinciden con las cifras del 15 de octubre contra RDS (usuarios, suscripciones, pagos, titulares y contratos). **No** se comparó con las 12 tablas de una corrida local. |
+| 2 · mismos conteos que la corrida local | Las 12 tablas coinciden con una corrida local del mismo seed (ver «Comparación con una corrida local»). También coinciden con las cifras del 15 de octubre contra RDS. |
 | 3 · idempotencia | Se repitieron catálogo, seed F3 y seed F4: `diff conteos1.txt conteos2.txt` sin diferencias. La segunda corrida del seed F3 tardó 4,9 s (la primera, 7,2 s). |
 | 4 · desde la VPC y RDS privada | `PubliclyAccessible: false`. |
 
@@ -148,18 +148,19 @@ Entorno: ventana de pruebas de AWS en `us-east-1`, RDS `sonoraplay-dev`, CloudSh
 | `miembros_familia` | 3.040 | `titulares_derechos` | 50 |
 | `pagos` | 69.227 | `usuarios` | 10.000 |
 
+**Comparación con una corrida local (2026-10-22).** Se repitió el mismo procedimiento (los tres DDL, catálogo, seed F3 en modo `dev` y seed F4, con `SEED=42`) en un PostgreSQL 16.15 local y se contó con la misma consulta de 12 tablas: **las 12 tablas coinciden con RDS** (`diff` sin diferencias) y repetir el seed en local tampoco cambia ningún conteo. Límites: la corrida local fue en un PostgreSQL 16 instalado con `apt`, no con `docker compose` (el Docker del entorno de trabajo no arrancaba); las cifras de RDS son las transcritas de la terminal del CloudShell.
+
 **Liquidación publicada con el esqueleto (EG-24).** Con solo el seed, `liquidaciones` y `reporte_regalias` quedan en 0; las publica el esqueleto. Se ejecutó **una sola vez** (cada corrida crea una liquidación nueva, append-only): liquidación `016719c8-2e99-42dd-82cf-537bb690e5fe`, periodo 2026-09, país de facturación CO. 100 eventos F2, 38 reproducciones, 5 descartadas (`duracion_insuficiente` 4, `tope_diario` 1), 33 pagables (AR 6, CL 4, CO 13, MX 2, PE 8). Después: `liquidaciones` = 1 y `reporte_regalias` = 4 (4 titulares). El titular con mayor regalía recibió 2.340,00 USD (9.000 de publicidad × 0,5 de participación × 52 %); las cuatro regalías suman los 4.926,88 USD repartidos. 36 pagos quedaron fuera de la bolsa por país de facturación nulo (defecto de F3 introducido a propósito por el seed).
 
 **`GET /me/reportes` en el ALB** (HTTP, solo datos sintéticos): `/health` → 200; con el token del titular `fb950a36-dd51-59f6-af5f-200916631894` → 200 con una fila (2026-09, CO, publicidad, 2340.00 USD); sin token → 401. Es el mismo valor de la prueba local del esqueleto.
 
 **Pendiente**
-- Criterio 2: sacar el conteo de las 12 tablas en una corrida local (`docker compose up -d`) y compararlo tabla por tabla.
 - La bolsa de publicidad es **provisional** (45 % de 20.000 USD, sin la F5 real) hasta la EG-30; las regalías cambiarán.
 - La API se probó por HTTP sin cifrar. Con dominio y `certificado_acm_arn` hay que repetir la prueba por HTTPS.
 
 ## English
 
-**Status: executed on 2026-10-22 against RDS** (synthetic data, option A). This page is the procedure for story 19 (EG-28) and, at the end of this section, the evidence of that run. Criteria 1, 3 and 4 have evidence; criterion 2 was compared with the Oct 15 run, not with all 12 tables of a local run (see "Pending"). Run it **only if** the infrastructure is up in a test window ([ADR-0020](../adr/0020-ventanas-encendido-aws.md)) **and** the cost is authorized (EG-32).
+**Status: executed on 2026-10-22 against RDS** (synthetic data, option A). This page is the procedure for story 19 (EG-28) and, at the end of this section, the evidence of that run. All four criteria have evidence; criterion 2 was compared against all 12 tables of a local run on the same day (see "Comparison with a local run"). Run it **only if** the infrastructure is up in a test window ([ADR-0020](../adr/0020-ventanas-encendido-aws.md)) **and** the cost is authorized (EG-32).
 
 ### Jira criteria
 
@@ -212,7 +213,7 @@ At list prices, the base infrastructure of this window (NAT and RDS) costs about
 
 - **Password with special characters:** building the URL without encoding it fails with an authentication error. Step 2 encodes it.
 - **Python 3.12:** CloudShell ships an older version. `uv` downloads the right one but needs internet access through the NAT.
-- **No complete reference counts:** only five figures from the local run are documented. To close criterion 2, take the count of all 12 tables locally.
+- **Reference counts:** the comparison of the 12 tables with a local run is in the evidence below (2026-10-22). Repeat it if the seed, the seed value or the catalog change.
 - **If it fails midway:** the seed stops at the first error and can be repeated without duplicating. If it was a connection failure, repeat from step 4.
 
 ### What is needed to run it
@@ -228,17 +229,18 @@ Environment: AWS test window in `us-east-1`, RDS `sonoraplay-dev`, CloudShell in
 | Criterion | Evidence |
 |---|---|
 | 1 · `DATABASE_URL` from SSM, no code changes | The procedure above, as written; the seed ran against RDS without touching code. |
-| 2 · same counts as the reference run | They match the Oct 15 figures against RDS (users, subscriptions, payments, rights holders and contracts). They were **not** compared with all 12 tables of a local run. |
+| 2 · same counts as the local run | All 12 tables match a local run of the same seed (see "Comparison with a local run"). They also match the Oct 15 figures against RDS. |
 | 3 · idempotency | Catalog, F3 seed and F4 seed were repeated: `diff conteos1.txt conteos2.txt` shows no differences. The second F3 seed run took 4.9 s (the first, 7.2 s). |
 | 4 · from the VPC and RDS private | `PubliclyAccessible: false`. |
 
 **Counts in RDS** (12 rows, `conteos1.txt` identical to `conteos2.txt`): `contratos` 208, `exclusiones_territoriales` 32, `grupos_familiares` 766, `liquidaciones` 0, `miembros_familia` 3,040, `pagos` 69,227, `planes` 4, `reporte_regalias` 0, `seed_defectos` 194, `suscripciones` 8,712, `titulares_derechos` 50, `usuarios` 10,000.
+
+**Comparison with a local run (2026-10-22).** The same procedure (the three DDL files, catalog, F3 seed in `dev` mode and F4 seed, with `SEED=42`) was repeated on a local PostgreSQL 16.15 and counted with the same 12-table query: **all 12 tables match RDS** (`diff` shows no differences) and repeating the seed locally changes no count either. Limits: the local run used a PostgreSQL 16 installed with `apt`, not `docker compose` (the working environment's Docker daemon would not start); the RDS figures are the ones transcribed from the CloudShell terminal.
 
 **Settlement published with the skeleton (EG-24).** With the seed alone, `liquidaciones` and `reporte_regalias` stay at 0; the skeleton publishes them. It ran **once** (each run creates a new append-only settlement): settlement `016719c8-2e99-42dd-82cf-537bb690e5fe`, period 2026-09, billing country CO. 100 F2 events, 38 plays, 5 discarded (`duracion_insuficiente` 4, `tope_diario` 1), 33 payable (AR 6, CL 4, CO 13, MX 2, PE 8). Afterwards: `liquidaciones` = 1 and `reporte_regalias` = 4 (4 rights holders). The top rights holder received USD 2,340.00 (9,000 advertising × 0.5 share × 52 %); the four royalties add up to the USD 4,926.88 distributed. 36 payments stayed out of the pool because of a null billing country (an F3 defect the seed introduces on purpose).
 
 **`GET /me/reportes` on the ALB** (HTTP, synthetic data only): `/health` → 200; with the token of rights holder `fb950a36-dd51-59f6-af5f-200916631894` → 200 with one row (2026-09, CO, advertising, 2340.00 USD); without a token → 401. It is the same value as the skeleton's local test.
 
 **Pending**
-- Criterion 2: take the count of the 12 tables in a local run (`docker compose up -d`) and compare table by table.
 - The advertising pool is **provisional** (45 % of USD 20,000, without the real F5) until EG-30; the royalties will change.
 - The API was tested over unencrypted HTTP. With a domain and `certificado_acm_arn`, repeat the test over HTTPS.
