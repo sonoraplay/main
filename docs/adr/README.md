@@ -16,17 +16,18 @@
 | [0006](0006-autenticacion-aislamiento-sellos.md) | Autenticación de sellos con JWT HS256 y aislamiento entre titulares (403 antes de leer la base) | 12 | EG-21 | S2 | Andrea | RN-11, CA-08, RF-05 | 🟢 |
 | [0007](0007-cierre-mes-ajustes-reliquidacion.md) | Cierre de mes append-only, ajustes en la liquidación siguiente y redondeo por mayor residuo | 14 | EG-23 | S2 | Andrea y María Clara | RF-09, CA-07, RNF-02 | 🟢 |
 | [0008](0008-pais-bolsa-dos-componentes.md) | País que define la bolsa (facturación) y bolsa de dos componentes con denominadores separados | 14 | EG-23 | S2 | Andrea y María Clara | RN-05, RN-06, RN-10, Q6, Q8 | 🟢 |
-| 0009 | Región AWS (us-east-1 frente a sa-east-1) | 17 | EG-26 | S3 | Joshua | Tema 5, costos | ⚪ |
-| 0010 | Salida a internet: instancia NAT frente a NAT Gateway | 17 | EG-26 | S3 | Joshua | Tema 6, costos | ⚪ |
-| 0011 | Infraestructura como código con Terraform (frente a scripts CLI) | 17 | EG-26 | S3 | Joshua | E-06, E-12 | ⚪ |
+| [0009](0009-region-aws.md) | Región AWS: us-east-1 (frente a sa-east-1 y us-east-2) | 17 | EG-26 | S3 | Andrea | Tema 5, costos, HU 23 |🟢 |
+| [0010](0010-instancia-nat.md) | Salida a internet: instancia NAT t4g.nano frente a NAT Gateway | 17 | EG-26 | S3 | Andrea | Tema 6, costos |🟢 |
+| [0011](0011-terraform.md) | Infraestructura como código con Terraform, estado en S3 con bloqueo nativo (frente a scripts CLI y CloudFormation) | 17 | EG-26 | S3 | Andrea | E-06, E-12 |🟢 |
 | 0012 | Cómputo de servicios y jobs: Fargate On-Demand, Fargate Spot y ARM64 | 18 | EG-27 | S3 | Andrea | Temas 8–9 y 16 | ⚪ |
-| 0013 | RabbitMQ en EC2 frente a Amazon MQ | 20 | EG-29 | S3 | Andrea | RNF-04, tema 10 | ⚪ |
+| [0013](0013-rabbitmq-ec2-frente-amazon-mq.md) | RabbitMQ en EC2 `t4g.small` (1 nodo, colas classic durables) frente a Amazon MQ | 20 | EG-29 | S3 | Andrea | RNF-04, tema 10 |🟢 |
 | 0014 | Formato y particionamiento del Data Lake (Parquet por año/mes/país) | 22 | EG-31 | S3 | María Clara | RNF-03, tema 15 | ⚪ |
 | 0015 | Airflow en EC2 con CeleryExecutor frente a MWAA | 25 | EG-34 | S4 | Joshua | Temas 11–12 | ⚪ |
 | 0016 | Manejo del skew en Spark (salting, broadcast join) | 30 | EG-39 | S5 | Joshua | RNF-01, E-13 | ⚪ |
 | 0017 | CI/CD con OIDC y gestión de secretos en SSM Parameter Store | 31 | EG-40 | S5 | Andrea | CT-02, E-09 | ⚪ |
 | 0018 | ECS frente a EKS, y EKS encendido solo durante su prueba en S5 y la demo | 32 | EG-41 | S5 | Joshua | Tema 19 | ⚪ |
 | 0019 | Acceso de Power BI a RDS mediante túnel SSM | 35 | EG-44 | S6 | María Clara | RF-08, E-11 | ⚪ |
+| [0022](0022-excepcion-plan-gratuito-rds-nat.md) | Excepción del plan gratuito: backups de RDS de 1 día y NAT t4g.micro hasta la última semana | 17 | EG-26 | S3 | Julián (aprobó el 2026-10-20) | Criterio 5 de la EG-26, ADR-0010, ADR-0020 | 🟢 |
 | [0020](0020-ventanas-encendido-aws.md) | Entorno AWS apagado por defecto: ventanas de prueba en S3–S5 y encendido continuo solo en la última semana | 07 | EG-16 | S1 | María Clara (los tres) | ADR-0001, HU 17, 23, 38 | 🟢 |
 
 ## Resumen por historia

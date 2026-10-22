@@ -374,14 +374,27 @@ La liquidación de regalías (RN-05 a RN-10, RNF-02, EG-23) está en `src/sonora
 uv run python -m pytest tests/reglas -v
 ```
 
+## Infraestructura en AWS (EG-26)
+
+Terraform en `infra/terraform/` crea la base del entorno en AWS (HU 17, E-06):
+- IAM de mínimo privilegio, con un rol por servicio y sin access keys;
+- una VPC en 2 AZ con subredes públicas y privadas y una instancia NAT;
+- el Data Lake en S3 por capas (Bronze, Silver, Gold), cifrado y con Block Public Access;
+- RDS PostgreSQL privado con backups de 7 días y credenciales en SSM Parameter Store.
+
+Todo lleva `Project=sonoraplay`, y `terraform destroy` lo borra sin huérfanos. El entorno está apagado por defecto: se prende solo en ventanas de prueba ([ADR-0020](docs/adr/0020-ventanas-encendido-aws.md)).
+
+Guía paso a paso y cómo verificar cada criterio: [infra/terraform/README.md](infra/terraform/README.md). Decisiones: [ADR-0009](docs/adr/0009-region-aws.md) (región), [ADR-0010](docs/adr/0010-instancia-nat.md) (instancia NAT) y [ADR-0011](docs/adr/0011-terraform.md) (Terraform).
+
 ## Integración continua
 
-Cada push a `main` o `develop`, y cada Pull Request, ejecuta tres revisiones en GitHub Actions (`.github/workflows/ci.yml`):
+Cada push a `main` o `develop`, y cada Pull Request, ejecuta cuatro revisiones en GitHub Actions (`.github/workflows/ci.yml`):
 
 | Job | Qué revisa |
 |---|---|
 | `lint` | Estilo y errores comunes con Ruff (PEP 8) |
 | `test` | Pruebas automatizadas con pytest y cobertura |
+| `terraform` | `fmt`, `validate` y Checkov sobre `infra/terraform` (sin credenciales ni `apply`) |
 | `secretos` | Credenciales expuestas con [Gitleaks](https://github.com/gitleaks/gitleaks) |
 
 `main` y `develop` están protegidas: solo reciben cambios por Pull Request, con **1 aprobación** y los **3 jobs en verde**.
@@ -438,7 +451,7 @@ Un ítem se cierra en Jira solo si:
 
 ```text
 .github/
-  workflows/ci.yml             CI: lint, pruebas y secretos
+  workflows/ci.yml             CI: lint, pruebas, Terraform y secretos
   pull_request_template.md     Checklist de la Definition of Done
 db/ddl/                        DDL de PostgreSQL: F3, F4 y reporte de regalías (se aplica al crear el volumen)
 docs/analisis/                 Ambigüedades de las reglas de negocio y supuestos (EG-11)
@@ -446,6 +459,7 @@ docs/arquitectura/             Arquitectura v1 y diagrama (EG-16)
 docs/adr/                      Registro de decisiones de arquitectura (ADR)
 docs/datos/                    Modelos de datos y decisiones
 docs/servicios/                Documentación de los servicios (API de contratos F4 y API de sellos)
+infra/terraform/               Terraform de AWS: VPC, NAT, S3 por capas, RDS e IAM (EG-26)
 docker/                        Dockerfiles por componente (api-contratos, api-titulares, seed, simulador, esqueleto) y seed.sh
 schemas/                       Esquema JSON de eventos F2 y ejemplos
 src/sonoraplay/                Código del paquete (src layout)

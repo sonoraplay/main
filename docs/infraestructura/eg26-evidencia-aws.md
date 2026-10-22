@@ -27,21 +27,21 @@ Las imágenes muestran la salida real de los comandos, en español. El ID de la 
 | **C2** · VPC en 2 AZ con subredes públicas y privadas | ✅ | 4 subredes /24 en us-east-1a y us-east-1b; solo la NAT en una subred pública |
 | **C3** · Un rol de mínimo privilegio por servicio, sin llaves | ✅ | 13 roles, 0 usuarios IAM; el consumidor escribe en Bronze y no en Gold |
 | **C4** · Bronze, Silver y Gold privados y cifrados | ✅ | Block Public Access completo y `AES256` |
-| **C5** · RDS privada, backups de 7 días, credenciales en SSM | ⚠️ | Privada y cifrada, contraseña como `SecureString`; **backups de 1 día** por el plan gratuito, excepción pendiente de aprobación (ver abajo) |
-| **C6** · ADR-0009, 0010 y 0011 | ✅ | Escritos en la rama de la EG-26 |
+| **C5** · RDS privada, backups de 7 días, credenciales en SSM | ⚠️ | Privada y cifrada, contraseña como `SecureString`; **backups de 1 día** por el plan gratuito, excepción aprobada por Julián el 20 oct (PR #4) y registrada en [ADR-0022](../adr/0022-excepcion-plan-gratuito-rds-nat.md) |
+| **C6** · ADR-0009, 0010 y 0011 | ✅ | Escritos y aceptados en `develop` |
 
 ### Puntos abiertos
 
-:::warning Excepción del criterio C5: pendiente de aprobación
-La cuenta de AWS del proyecto está en el **plan gratuito**, que rechaza RDS con más de 1 día de backups (`FreeTierRestrictionError`) y no permite instancias `t4g.nano`. Por eso el commit `1057f25` usa `rds_backup_retention_days = 1` y la NAT `t4g.micro`. El criterio C5 pide 7 días, así que **esta excepción debe aprobarla Julián** antes de dar la historia por terminada. Si no se acepta, hay dos caminos: pasar la cuenta a plan pago (los créditos se conservan) y volver a poner 7 días y `t4g.nano` sin otros cambios, o repetir la ventana en una cuenta con plan pago.
+:::warning Excepción del criterio C5: aprobada
+La cuenta de AWS del proyecto está en el **plan gratuito**, que rechaza RDS con más de 1 día de backups (`FreeTierRestrictionError`) y no permite instancias `t4g.nano`. Por eso el commit `1057f25` usa `rds_backup_retention_days = 1` y la NAT `t4g.micro`. El criterio C5 pide 7 días. La excepción está registrada en [ADR-0022](../adr/0022-excepcion-plan-gratuito-rds-nat.md): 1 día y `t4g.micro` mientras dure el plan gratuito, y vuelta a 7 días y `t4g.nano` antes del encendido continuo de la última semana. **Julián la aprobó el 20 oct** en su revisión del PR #4. Si no se acepta, hay dos caminos: pasar la cuenta a plan pago (los créditos se conservan) y volver a poner 7 días y `t4g.nano` sin otros cambios, o repetir la ventana en una cuenta con plan pago.
 :::
 
 | Ajuste | Estado | Dónde se resuelve |
 |---|---|---|
-| La contraseña de RDS y la de SSM se desincronizan tras un `apply` parcial | **Sin resolver en el código.** En la ventana se corrigió a mano con `terraform apply -var rds_password_version=2` | En la misma EG-26, antes de fusionar su rama: `depends_on = [aws_db_instance.principal]` en `aws_ssm_parameter.rds_password` |
-| `rds.force_ssl` aparece como cambio en cada `plan` | **Sin resolver.** Es cosmético: el valor sigue en `1` y no reinicia nada | En la misma EG-26: `apply_method = "pending-reboot"` en el bloque `parameter` de `rds.tf` |
+| La contraseña de RDS y la de SSM se desincronizan tras un `apply` parcial | **Resuelto en `develop`.** En la ventana del 19 oct se corrigió a mano con `terraform apply -var rds_password_version=2`. En la del 21 oct el segundo `apply` no cambió nada; el escenario de `apply` parcial no se reprodujo | `aws_ssm_parameter.rds_password` tiene `depends_on = [aws_db_instance.principal]`: si RDS falla, SSM no guarda una contraseña que RDS nunca recibió (commit `f9fd9f1`) |
+| `rds.force_ssl` aparece como cambio en cada `plan` | **Resuelto y comprobado en AWS el 21 oct.** Era cosmético: el valor sigue en `1` y no reinicia nada. Un `plan` justo después del `apply` salió sin cambios | `apply_method = "pending-reboot"` en el bloque `parameter` de `rds.tf` |
 
-Ninguno de los dos cambia lo que muestra esta evidencia. Por eso esta página puede fusionarse sin ellos, y los dos ajustes quedan como condición para fusionar la rama de infraestructura de la EG-26.
+Ninguno de los dos cambia lo que muestra esta evidencia. Los dos ajustes ya están en `develop`, pasan `terraform validate` y Checkov, y se comprobaron en la ventana del 21 oct (ver la sección 6).
 
 ### 1. Creación (`apply`)
 
@@ -121,16 +121,52 @@ En la ventana del 15 de octubre se corrió el esqueleto ([EG-24](../esqueleto.md
 
 Eso confirma que la red privada, la NAT, el endpoint de S3, la regla `airflow → rds` y las credenciales en SSM funcionan juntos.
 
+### 6. Segunda ventana · 21 oct 2026
+
+Esta ventana comprobó en AWS los dos ajustes de RDS/SSM (commit `f9fd9f1`) y repitió los criterios C2 a C5.
+
+| Dato | Valor |
+|---|---|
+| Fecha | 21 oct 2026 |
+| Cuenta / región | `6498****9012` / `us-east-1` |
+| Código | Rama `develop` con el merge del PR #8 (la carpeta `infra/terraform` no cambió después) |
+| Ejecución | AWS CloudShell, Terraform 1.16.6 |
+
+| Prueba | Resultado | Evidencia |
+|---|---|---|
+| `plan -detailed-exitcode` justo después del `apply` | ✅ `exit=0` | «No changes. Your infrastructure matches the configuration». El parámetro `rds.force_ssl` ya no aparece como cambio |
+| Segundo `apply` | ✅ | `Apply complete! Resources: 0 added, 0 changed, 0 destroyed.` |
+| **C2** · Red | ✅ | 4 subredes /24: us-east-1a con `10.0.0.0/24` y `10.0.10.0/24`; us-east-1b con `10.0.1.0/24` y `10.0.11.0/24` |
+| **C3** · IAM | ✅ | `aws iam list-users` devuelve `[]`: no hay usuarios ni access keys. Los roles de ejecución y de tarea de cada servicio salen en `terraform output` |
+| **C4** · S3 | ✅ | Bronze, Silver y Gold con los 4 bloqueos de acceso público en `true` y cifrado `AES256` |
+| **C5** · RDS | ⚠️ | `[false, 1, true]`: privada, 1 día de backups (excepción del [ADR-0022](../adr/0022-excepcion-plan-gratuito-rds-nat.md)) y cifrada. En SSM, `dbname`, `host`, `port` y `username` son `String` y `password` es `SecureString` |
+| Destrucción | ✅ | `Destroy complete! Resources: 104 destroyed.` |
+| Sin huérfanos | ✅ | Revisión directa, abajo |
+
+**Sin huérfanos.** Después del `destroy` se revisó cada servicio directamente. La NAT figura `terminated` (AWS la deja visible cerca de una hora) y su disco, el endpoint de S3 y el Security Group principal responden `NotFound`. Las consultas por etiqueta `Project=sonoraplay` de instancias, volúmenes y VPC devuelven `[]`. También devuelven vacío las IP elásticas, las instancias de RDS, los backups automáticos de RDS, los roles de IAM `sonoraplay*` y los parámetros SSM `/sonoraplay`. Solo queda el bucket del estado `sonoraplay-6498****9012-tfstate`, que es persistente por diseño.
+
+:::info `verificar-huerfanos.sh` volvió a listar recursos ya borrados
+Poco después del `destroy`, el script todavía nombraba la NAT, su disco, el endpoint de S3, el Security Group y sus reglas, porque la API de etiquetas tarda en actualizarse. Lo confirman las consultas directas de arriba. No se registra aquí una salida `OK` del script: si se repite más tarde, anótese en esta sección.
+:::
+
+**Lo que no se probó en esta ventana.**
+- El inicio de sesión en RDS con la contraseña guardada en SSM (exigiría un entorno de CloudShell dentro de la VPC, que bloquea el `destroy`).
+- El escenario de `apply` parcial que originó el ajuste de `depends_on`: se comprobó que el segundo `apply` no cambia nada, pero el fallo no se provocó.
+- La salida a internet de una instancia privada a través de la NAT.
+
 ### Cómo repetir la ventana
 
-Se corre en AWS CloudShell (us-east-1), desde la raíz del repo con la rama de la EG-26. CloudShell solo tiene 1 GB en `$HOME`, así que el código y los proveedores de Terraform van en `/tmp`.
+Se corre en AWS CloudShell (us-east-1), desde la raíz del repo con `develop`. CloudShell solo tiene 1 GB en `$HOME`, así que el código y los proveedores de Terraform van en `/tmp`.
 
 ```bash
 # 0. Preparar (cada sesión de CloudShell)
 export AWS_REGION=us-east-1 TF_PLUGIN_CACHE_DIR=/tmp/tf-plugin-cache
 mkdir -p "$TF_PLUGIN_CACHE_DIR"
-git clone https://github.com/sonoraplay/main.git /tmp/sonoraplay && cd /tmp/sonoraplay
-git checkout feature/EG-26-iam-vpc-s3-rds
+mkdir -p /tmp/bin /tmp/evidencia && export PATH=/tmp/bin:$PATH
+# CloudShell no trae Terraform: instálalo en /tmp (el $HOME solo tiene 1 GB)
+curl -sSLO --output-dir /tmp https://releases.hashicorp.com/terraform/1.16.6/terraform_1.16.6_linux_amd64.zip && unzip -o /tmp/terraform_1.16.6_linux_amd64.zip -d /tmp/bin
+# --branch develop: la rama por defecto (main) no tiene la carpeta infra/
+git clone --depth 1 --branch develop --single-branch https://github.com/sonoraplay/main.git /tmp/sonoraplay && cd /tmp/sonoraplay
 CUENTA=$(aws sts get-caller-identity --query Account --output text)
 
 # 1. Solo la primera vez en la cuenta: bucket del estado (persistente)
@@ -174,21 +210,21 @@ The images show the actual command output; labels and comments in them are in Sp
 | **C2** · VPC across 2 AZs with public and private subnets | ✅ | 4 /24 subnets in us-east-1a and us-east-1b; only the NAT is in a public subnet |
 | **C3** · One least-privilege role per service, no keys | ✅ | 13 roles, 0 IAM users; the consumer can write to Bronze but not to Gold |
 | **C4** · Private, encrypted Bronze, Silver and Gold | ✅ | Full Block Public Access and `AES256` |
-| **C5** · Private RDS, 7-day backups, credentials in SSM | ⚠️ | Private and encrypted, password as `SecureString`; **1-day backups** because of the free plan, exception pending approval (see below) |
-| **C6** · ADR-0009, 0010 and 0011 | ✅ | Written in the EG-26 branch |
+| **C5** · Private RDS, 7-day backups, credentials in SSM | ⚠️ | Private and encrypted, password as `SecureString`; **1-day backups** because of the free plan, exception approved by Julián on Oct 20 (PR #4) and recorded in [ADR-0022](../adr/0022-excepcion-plan-gratuito-rds-nat.md) |
+| **C6** · ADR-0009, 0010 and 0011 | ✅ | Written and accepted in `develop` |
 
 ### Open items
 
-:::warning C5 exception: pending approval
-The project's AWS account is on the **free plan**, which rejects RDS with more than 1 day of backups (`FreeTierRestrictionError`) and does not allow `t4g.nano` instances. That is why commit `1057f25` uses `rds_backup_retention_days = 1` and a `t4g.micro` NAT. Criterion C5 asks for 7 days, so **Julián must approve this exception** before the story is marked done. If it is not accepted, there are two options: upgrade the account to a paid plan (remaining credits are kept) and set 7 days and `t4g.nano` back with no other changes, or repeat the window in an account on a paid plan.
+:::warning C5 exception: approved
+The project's AWS account is on the **free plan**, which rejects RDS with more than 1 day of backups (`FreeTierRestrictionError`) and does not allow `t4g.nano` instances. That is why commit `1057f25` uses `rds_backup_retention_days = 1` and a `t4g.micro` NAT. Criterion C5 asks for 7 days. The exception is recorded in [ADR-0022](../adr/0022-excepcion-plan-gratuito-rds-nat.md): 1 day and `t4g.micro` while the free plan lasts, back to 7 days and `t4g.nano` before the continuous final-week deployment. **Julián approved it on Oct 20** in his review of PR #4. If it is not accepted, there are two options: upgrade the account to a paid plan (remaining credits are kept) and set 7 days and `t4g.nano` back with no other changes, or repeat the window in an account on a paid plan.
 :::
 
 | Fix | Status | Where it is handled |
 |---|---|---|
-| RDS and SSM passwords drift apart after a partial `apply` | **Not fixed in the code yet.** It was fixed by hand during the window with `terraform apply -var rds_password_version=2` | In EG-26 itself, before its branch is merged: `depends_on = [aws_db_instance.principal]` on `aws_ssm_parameter.rds_password` |
-| `rds.force_ssl` shows as a change on every `plan` | **Not fixed yet.** It is cosmetic: the value stays `1` and nothing reboots | In EG-26 itself: `apply_method = "pending-reboot"` in the `parameter` block of `rds.tf` |
+| RDS and SSM passwords drift apart after a partial `apply` | **Fixed in `develop`.** It was fixed by hand during the Oct 19 window with `terraform apply -var rds_password_version=2`. In the Oct 21 window the second `apply` changed nothing; the partial-`apply` scenario was not reproduced | `aws_ssm_parameter.rds_password` has `depends_on = [aws_db_instance.principal]`: if RDS fails, SSM does not store a password RDS never received (commit `f9fd9f1`) |
+| `rds.force_ssl` shows as a change on every `plan` | **Fixed and confirmed in AWS on Oct 21.** It was cosmetic: the value stays `1` and nothing reboots. A `plan` right after `apply` showed no changes | `apply_method = "pending-reboot"` in the `parameter` block of `rds.tf` |
 
-Neither fix changes what this evidence shows. This page can therefore be merged without them, and both fixes become a condition for merging the EG-26 infrastructure branch.
+Neither fix changes what this evidence shows. Both are now in `develop`, pass `terraform validate` and Checkov, and were checked in the Oct 21 window (see section 6).
 
 ### 1. Creation (`apply`)
 
@@ -227,11 +263,44 @@ The script queries the AWS Resource Groups Tagging API, which takes several minu
 
 In the 15 October window, the skeleton ([EG-24](../esqueleto.md)) ran against the private RDS from a CloudShell environment inside the VPC (private subnet and `airflow` security group). It loaded 10,000 users, 8,712 subscriptions, 69,227 payments, 50 rights holders and 208 contracts; published the 2026-09 settlement for Colombia in `reporte_regalias`; and uploaded `f1/` and `f2/fecha=2026-09-30/` to the Bronze bucket. This confirms that the private network, the NAT, the S3 endpoint, the `airflow → rds` rule and the SSM credentials work together.
 
+### 6. Second window · Oct 21, 2026
+
+This window checked the two RDS/SSM fixes (commit `f9fd9f1`) in AWS and repeated criteria C2 to C5.
+
+| Item | Value |
+|---|---|
+| Date | Oct 21, 2026 |
+| Account / region | `6498****9012` / `us-east-1` |
+| Code | `develop` with the PR #8 merge (the `infra/terraform` folder did not change afterwards) |
+| Run from | AWS CloudShell, Terraform 1.16.6 |
+
+| Test | Result | Evidence |
+|---|---|---|
+| `plan -detailed-exitcode` right after `apply` | ✅ `exit=0` | "No changes. Your infrastructure matches the configuration". The `rds.force_ssl` parameter no longer shows as a change |
+| Second `apply` | ✅ | `Apply complete! Resources: 0 added, 0 changed, 0 destroyed.` |
+| **C2** · Network | ✅ | 4 /24 subnets: us-east-1a with `10.0.0.0/24` and `10.0.10.0/24`; us-east-1b with `10.0.1.0/24` and `10.0.11.0/24` |
+| **C3** · IAM | ✅ | `aws iam list-users` returns `[]`: no users and no access keys. Each service's execution and task roles appear in `terraform output` |
+| **C4** · S3 | ✅ | Bronze, Silver and Gold with all 4 public-access blocks `true` and `AES256` encryption |
+| **C5** · RDS | ⚠️ | `[false, 1, true]`: private, 1-day backups (exception in [ADR-0022](../adr/0022-excepcion-plan-gratuito-rds-nat.md)) and encrypted. In SSM, `dbname`, `host`, `port` and `username` are `String` and `password` is `SecureString` |
+| Destruction | ✅ | `Destroy complete! Resources: 104 destroyed.` |
+| No orphans | ✅ | Direct check, below |
+
+**No orphans.** After the `destroy`, each service was checked directly. The NAT shows `terminated` (AWS keeps it visible for about an hour) and its disk, the S3 endpoint and the main Security Group return `NotFound`. Tag queries for `Project=sonoraplay` on instances, volumes and VPCs return `[]`. Elastic IPs, RDS instances, RDS automated backups, `sonoraplay*` IAM roles and `/sonoraplay` SSM parameters also return empty. Only the state bucket `sonoraplay-6498****9012-tfstate` remains, which is persistent by design.
+
+:::info `verificar-huerfanos.sh` listed resources that were already deleted
+Shortly after the `destroy`, the script still named the NAT, its disk, the S3 endpoint, the Security Group and its rules, because the tagging API is slow to update. The direct checks above confirm it. No `OK` output from the script is recorded here: if it is run again later, add it to this section.
+:::
+
+**Not tested in this window.**
+- Logging in to RDS with the password stored in SSM (it needs a CloudShell environment inside the VPC, which blocks the `destroy`).
+- The partial-`apply` scenario that motivated the `depends_on` fix: the second `apply` was shown to change nothing, but the failure was not provoked.
+- Internet egress of a private instance through the NAT.
+
 ### How to repeat the window
 
-Run it in AWS CloudShell (us-east-1) from the repo root on the EG-26 branch. CloudShell has only 1 GB in `$HOME`, so the code and the Terraform providers go in `/tmp`. The commands are the same as in the Spanish section above:
+Run it in AWS CloudShell (us-east-1) from the repo root on `develop`. CloudShell has only 1 GB in `$HOME`, so the code and the Terraform providers go in `/tmp`. The commands are the same as in the Spanish section above:
 
-1. Prepare the session: set `AWS_REGION` and `TF_PLUGIN_CACHE_DIR`, clone `sonoraplay/main` into `/tmp` and check out `feature/EG-26-iam-vpc-s3-rds`.
+1. Prepare the session: set `AWS_REGION` and `TF_PLUGIN_CACHE_DIR`, install Terraform in `/tmp/bin` (CloudShell does not include it) and clone `sonoraplay/main` into `/tmp` with `--branch develop` (the default branch `main` has no `infra/` folder).
 2. First time only in the account: `terraform -chdir=infra/terraform/bootstrap init` and `apply`, which create the persistent state bucket.
 3. Create: write `infra/terraform/backend.hcl` with the state bucket, then run `init -backend-config=backend.hcl`, `plan -out=ventana.tfplan` and `apply ventana.tfplan`. RDS takes 10–15 minutes.
 4. Verify the criteria (see the `infra/terraform` README).
