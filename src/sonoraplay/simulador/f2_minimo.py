@@ -52,8 +52,6 @@ class Usuario:
 class Pista:
     track_id: str
     duration_ms: int
-    # `artista_principal` de F1. El simulador mínimo no lo usa; las granjas de la EG-51 sí.
-    artista: str = ""
 
 
 @dataclass(frozen=True)
@@ -98,13 +96,11 @@ def leer_fuentes(engine: Engine, directorio_f1: Path, fecha_base: date) -> Fuent
     ruta = directorio_f1 / "catalogo_f1.parquet"
     if not ruta.exists():
         raise ValueError(f"No existe {ruta}. Corre antes: python -m sonoraplay.catalogo")
-    catalogo = pd.read_parquet(
-        ruta, columns=["track_id", "titular_id", "duration_ms", "artista_principal"]
-    )
+    catalogo = pd.read_parquet(ruta, columns=["track_id", "titular_id", "duration_ms"])
     con_contrato = {(t, titular) for t, titular in contratos}
     pistas = sorted(
         (
-            Pista(str(f.track_id), int(f.duration_ms), str(f.artista_principal))
+            Pista(str(f.track_id), int(f.duration_ms))
             for f in catalogo.itertuples(index=False)
             if (str(f.track_id), str(f.titular_id)) in con_contrato
         ),
