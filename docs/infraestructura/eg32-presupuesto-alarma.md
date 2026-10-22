@@ -15,7 +15,7 @@ title: "EG-32 · Presupuesto y alarma / Budget and alarm"
 |---|---|
 | Stack `infra/terraform/presupuesto/` | **Persistente**: sigue vigilando entre ventanas porque no se destruye con el `destroy` del stack principal (ADR-0020). Estado propio en S3: `sonoraplay/presupuesto.tfstate` |
 | Presupuesto `sonoraplay-mensual` | 50 USD al mes, sobre el gasto bruto (no descuenta créditos). Avisa al 50 % y al 80 % del gasto real, y cuando la proyección supera el 100 % |
-| Tema SNS y suscripción de correo | Budgets publica en el tema y el tema envía el correo. El correo **no está en el repositorio**: se pasa al aplicar |
+| Tema SNS y suscripción de correo | La suscripción requiere un correo válido; Budgets publica en el tema y el tema envía el correo. El correo **no está en el repositorio**: se pasa al aplicar |
 | Etiqueta `Owner` | Valor `sonoraplay-equipo` en todos los recursos del stack principal, en el presupuesto y en el bootstrap |
 
 El límite de **50 USD por mes calendario es una propuesta pendiente de aprobación del equipo**, no una cifra derivada directamente de los ~35 USD estimados **para seis semanas**. La hoja de EG-32 del PR #12 estima aproximadamente **5,6 USD por mes** en ventanas de prueba (8 × 3 h) y **126 USD por mes** en operación continua, con supuestos y exclusiones documentados. El escenario de seis semanas incluye una última semana encendida y no se debe comparar directamente con un límite mensual sin distribuir los costos por mes calendario. Antes del despliegue, registrar la proyección máxima de cada mes y confirmar el umbral elegido. **AWS Budgets avisa; no bloquea el gasto ni apaga recursos.** Se cambia con `-var limite_usd=...`.
@@ -31,7 +31,7 @@ terraform -chdir=infra/terraform/presupuesto plan -var correo_alertas=TU_CORREO 
 terraform -chdir=infra/terraform/presupuesto apply presupuesto.tfplan
 ```
 
-El plan debe crear 4 recursos: el tema, su política, la suscripción y el presupuesto. El archivo `*.tfplan` está en `.gitignore`.
+En un despliegue inicial, el plan debe crear 4 recursos: el tema, su política, la suscripción y el presupuesto. **No ejecutar `apply` sin un correo válido**, ni considerar el aviso operativo antes de confirmar la suscripción. El archivo `*.tfplan` está en `.gitignore`.
 
 ### Confirmar y probar
 
@@ -86,14 +86,14 @@ El plan debe crear 4 recursos: el tema, su política, la suscripción y el presu
 |---|---|
 | Stack `infra/terraform/presupuesto/` | **Persistent**: it keeps watching between windows because the main stack's `destroy` does not remove it (ADR-0020). Own S3 state: `sonoraplay/presupuesto.tfstate` |
 | Budget `sonoraplay-mensual` | USD 50 per month on gross spend (credits are not deducted). It alerts at 50% and 80% of actual spend, and when the forecast exceeds 100% |
-| SNS topic and email subscription | Budgets publishes to the topic and the topic sends the email. The email is **not in the repository**: it is passed at apply time |
+| SNS topic and email subscription | A valid recipient email is required; Budgets publishes to the topic and the topic sends the email. The email is **not in the repository**: it is passed at apply time |
 | `Owner` tag | Value `sonoraplay-equipo` on every main-stack resource, on the budget stack and on the bootstrap |
 
 The **USD 50 per calendar month threshold is a proposal awaiting team approval**, not a direct conversion of the approximately **USD 35 six-week** project estimate. The EG-32 worksheet in PR #12 estimates approximately **USD 5.6/month** for test windows (8 × 3 h) and **USD 126/month** for always-on operations, subject to documented assumptions and exclusions. The six-week scenario includes a final always-on week and must be allocated to calendar months before comparing it to a monthly threshold. Before deployment, record the peak projected spend in each calendar month and approve the threshold. **AWS Budgets sends alerts; it does not cap spending or stop resources.** Change the threshold with `-var limite_usd=...`.
 
 ### Apply it (once, in CloudShell)
 
-The state bucket already exists and `infra/terraform/backend.hcl` is built as in the windows. **Before `apply`, obtain team confirmation of the monthly threshold, recipient email and `Owner` value.** Replace `TU_CORREO` with the address that will receive alerts. Run `init` with `-backend-config=../backend.hcl`, then `plan -var correo_alertas=TU_CORREO -out=presupuesto.tfplan` and `apply presupuesto.tfplan`, all with `-chdir=infra/terraform/presupuesto` (exact commands in the Spanish section above). The plan must create 4 resources: the topic, its policy, the subscription and the budget. `*.tfplan` is in `.gitignore`.
+The state bucket already exists and `infra/terraform/backend.hcl` is built as in the windows. **Before `apply`, obtain team confirmation of the monthly threshold, recipient email and `Owner` value.** Replace `TU_CORREO` with the address that will receive alerts. Run `init` with `-backend-config=../backend.hcl`, then `plan -var correo_alertas=TU_CORREO -out=presupuesto.tfplan` and `apply presupuesto.tfplan`, all with `-chdir=infra/terraform/presupuesto` (exact commands in the Spanish section above). On initial deployment, the plan must create 4 resources: the topic, its policy, the subscription and the budget. **Do not run `apply` without a valid email** or consider alerts operational until the subscription is confirmed. `*.tfplan` is in `.gitignore`.
 
 ### Confirm and test
 
