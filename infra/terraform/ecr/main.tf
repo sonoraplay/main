@@ -42,6 +42,12 @@ variable "servicios" {
   default     = ["api-titulares", "api-contratos", "simulador", "consumidor", "spark"]
 }
 
+variable "owner" {
+  description = "Valor de la etiqueta Owner (EG-32, criterio 4). Mismo valor que el entorno principal."
+  type        = string
+  default     = "sonoraplay-equipo"
+}
+
 variable "imagenes_a_conservar" {
   description = "Imágenes etiquetadas que se guardan por repositorio; las más viejas se borran."
   type        = number
@@ -54,6 +60,7 @@ provider "aws" {
   default_tags {
     tags = {
       Project     = var.prefijo
+      Owner       = var.owner
       Environment = "persistente"
       ManagedBy   = "terraform"
     }

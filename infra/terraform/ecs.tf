@@ -174,5 +174,8 @@ resource "aws_ecs_service" "api_titulares" {
   propagate_tags        = "SERVICE"
   wait_for_steady_state = true # el apply falla si la API no queda sana
 
-  depends_on = [aws_lb_listener.http, aws_cloudwatch_log_group.ecs]
+  # Con certificado, el target group cuelga del listener 443 (el 80 solo redirige): sin esta
+  # dependencia, ECS puede crear el servicio antes y fallar con "el target group no tiene un
+  # balanceador asociado". Con count = 0 (sin certificado) la dependencia no hace nada.
+  depends_on = [aws_lb_listener.http, aws_lb_listener.https, aws_cloudwatch_log_group.ecs]
 }
