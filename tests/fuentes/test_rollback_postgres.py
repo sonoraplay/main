@@ -21,15 +21,15 @@ def test_rollback_postgresql():
 
         paises = [
             {
-                "pais": f"ZZ{i:03d}",
+                "pais": f"{chr(65 + i // 26)}{chr(65 + i % 26)}",
                 "region": "Test",
                 "monedas": ["USD"],
             }
             for i in range(200)
         ]
 
-        # El primer conjunto de datos es válido.
-        # El error se provocará después de insertar los países.
+        # 200 códigos ISO-2 válidos; el fallo ocurre después de insertar F7.
+        # Decimal inválido en F6 dispara rollback de los INSERT de F7.
         tasas_diarias = [
             {
                 "moneda": "USD",
@@ -55,8 +55,5 @@ def test_rollback_postgresql():
             cursor.execute("SELECT COUNT(*) FROM fuente_f7_paises")
             total_despues = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM fuente_f7_paises WHERE pais LIKE 'ZZ%'")
-            paises_prueba = cursor.fetchone()[0]
 
     assert total_antes == total_despues
-    assert paises_prueba == 0
