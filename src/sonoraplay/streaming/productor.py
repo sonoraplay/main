@@ -4,7 +4,9 @@ Uso: python -m sonoraplay.streaming.productor --entrada data/processed/eventos_f
 """
 
 import argparse
+import json
 from pathlib import Path
+from typing import Any
 
 from sonoraplay.streaming.config import StreamingConfig
 from sonoraplay.streaming.topologia import declarar
@@ -18,8 +20,6 @@ def publicar(cfg: StreamingConfig, lineas: list[str]) -> int:
     pika lanza una excepción y el productor se detiene en ese evento en vez de perderlo en
     silencio. El ``message_id`` es el ``event_id`` cuando la línea lo trae.
     """
-    import json
-
     import pika
 
     conexion = pika.BlockingConnection(pika.URLParameters(cfg.url))
@@ -29,28 +29,39 @@ def publicar(cfg: StreamingConfig, lineas: list[str]) -> int:
     publicados = 0
     try:
         for linea in lineas:
-            linea = linea.strip()
-            if not linea:
-                continue
-            try:
-                message_id = json.loads(linea).get("event_id")
-            except (json.JSONDecodeError, AttributeError):
-                message_id = None  # el consumidor lo mandará a la DLQ
-            canal.basic_publish(
-                exchange=cfg.exchange,
-                routing_key=cfg.llave,
-                body=linea.encode("utf-8"),
-                properties=pika.BasicProperties(
-                    delivery_mode=pika.DeliveryMode.Persistent,
-                    content_type="application/json",
-                    message_id=message_id,
-                ),
-                mandatory=True,
-            )
-            publicados += 1
+            if publicar_linea(canal, cfg, linea):
+                publicados += 1
     finally:
         conexion.close()
     return publicados
+
+
+def publicar_linea(canal: Any, cfg: StreamingConfig, linea: str) -> bool:
+    """Publica una línea como mensaje persistente y obligatorio. Devuelve False si está vacía.
+
+    El canal debe tener ``confirm_delivery``: así ``basic_publish`` bloquea hasta la confirmación.
+    """
+    import pika
+
+    linea = linea.strip()
+    if not linea:
+        return False
+    try:
+        message_id = json.loads(linea).get("event_id")
+    except (json.JSONDecodeError, AttributeError):
+        message_id = None  # el consumidor lo mandará a la DLQ
+    canal.basic_publish(
+        exchange=cfg.exchange,
+        routing_key=cfg.llave,
+        body=linea.encode("utf-8"),
+        properties=pika.BasicProperties(
+            delivery_mode=pika.DeliveryMode.Persistent,
+            content_type="application/json",
+            message_id=message_id,
+        ),
+        mandatory=True,
+    )
+    return True
 
 
 def main(argv: list[str] | None = None) -> None:

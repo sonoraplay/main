@@ -1,7 +1,7 @@
 """Configuración central de SonoraPlay. Todo sale de variables de entorno."""
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from typing import Literal
@@ -155,3 +155,108 @@ class AtribucionOfflineConfig:
             raise ValueError("hora_corte y minuto_corte fuera de rango")
         if self.tolerancia_reloj_segundos < 0:
             raise ValueError("tolerancia_reloj_segundos no puede ser negativa")
+
+
+# --- Simulador F2 avanzado (EG-51) ------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class DefectosF2Config:
+    """Los 5 defectos de `docs/datos/eventos-f2.md`, en % de las sesiones de cuentas normales.
+
+    Cada sesión tiene a lo sumo un defecto, así que los porcentajes se suman (máximo 100).
+    """
+
+    evento_sin_fin: float = 2.0
+    reloj_desfasado: float = 2.0
+    track_desconocido: float = 2.0
+    duplicado_por_reintento: float = 2.0
+    pais_facturacion_distinto: float = 2.0
+
+    def como_dict(self) -> dict[str, float]:
+        return {
+            "evento_sin_fin": self.evento_sin_fin,
+            "reloj_desfasado": self.reloj_desfasado,
+            "track_desconocido": self.track_desconocido,
+            "duplicado_por_reintento": self.duplicado_por_reintento,
+            "pais_facturacion_distinto": self.pais_facturacion_distinto,
+        }
+
+    def __post_init__(self) -> None:
+        for nombre, valor in self.como_dict().items():
+            if not 0 <= valor <= 100:
+                raise ValueError(f"defecto {nombre} debe estar entre 0 y 100 (recibido: {valor})")
+        if sum(self.como_dict().values()) > 100:
+            raise ValueError("los porcentajes de defectos suman más de 100")
+
+
+@dataclass(frozen=True)
+class SimuladorAvanzadoConfig:
+    """EG-51 · granjas, oyentes intensivos, offline, defectos y carga pico sobre un mes UTC.
+
+    Los porcentajes van en puntos (5.0 = 5 %). Las cantidades se redondean una sola vez y se
+    asignan exactas, así que la proporción generada no se aleja más de medio evento del valor
+    pedido. Los perfiles se calibran contra `fraude` (RN-03): las granjas superan algún umbral y
+    los intensivos legítimos quedan por debajo de todos.
+    """
+
+    semilla: int = 42
+    cuentas: int = 10_000
+    # Primer día del mes que se simula (septiembre: el que liquidaría el esqueleto).
+    mes: date = date(2026, 9, 1)
+    pct_granjas: float = 5.0  # FARM_PCT
+    pct_intensivos: float = 2.0
+    pct_offline: float = 10.0  # de las sesiones de cuentas normales
+    retraso_offline_max_dias: int = 30
+    # Sesiones de una cuenta normal en el mes. Mínimo 2: con 1 sola, el 100 % va a un artista.
+    sesiones_por_cuenta: tuple[int, int] = (6, 12)
+    # Granja de horas: escucha entre estas horas dentro de 24 h (RN-03 señal 1 marca > 20).
+    horas_granja: tuple[float, float] = (21.0, 23.0)
+    # Oyente intensivo legítimo: muchas horas en un día, bajo el umbral y con artistas variados.
+    horas_intensivo: tuple[float, float] = (12.0, 18.0)
+    # Granja de artista: fracción de reproducciones al artista que infla (RN-03 señal 2: > 0,70).
+    fraccion_artista_granja: float = 0.9
+    sesiones_granja_artista: tuple[int, int] = (30, 60)
+    # Granja de dispositivo: cuentas por dispositivo compartido (RN-03 señal 3: > 5).
+    cuentas_por_dispositivo_granja: int = 6
+    defectos: DefectosF2Config = field(default_factory=DefectosF2Config)
+    fraude: ReglasFraudeConfig = field(default_factory=ReglasFraudeConfig)
+
+    def __post_init__(self) -> None:
+        if self.cuentas < 1:
+            raise ValueError("cuentas debe ser al menos 1")
+        if self.mes.day != 1:
+            raise ValueError(f"mes debe ser el primer día de un mes (recibido: {self.mes})")
+        for nombre in ("pct_granjas", "pct_intensivos", "pct_offline"):
+            valor = getattr(self, nombre)
+            if not 0 <= valor <= 100:
+                raise ValueError(f"{nombre} debe estar entre 0 y 100 (recibido: {valor})")
+        if self.pct_granjas + self.pct_intensivos > 100:
+            raise ValueError("pct_granjas + pct_intensivos no puede pasar de 100")
+        if self.pct_offline + sum(self.defectos.como_dict().values()) > 100:
+            raise ValueError("pct_offline + los defectos no puede pasar de 100 %")
+        if not 0 <= self.retraso_offline_max_dias <= 30:
+            raise ValueError("retraso_offline_max_dias debe estar entre 0 y 30")
+        lo, hi = self.sesiones_por_cuenta
+        if not 2 <= lo <= hi:
+            raise ValueError(
+                "sesiones_por_cuenta debe ser (min, max) con 2 <= min <= max: una cuenta con "
+                "1 sesión manda el 100 % a un artista y RN-03 la marcaría (falso positivo)"
+            )
+        umbral = self.fraude.horas_max_24h
+        if not umbral < self.horas_granja[0] <= self.horas_granja[1] < 24:
+            raise ValueError(f"horas_granja debe estar entre {umbral} (exclusivo) y 24")
+        if not 0 < self.horas_intensivo[0] <= self.horas_intensivo[1] < umbral:
+            raise ValueError(f"horas_intensivo debe quedar por debajo de {umbral} h")
+        if not self.fraude.porcentaje_max_artista < self.fraccion_artista_granja <= 1:
+            raise ValueError("fraccion_artista_granja debe superar porcentaje_max_artista")
+        if self.cuentas_por_dispositivo_granja <= self.fraude.cuentas_max_dispositivo:
+            raise ValueError("cuentas_por_dispositivo_granja debe superar cuentas_max_dispositivo")
+
+    @property
+    def n_granjas(self) -> int:
+        return round(self.cuentas * self.pct_granjas / 100)
+
+    @property
+    def n_intensivos(self) -> int:
+        return round(self.cuentas * self.pct_intensivos / 100)
