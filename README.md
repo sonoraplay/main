@@ -362,7 +362,7 @@ uv run --env-file .env python -m pytest tests/simulador tests/reglas/test_sesion
 
 Opciones: `--eventos N` (por defecto 100, mínimo 30), `--semilla N` (por defecto 42), `--salida` (por defecto `data/processed/eventos_f2.jsonl`) y `--datos-f1` (por defecto `data/processed`). F4 debe estar cargado sobre el mismo catálogo que se pasa en `--datos-f1`.
 
-Escenarios, reglas de cada sesión y reconstrucción de reproducciones (`reglas/sesiones.py`): [docs/datos/simulador-f2.md](docs/datos/simulador-f2.md). Granjas, eventos offline, los 5 defectos y la carga pico llegan con la EG-51.
+Escenarios, reglas de cada sesión y reconstrucción de reproducciones (`reglas/sesiones.py`): [docs/datos/simulador-f2.md](docs/datos/simulador-f2.md). Granjas, eventos offline, los 5 defectos, las etiquetas de verdad y la carga pico (EG-51): ver la sección «Simulador avanzado» de ese documento.
 
 ## Reglas de negocio (EG-17, EG-18)
 
