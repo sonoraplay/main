@@ -1,6 +1,6 @@
 # EG-31 and EG-32 — Acceptance evidence register / Registro de evidencia de aceptación
 
-**As of / Corte:** 2026-10-21 · **Review state / Estado:** awaiting technical review / pendiente revisión técnica.
+**As of / Corte:** 2026-10-22 · **Review state / Estado:** awaiting technical review / pendiente revisión técnica.
 
 This file is a **traceability register**, not a claim of deployed AWS infrastructure or completed Spark processing. / Este archivo es un **registro de trazabilidad**, no una afirmación de despliegue AWS ni de ejecución Spark terminada.
 
@@ -14,7 +14,7 @@ This file is a **traceability register**, not a claim of deployed AWS infrastruc
 | CA4: Bronze/Silver/Gold Parquet partitions + ADR-0014 | [ADR-0014](../adr/0014-data-lake-parquet-partitions.md) | proposed layer paths, partition policy | Design documented; ADR proposed / diseño, ADR propuesto | run Parquet read/write, verify S3 layout and accept ADR |
 | CA5: churn and engagement | [model / modelo](eg31-modelo-dimensional-en-es.md) | F3 churn semantics, F2 session metrics | Design documented / diseño documentado | run EG-42 sample calculations and Power BI queries |
 
-**EG-31 pending — only these two / Pendiente de EG-31, únicamente:** (1) technical approval of ADR-0014 by Julián; (2) Spark/Parquet execution tests (EG-35/37). The five criteria are documented as design in the aligned v2 model. / (1) aprobación técnica del ADR-0014 por Julián; (2) pruebas de Spark/Parquet.
+**EG-31 acceptance gates / Puertas de aceptación EG-31:** (1) Julián's technical approval of the v2 dimensional contract and ADR-0014; (2) Spark/Parquet materialization and partition evidence (EG-35/37); (3) executed integrity and reconciliation checks for paid plays, settlement versions and adjustments; (4) sample churn/engagement query results (EG-42). These are validation outcomes, not four new user-story requirements. **All five criteria are documented as a design, not demonstrated end-to-end.** / (1) aprobación del modelo v2 y ADR-0014; (2) pruebas de materialización y particiones Spark/Parquet; (3) consultas ejecutadas de integridad, versiones y ajustes; (4) resultados de muestra de churn/engagement. Son evidencias de validación, no requisitos nuevos. **Los cinco criterios están diseñados, pero no demostrados de extremo a extremo.**
 
 ## EG-32 — Cost analysis v1 and budget alarm
 
@@ -54,3 +54,10 @@ GitHub: [PR #3](https://github.com/sonoraplay/main/pull/3), [PR #7](https://gith
 **Dependencies / Dependencias:** EG-26 and EG-29 → EG-33 → EG-35/36 → EG-37 → EG-38/45; EG-30/23 feed EG-37; EG-31 contract review precedes Gold schema freeze; EG-32 budget authorization precedes any new AWS test. Jira issue links are not yet configured. / No hay vínculos de bloqueo en Jira verificados.
 
 **Acceptance rule / Regla:** a proposed schema, template, SQL snippet or procedure is not a passing integration test. / Un diseño o procedimiento no sustituye evidencia de ejecución.
+
+
+## Integration status update (2026-10-22) / Actualización de integración
+
+**English:** PR #17 now includes Terraform `Owner` default tagging and a persistent AWS Budget/SNS implementation. Its CI and Docusaurus checks passed at commit `12a11cd4`; **this is code-validation evidence only**. Therefore the earlier CA4 wording “Owner absent / Julián adds tag” is **superseded**: the tag exists in the proposed code, but actual resource tagging, Billing cost-allocation activation and Cost Explorer attribution remain unverified. CA3 is also **implemented in code, not demonstrated in AWS**. CA1 still requires **two shareable calculator estimate URLs**; the calculator homepage does not satisfy it. See the calculator handoff in the cost analysis document. PR #12 targets PR #7's branch; PR #7 and PR #17 remain separate reviews for Julián. Do not mark any acceptance criterion complete solely because GitHub CI is green.
+
+**Español:** El PR #17 ya incluye la etiqueta predeterminada `Owner` y la implementación persistente de AWS Budget/SNS. CI y Docusaurus pasaron en el commit `12a11cd4`, pero **eso solo valida el código**. Por lo tanto, la afirmación anterior “falta Owner / Julián debe agregarla” queda **reemplazada**: la etiqueta está en el código propuesto, pero faltan la comprobación de recursos reales, la activación de etiquetas en Billing y la atribución de costos en Cost Explorer. CA3 está **implementado en código, no probado en AWS**. CA1 necesita **dos enlaces compartibles de estimaciones**; la página principal de la calculadora no sirve como evidencia. Consulta las instrucciones en el análisis de costos. El PR #12 apunta a la rama del PR #7; PR #7 y PR #17 requieren revisiones separadas de Julián. No cerrar criterios solo por tener CI en verde.
