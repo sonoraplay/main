@@ -1,4 +1,5 @@
 name: CI
+# EG-30: validar rollback PostgreSQL en CI
 
 on:
   push:
