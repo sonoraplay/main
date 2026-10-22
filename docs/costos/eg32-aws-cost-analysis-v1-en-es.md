@@ -230,3 +230,43 @@ Terraform must consistently use the Jira-mandated value `Project=sonoraplay` (lo
 **Para obtener el enlace de la calculadora (unos 15 minutos):** https://calculator.aws/#/ → *Create estimate* → US East (N. Virginia) → agregar EC2, EBS gp3, IPv4 pública, RDS PostgreSQL, ALB, Fargate ARM, S3, ECR, CloudWatch y SNS con las cantidades de la tabla → 730 h (siempre encendido) y 24 h (ventanas), dos estimaciones → *Save and share* → pegar los dos enlaces aquí.
 
 **Qué falta para probar el presupuesto y la notificación SNS (CA3 y CA4).** (1) Julián define el límite en USD y el correo de alertas, sin subirlos al repositorio. (2) Terraform: `aws_budgets_budget` con umbrales real y proyectado, `aws_sns_topic` con política que permita publicar a `budgets.amazonaws.com` y suscripción por correo, que **se confirma a mano** con el enlace que envía AWS. (3) Agregar la etiqueta `Owner` a `local.etiquetas` (hoy solo hay `Project`, `Environment` y `ManagedBy`); el valor aprobado está **PENDIENTE**. (4) Activar las etiquetas de asignación de costos y Cost Explorer en Billing; los costos con etiquetas tardan en aparecer (hasta cerca de un día, a confirmar en la documentación de AWS). (5) Dos pruebas distintas: la publicación de prueba en SNS solo prueba el correo, y el recorrido Budgets → SNS → correo se prueba únicamente cuando se cruza un umbral real, sin gastar a propósito. (6) Guardar capturas sin datos sensibles. (7) Todo esto debe estar listo **antes de la próxima ventana de AWS**.
+
+---
+
+## Calculator handoff and integration update (2026-10-22) — English
+
+**This section supersedes earlier statements in this document that `Owner` is still absent from Terraform.** PR #17 now implements the proposed `Owner` default tag and a persistent Budget/SNS stack. Its latest CI and Docusaurus runs passed, but it has **not been applied or tested in AWS**. Deployment, Billing cost-allocation-tag activation, subscription confirmation and actual notification evidence remain pending. PR #17 and this PR must both be integrated before the final acceptance evidence is evaluated.
+
+**Calculator reproducibility checklist (CA1/CA2):** Use the priced v1.1 inventory above as the starting point, not as a verified calculator export. Create two estimates in `us-east-1` for the same resource inventory: 730 active hours for always-on, and 24 active hours for 8 × 3-hour windows. Model persistent S3/ECR/log storage for the full month. Check each service's calculator billing units separately; some storage, public IPv4, ALB, and data transfer assumptions do not scale uniformly with compute hours. **Avoid double-counting ALB public IPv4** if already included by the calculator service configuration. Keep the 2 API tasks and 2 Spot-class tasks distinct; use On-Demand pricing for Spot only as a documented upper bound, not a claimed Spot quotation. Quote EKS separately, and mark any unavailable service or omitted charge explicitly as `NOT QUOTED`.
+
+**Required evidence to paste after using the official UI (not generated in this document):**
+
+| Field | Always on | Test windows |
+|---|---|---|
+| Shareable AWS Pricing Calculator URL | PENDING | PENDING |
+| Estimate creation date and region | PENDING; us-east-1 | PENDING; us-east-1 |
+| Calculator monthly total (USD) | PENDING | PENDING |
+| Worksheet baseline for comparison | USD 126.21/mo | USD 5.61/mo |
+| Differences and excluded charges | PENDING | PENDING |
+| Reviewer and approval date | PENDING | PENDING |
+
+**Acceptance boundary:** A link to `https://calculator.aws/#/` is only the calculator homepage, **not** a shareable estimate. Do not mark CA1 complete without both generated URLs and service-level reconciliation. Julián or the authorized AWS operator owns account-side tests; the EG-32 cost owner records and reviews the estimate. No AWS resources should be provisioned solely to produce this pricing evidence.
+
+## Entrega de calculadora y actualización de integración (2026-10-22) — Español
+
+**Esta sección reemplaza las afirmaciones anteriores de que falta la etiqueta `Owner` en Terraform.** El PR #17 ya implementa la etiqueta predeterminada `Owner` y el stack persistente de Budget/SNS. Sus últimas ejecuciones de CI y Docusaurus pasaron, pero **no se ha desplegado ni probado en AWS**. Siguen pendientes la activación de etiquetas en Billing, la confirmación del correo y las evidencias de notificación. Hay que integrar tanto el PR #17 como este PR antes de evaluar el cierre definitivo.
+
+**Lista de comprobación para CA1/CA2:** Partir del inventario cotizado v1.1, sin presentarlo como exportación de la calculadora. Crear dos estimaciones en `us-east-1` con el mismo inventario: 730 horas encendidas y 24 horas (8 ventanas de 3 horas). Mantener S3/ECR y almacenamiento de logs persistentes todo el mes. Verificar las unidades de facturación por servicio; no todos los costos de almacenamiento, IPv4, ALB o transferencia disminuyen en la misma proporción que las horas de cómputo. **Evitar contar dos veces las IPv4 públicas del ALB** si ya están incluidas en el servicio de la calculadora. Separar las dos tareas API de las dos tareas tipo Spot; la tarifa On-Demand para Spot es solo un techo supuesto, no una cotización Spot real. Cotizar EKS aparte y marcar como `SIN COTIZAR` cualquier rubro omitido.
+
+**Evidencia por completar en la interfaz oficial:**
+
+| Campo | Siempre encendido | Ventanas de prueba |
+|---|---|---|
+| Enlace compartible de AWS Pricing Calculator | PENDIENTE | PENDIENTE |
+| Fecha y región de la estimación | PENDIENTE; us-east-1 | PENDIENTE; us-east-1 |
+| Total mensual de la calculadora (USD) | PENDIENTE | PENDIENTE |
+| Referencia de la hoja de cálculo | USD 126,21/mes | USD 5,61/mes |
+| Diferencias y cargos excluidos | PENDIENTE | PENDIENTE |
+| Responsable de revisión y fecha | PENDIENTE | PENDIENTE |
+
+**Criterio de cierre:** `https://calculator.aws/#/` es la página principal, **no** un enlace compartible de una estimación. No marcar CA1 como completo sin los dos enlaces generados y la conciliación por servicio. Julián o quien tenga autorización realiza las pruebas de la cuenta AWS; la responsable de EG-32 revisa y registra los cálculos. No es necesario desplegar infraestructura para obtener esta evidencia de precios.
