@@ -164,12 +164,16 @@ class _Generador:
         return s
 
     def linea_de_tiempo(
-        self, u: Usuario, device: str, pistas: list[Pista], n: int, desde_max: float, hueco_ms
+        self, u: Usuario, device: str, turnos: list[list[Pista]], n: int, desde_max: float, hueco_ms
     ) -> None:
-        """`n` sesiones seguidas sin solaparse, desde un instante al azar del mes. Para al final."""
+        """`n` sesiones seguidas sin solaparse, desde un instante al azar del mes. Para al final.
+
+        La sesión `i` toma su pista de `turnos[i % len(turnos)]`: con 3 o más turnos ningún artista
+        pasa de 1/3 + 1 sesión, así una cuenta normal nunca cumple la señal 2 de RN-03.
+        """
         t = self.ini + self.ms(0, int(self.mes_ms * desde_max))
-        for _ in range(n):
-            p = self.rng.choice(pistas)
+        for i in range(n):
+            p = self.rng.choice(turnos[i % len(turnos)])
             pasos = self.guion_aleatorio(p)
             if t + timedelta(milliseconds=pasos[-1][1]) >= self.fin:
                 break
@@ -239,16 +243,21 @@ class _Generador:
                 )
             reservados = sorted(self.rng.sample(artistas, k))
         libres = [a for a in artistas if a not in set(reservados)]
-        if intensivos and len(libres) < 2:
-            raise ValueError("los oyentes intensivos necesitan al menos 2 artistas libres")
+        if (intensivos or normales) and len(libres) < 3:
+            raise ValueError(
+                "las cuentas normales e intensivas necesitan al menos 3 artistas libres en el "
+                "catálogo"
+            )
         legit = [p for a in libres for p in por_artista[a]]
 
         umbral_ms = int(cfg.fraude.horas_max_24h * _HORA_MS)
         hueco_normal = (30_000, 4 * _DIA_MS)
 
+        # Una cuenta normal alterna entre 3 artistas suyos: nunca pasa del 70 % a uno solo.
         for u in normales:
             n = self.rng.randint(*cfg.sesiones_por_cuenta)
-            self.linea_de_tiempo(u, self.dispositivo(u), legit, n, 0.8, hueco_normal)
+            propios = [por_artista[a] for a in self.rng.sample(libres, min(3, len(libres)))]
+            self.linea_de_tiempo(u, self.dispositivo(u), propios, n, 0.8, hueco_normal)
 
         for u in intensivos:
             turnos = [por_artista[a] for a in self.rng.sample(libres, min(10, len(libres)))]
@@ -279,7 +288,7 @@ class _Generador:
             device = "android-" + det_uuid(cfg.semilla, "f2a-dispositivo-granja", g).hex[:8]
             for u in miembros:
                 n = self.rng.randint(*cfg.sesiones_por_cuenta)
-                self.linea_de_tiempo(u, device, legit, n, 0.8, hueco_normal)
+                self.linea_de_tiempo(u, device, [legit], n, 0.8, hueco_normal)
 
     def marcar_offline_y_defectos(self) -> None:
         """Elige, sin repetir, las sesiones normales offline y las de cada defecto.

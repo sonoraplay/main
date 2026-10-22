@@ -113,7 +113,7 @@ Las cuentas se reparten **exactas** (no al azar): la cantidad de cada perfil se 
 | `granja_concentracion_artista` | granja | 90 % de sus reproducciones a un artista que nadie más escucha | Señal 2: más del 70 % a un artista con menos de 1.000 oyentes |
 | `granja_dispositivo_compartido` | granja | Grupos de 6 o más cuentas con el mismo `device_id` | Señal 3: más de 5 cuentas en un dispositivo |
 | `intensivo` | legítima | 12 a 18 h en un día, con 10 artistas distintos | **Ninguna** (para medir falsos positivos) |
-| `normal` | legítima | 1 a 6 sesiones sueltas en el mes | Ninguna |
+| `normal` | legítima | 6 a 12 sesiones en el mes, alternando entre 3 artistas suyos | Ninguna |
 
 `--pct-granjas` (o la variable `FARM_PCT`, por defecto 5) se reparte entre los tres perfiles de granja. Los umbrales salen de `ReglasFraudeConfig`: si se recalibran, los perfiles se mueven con ellos y la configuración rechaza valores que dejarían de cumplir la señal.
 
@@ -139,7 +139,7 @@ uv run --env-file .env python -m sonoraplay.simulador.f2_avanzado --cuentas 1000
 
 Publica en la cola de la EG-29 con las mismas garantías (mensajes persistentes, *publisher confirms* y `mandatory`). Cuenta solo lo que el broker **confirmó**, y sale con código 1 si la media baja de **100 eventos/s** o la corrida dura menos de **60 s**. `--tasa` y `--duracion` cambian la prueba.
 
-**Evidencia (22 oct 2026, PostgreSQL 16 y RabbitMQ locales):** 10.000 cuentas, 299.556 eventos, 5,0 % de granjas, 10,0 % offline y 1,999 % por defecto. Carga pico: **7.200 eventos confirmados en 60,0 s (120/s, mínimo y máximo por segundo = 120)**, 7.200 en la cola durable y 0 en la DLQ.
+**Evidencia (22 oct 2026, PostgreSQL 16 y RabbitMQ locales):** 10.000 cuentas, 398.138 eventos, 5,0 % de granjas, 10,0 % offline y 2,0 % por defecto. Carga pico: **7.200 eventos confirmados en 60,0 s (120/s, mínimo y máximo por segundo = 120)**, 7.200 en la cola durable y 0 en la DLQ.
 
 ### Cómo se prueba cada criterio
 
@@ -152,11 +152,13 @@ Las pruebas miden sobre los **eventos**, no sobre las etiquetas: detectan cada d
 | 3 · intensivos legítimos | `test_ningun_intensivo_es_marcado_por_rn03` |
 | 4 · offline de 0 a 30 días | `test_sesiones_offline_llegan_de_0_a_30_dias_tarde` |
 | 5 · 5 defectos ± 1 pt | `test_cada_defecto_en_2_por_ciento...` y la prueba con proporciones configurables |
+| CA-10 · detección y falsos positivos | `test_ca10_...`: con el detector real (`evaluar_cuentas`) se detecta el 100 % de las granjas y menos del 2 % de las cuentas legítimas se marcan, con catálogos de 60 y 3.000 artistas. Medido con 300 artistas: 500/500 granjas y 1 falso positivo en 9.500 cuentas |
 | 6 · semilla, esquema, etiquetas aparte | `test_misma_semilla...`, `test_todos_los_eventos_validan...`, `test_etiquetas_en_csv_aparte` |
 
 ### Límites
 
 - El seed F3 `dev` (10.000 usuarios) no alcanza para 10.000 cuentas **activas** el 15 de septiembre (unas 7.900 lo están). Para la corrida completa: `python -m sonoraplay.seed --usuarios 15000`. Con pocas cuentas disponibles el simulador falla con un mensaje que lo explica.
+- **Falsos positivos por diseño.** RN-03 señal 2 marca a quien manda más del 70 % de sus reproducciones a un artista con menos de 1.000 oyentes. Con 10.000 cuentas casi todo artista tiene menos de 1.000, así que una cuenta con una sola sesión se marcaría. Por eso las cuentas normales tienen al menos 2 sesiones (la configuración rechaza 1) y alternan entre 3 artistas. Con 1 a 6 sesiones sueltas, la primera versión marcaba el 17 % de las cuentas legítimas.
 - Los tres perfiles de granja y los intensivos se generan con el catálogo de F1 que haya cargado; las granjas de artista necesitan al menos 3 artistas.
 - La atribución de los eventos offline al mes la hace RN-04 (EG-22), no el simulador.
 
@@ -210,4 +212,4 @@ The minimal simulator does **not** generate fraud farms, late offline events, in
 
 Offline sessions (`--pct-offline`, 10 %) sync 0–30 days after their last event. The five defects (`--defecto NAME=PCT`, 2 % each by default, applied to normal accounts only, at most one per session) are missing end, clock drift, unknown track, retry duplicate and billing/playback country mismatch. Events validate against the F2 schema and carry no labels; ground truth is written separately to `etiquetas_f2/cuentas.csv` and `sesiones.csv` for the fraud report (EG-43). The same seed produces identical events and labels.
 
-Peak mode (`--pico --tasa 120 --duracion 60`) publishes to the EG-29 queue with persistent messages and publisher confirms, counts only broker-confirmed events, and exits non-zero below 100 events/s or 60 s. Evidence (2026-10-22, local PostgreSQL 16 and RabbitMQ): 10,000 accounts, 299,556 events, 5.0 % farms; **7,200 events confirmed in 60.0 s (120/s every second)**, 7,200 in the durable queue, 0 in the DLQ. Tests measure the event stream itself, not the labels. The `dev` F3 seed has only about 7,900 accounts active on 15 September, so the full 10,000-account run needs `python -m sonoraplay.seed --usuarios 15000`.
+Peak mode (`--pico --tasa 120 --duracion 60`) publishes to the EG-29 queue with persistent messages and publisher confirms, counts only broker-confirmed events, and exits non-zero below 100 events/s or 60 s. Evidence (2026-10-22, local PostgreSQL 16 and RabbitMQ): 10,000 accounts, 398,138 events, 5.0 % farms; **7,200 events confirmed in 60.0 s (120/s every second)**, 7,200 in the durable queue, 0 in the DLQ. Normal accounts have 6–12 sessions spread over 3 artists each, because RN-03 signal 2 would otherwise flag accounts with few plays (a first version flagged 17 % of legitimate accounts); with the real detector, 100 % of farms are caught and about 0.01 % of legitimate accounts are flagged (CA-10). Tests measure the event stream itself, not the labels. The `dev` F3 seed has only about 7,900 accounts active on 15 September, so the full 10,000-account run needs `python -m sonoraplay.seed --usuarios 15000`.

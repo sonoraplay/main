@@ -183,6 +183,34 @@ def test_granjas_de_dispositivo_comparten_con_mas_de_5_cuentas(sesiones, perfil)
     assert all(perfil[u] == GRANJA_DISPOSITIVO for c in compartidos for u in c)
 
 
+def _medir_cuentas(sim, fraude):
+    granjas = [c.cuenta_id for c in sim.cuentas if c.etiqueta == "granja"]
+    legitimas = [c.cuenta_id for c in sim.cuentas if c.etiqueta == "legitima"]
+    detectadas = sum(fraude[c].sospechosa for c in granjas if c in fraude)
+    falsos = sum(fraude[c].sospechosa for c in legitimas if c in fraude)
+    return detectadas / len(granjas), falsos / len(legitimas)
+
+
+def test_ca10_detecta_al_menos_95_por_ciento_de_granjas_con_menos_de_2_de_falsos_positivos(
+    sim, fraude
+):
+    """Lo que mide la EG-43: el simulador no debe fabricar falsos positivos por sí mismo."""
+    detectadas, falsos = _medir_cuentas(sim, fraude)
+    assert detectadas >= 0.95 and falsos < 0.02, (detectadas, falsos)
+
+
+@pytest.mark.parametrize("n_artistas", [60, 3_000])
+def test_ca10_no_depende_del_tamano_del_catalogo(n_artistas):
+    """Con muchos artistas cada uno tiene pocos oyentes: ahí RN-03 señal 2 marcaría a cualquier
+    cuenta que mande más del 70 % a uno. Las cuentas normales alternan 3 artistas y no lo hacen."""
+    fuentes = _fuentes(3_000, n_artistas, n_artistas)
+    cfg = replace(CFG, cuentas=3_000)
+    s = generar(fuentes, cfg)
+    reps = [r for r in reproducciones_fraude(s.eventos, fuentes) if r.inicio.month == cfg.mes.month]
+    detectadas, falsos = _medir_cuentas(s, evaluar_cuentas(reps, cfg.fraude))
+    assert detectadas >= 0.95 and falsos < 0.02, (n_artistas, detectadas, falsos)
+
+
 # --- Criterio 3 · oyentes intensivos legítimos (falsos positivos) -----------------------------
 
 
@@ -347,6 +375,7 @@ def test_etiquetas_en_csv_aparte(sim, tmp_path):
         {"fraccion_artista_granja": 0.7},
         {"retraso_offline_max_dias": 31},
         {"pct_offline": 95},
+        {"sesiones_por_cuenta": (1, 6)},
     ],
 )
 def test_configuracion_invalida_lanza_value_error(cambios):

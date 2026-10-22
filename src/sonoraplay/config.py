@@ -208,7 +208,8 @@ class SimuladorAvanzadoConfig:
     pct_intensivos: float = 2.0
     pct_offline: float = 10.0  # de las sesiones de cuentas normales
     retraso_offline_max_dias: int = 30
-    sesiones_por_cuenta: tuple[int, int] = (1, 6)
+    # Sesiones de una cuenta normal en el mes. Mínimo 2: con 1 sola, el 100 % va a un artista.
+    sesiones_por_cuenta: tuple[int, int] = (6, 12)
     # Granja de horas: escucha entre estas horas dentro de 24 h (RN-03 señal 1 marca > 20).
     horas_granja: tuple[float, float] = (21.0, 23.0)
     # Oyente intensivo legítimo: muchas horas en un día, bajo el umbral y con artistas variados.
@@ -237,8 +238,11 @@ class SimuladorAvanzadoConfig:
         if not 0 <= self.retraso_offline_max_dias <= 30:
             raise ValueError("retraso_offline_max_dias debe estar entre 0 y 30")
         lo, hi = self.sesiones_por_cuenta
-        if not 1 <= lo <= hi:
-            raise ValueError("sesiones_por_cuenta debe ser (min, max) con 1 <= min <= max")
+        if not 2 <= lo <= hi:
+            raise ValueError(
+                "sesiones_por_cuenta debe ser (min, max) con 2 <= min <= max: una cuenta con "
+                "1 sesión manda el 100 % a un artista y RN-03 la marcaría (falso positivo)"
+            )
         umbral = self.fraude.horas_max_24h
         if not umbral < self.horas_granja[0] <= self.horas_granja[1] < 24:
             raise ValueError(f"horas_granja debe estar entre {umbral} (exclusivo) y 24")
