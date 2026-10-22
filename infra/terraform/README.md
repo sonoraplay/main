@@ -21,11 +21,14 @@ Decisiones: [ADR-0009](../../docs/adr/0009-region-aws.md) (región), [ADR-0010](
 | `rds.tf` | PostgreSQL 16 `db.t4g.micro`, Single-AZ, 20 GB gp3 cifrados, `publicly_accessible = false`, backups de `rds_backup_retention_days` días (7 en el diseño, 1 mientras dure el plan gratuito: [ADR-0022](../../docs/adr/0022-excepcion-plan-gratuito-rds-nat.md)), TLS obligatorio; parámetros `/sonoraplay/rds/*` en SSM | 5 |
 | `iam.tf` | Por servicio de ECS (api-titulares, api-contratos, simulador, consumidor, spark): rol de ejecución y rol de tarea. Por EC2 (nat, rabbitmq, airflow): rol y perfil de instancia | 3 |
 | `bootstrap/` | Bucket del estado de Terraform (persistente, se crea una sola vez) | — |
+| `ecs.tf` (EG-27) | Clúster `sonoraplay-dev` con FARGATE y FARGATE_SPOT, grupos de logs `/ecs/sonoraplay/<servicio>` (7 días), secreto JWT en SSM y, con `api_titulares_imagen_tag`, la definición de tarea ARM64 y el servicio de la API de titulares en subredes privadas | EG-27: 2, 4, 5 |
+| `alb.tf` (EG-27) | ALB público en 2 AZ, target group con health check en `/health`, listener 80 (y 443 si hay `certificado_acm_arn`). Solo existe con `api_titulares_imagen_tag` | EG-27: 3 |
+| `ecr/` (EG-27) | Repositorios `sonoraplay/<servicio>` con etiquetas inmutables, escaneo y ciclo de vida. **Persistente**, con su propio estado (`sonoraplay/ecr.tfstate`) | EG-27: 1 |
 
 Todo lleva `Project=sonoraplay`, `Environment=dev` y `ManagedBy=terraform` (`default_tags`).
 
 **Fuera de esta historia:**
-- el ALB y ECS: HU 18;
+- el ALB y ECS: HU 18 (EG-27, ver abajo);
 - las EC2 de RabbitMQ y Airflow: HU 20 y 25;
 - ECR: persistente;
 - CloudTrail: HU 31;
@@ -56,7 +59,27 @@ Los roles de IAM y los SG de esos servicios ya existen aquí. Sus historias debe
 
 No hay usuarios IAM ni access keys. Los roles de ECS solo los puede asumir ECS desde esta cuenta y región (`aws:SourceAccount` y `aws:SourceArn`).
 
-## Plan gratuito de AWS
+## API de titulares en ECS Fargate (EG-27)
+
+Decisión: [ADR-0012](../../docs/adr/0012-fargate-on-demand-spot-arm64.md). Guía y evidencia: [docs/infraestructura/eg27-api-ecs-fargate.md](../../docs/infraestructura/eg27-api-ecs-fargate.md).
+
+```bash
+# Una sola vez (persistente): repositorios de ECR.
+terraform -chdir=infra/terraform/ecr init -backend-config=../backend.hcl
+terraform -chdir=infra/terraform/ecr apply
+
+# En cada versión: imagen arm64 etiquetada con el SHA del commit (criterio 1).
+infra/scripts/publicar-imagen.sh api-titulares          # imprime la etiqueta, p. ej. a1b2c3d
+
+# En la ventana: el entorno de la EG-26 + la API (ALB, tarea versionada y servicio).
+terraform -chdir=infra/terraform apply -var api_titulares_imagen_tag=a1b2c3d
+infra/scripts/verificar-eg27.sh                          # criterios 2 a 5
+
+# Para cargar datos, RDS debe tener el esquema y el seed (ver el demo de la EG-26).
+```
+
+Sin `api_titulares_imagen_tag`, `apply` crea solo el clúster vacío y los grupos de logs: una ventana de la EG-26 no paga el ALB (≈ 0,02 USD/h).
+
 
 La cuenta del proyecto está en el **plan gratuito**. Ese plan rechaza dos valores del diseño original:
 

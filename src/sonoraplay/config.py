@@ -5,15 +5,37 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from typing import Literal
+from urllib.parse import quote
 
 VOLUMENES = {"dev": 10_000, "completo": 900_000}
 
 
+# En AWS (EG-27) ECS inyecta la conexión por partes desde SSM Parameter Store: host, puerto,
+# base y usuario son parámetros String y la contraseña es SecureString (EG-26, rds.tf).
+PARTES_DB = ("DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD")
+
+
 def database_url() -> str:
-    try:
-        return os.environ["DATABASE_URL"]
-    except KeyError:
-        raise SystemExit("Falta DATABASE_URL. Copia .env.example a .env o expórtala.") from None
+    """URL de SQLAlchemy. Usa DATABASE_URL (local, CI) o la arma con las variables DB_*.
+
+    La contraseña se codifica para URL (puede traer ``#``, ``%``, ``:``...). ``DB_SSLMODE``
+    (``require`` en AWS, porque RDS tiene ``rds.force_ssl=1``) es opcional.
+    """
+    if url := os.environ.get("DATABASE_URL"):
+        return url
+    if all(os.environ.get(p) for p in PARTES_DB):
+        e = os.environ
+        url = (
+            f"postgresql+psycopg://{quote(e['DB_USER'], safe='')}:"
+            f"{quote(e['DB_PASSWORD'], safe='')}@{e['DB_HOST']}:{e['DB_PORT']}/{e['DB_NAME']}"
+        )
+        if sslmode := e.get("DB_SSLMODE"):
+            url += f"?sslmode={sslmode}"
+        return url
+    raise SystemExit(
+        "Falta DATABASE_URL (o DB_HOST, DB_PORT, DB_NAME, DB_USER y DB_PASSWORD). "
+        "Copia .env.example a .env o expórtala."
+    )
 
 
 @dataclass(frozen=True)
