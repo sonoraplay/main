@@ -7,7 +7,7 @@ title: "EG-28 · Seed en RDS / Seed on RDS"
 
 ## Español
 
-**Estado: preparado, NO ejecutado.** Esta página es el procedimiento para la HU 19 (EG-28). Se ejecuta **solo si** la infraestructura está arriba en una ventana de prueba ([ADR-0020](../adr/0020-ventanas-encendido-aws.md)) **y** el costo está autorizado (EG-32). No hay evidencia de AWS en esta página todavía.
+**Estado: ejecutado el 2026-10-22 contra RDS** (datos sintéticos, opción A). Esta página es el procedimiento de la HU 19 (EG-28) y, al final de esta sección, la evidencia de esa ejecución. Criterios 1, 3 y 4 con evidencia; el criterio 2 se comparó con la corrida del 15 de octubre, no con las 12 tablas de una corrida local (ver «Pendiente»). Se ejecuta **solo si** la infraestructura está arriba en una ventana de prueba ([ADR-0020](../adr/0020-ventanas-encendido-aws.md)) **y** el costo está autorizado (EG-32).
 
 ### Criterios de Jira
 
@@ -126,9 +126,40 @@ Debe devolver `false`.
 2. Una ventana de AWS (`apply`).
 3. Alguien con permisos de administrador en CloudShell.
 
+### Evidencia de la ejecución (2026-10-22)
+
+Entorno: ventana de pruebas de AWS en `us-east-1`, RDS `sonoraplay-dev`, CloudShell dentro de la VPC (subred privada y Security Group `airflow`), rama `develop`, `SEED=42`. Datos sintéticos. Salidas transcritas de la terminal; no se guardaron archivos (el entorno VPC no permite descargarlos y se elimina antes del `destroy`).
+
+| Criterio | Evidencia |
+|---|---|
+| 1 · `DATABASE_URL` desde SSM, sin cambios de código | El procedimiento de arriba, tal cual; el seed corrió contra RDS sin tocar código. |
+| 2 · mismos conteos que la corrida de referencia | Coinciden con las cifras del 15 de octubre contra RDS (usuarios, suscripciones, pagos, titulares y contratos). **No** se comparó con las 12 tablas de una corrida local. |
+| 3 · idempotencia | Se repitieron catálogo, seed F3 y seed F4: `diff conteos1.txt conteos2.txt` sin diferencias. La segunda corrida del seed F3 tardó 4,9 s (la primera, 7,2 s). |
+| 4 · desde la VPC y RDS privada | `PubliclyAccessible: false`. |
+
+**Conteos en RDS** (12 filas, `conteos1.txt` idéntico a `conteos2.txt`):
+
+| Tabla | Filas | Tabla | Filas |
+|---|---:|---|---:|
+| `contratos` | 208 | `planes` | 4 |
+| `exclusiones_territoriales` | 32 | `reporte_regalias` | 0 |
+| `grupos_familiares` | 766 | `seed_defectos` | 194 |
+| `liquidaciones` | 0 | `suscripciones` | 8.712 |
+| `miembros_familia` | 3.040 | `titulares_derechos` | 50 |
+| `pagos` | 69.227 | `usuarios` | 10.000 |
+
+**Liquidación publicada con el esqueleto (EG-24).** Con solo el seed, `liquidaciones` y `reporte_regalias` quedan en 0; las publica el esqueleto. Se ejecutó **una sola vez** (cada corrida crea una liquidación nueva, append-only): liquidación `016719c8-2e99-42dd-82cf-537bb690e5fe`, periodo 2026-09, país de facturación CO. 100 eventos F2, 38 reproducciones, 5 descartadas (`duracion_insuficiente` 4, `tope_diario` 1), 33 pagables (AR 6, CL 4, CO 13, MX 2, PE 8). Después: `liquidaciones` = 1 y `reporte_regalias` = 4 (4 titulares). El titular con mayor regalía recibió 2.340,00 USD (9.000 de publicidad × 0,5 de participación × 52 %); las cuatro regalías suman los 4.926,88 USD repartidos. 36 pagos quedaron fuera de la bolsa por país de facturación nulo (defecto de F3 introducido a propósito por el seed).
+
+**`GET /me/reportes` en el ALB** (HTTP, solo datos sintéticos): `/health` → 200; con el token del titular `fb950a36-dd51-59f6-af5f-200916631894` → 200 con una fila (2026-09, CO, publicidad, 2340.00 USD); sin token → 401. Es el mismo valor de la prueba local del esqueleto.
+
+**Pendiente**
+- Criterio 2: sacar el conteo de las 12 tablas en una corrida local (`docker compose up -d`) y compararlo tabla por tabla.
+- La bolsa de publicidad es **provisional** (45 % de 20.000 USD, sin la F5 real) hasta la EG-30; las regalías cambiarán.
+- La API se probó por HTTP sin cifrar. Con dominio y `certificado_acm_arn` hay que repetir la prueba por HTTPS.
+
 ## English
 
-**Status: prepared, NOT executed.** This page is the procedure for story 19 (EG-28). Run it **only if** the infrastructure is up in a test window ([ADR-0020](../adr/0020-ventanas-encendido-aws.md)) **and** the cost is authorized (EG-32). There is no AWS evidence on this page yet.
+**Status: executed on 2026-10-22 against RDS** (synthetic data, option A). This page is the procedure for story 19 (EG-28) and, at the end of this section, the evidence of that run. Criteria 1, 3 and 4 have evidence; criterion 2 was compared with the Oct 15 run, not with all 12 tables of a local run (see "Pending"). Run it **only if** the infrastructure is up in a test window ([ADR-0020](../adr/0020-ventanas-encendido-aws.md)) **and** the cost is authorized (EG-32).
 
 ### Jira criteria
 
@@ -189,3 +220,25 @@ At list prices, the base infrastructure of this window (NAT and RDS) costs about
 1. The maximum budget agreed (EG-32).
 2. An AWS window (`apply`).
 3. Someone with administrator permissions in CloudShell.
+
+### Evidence of the run (2026-10-22)
+
+Environment: AWS test window in `us-east-1`, RDS `sonoraplay-dev`, CloudShell inside the VPC (private subnet and `airflow` Security Group), `develop` branch, `SEED=42`. Synthetic data. Outputs transcribed from the terminal; no files were kept (the VPC environment cannot download files and is deleted before the `destroy`).
+
+| Criterion | Evidence |
+|---|---|
+| 1 · `DATABASE_URL` from SSM, no code changes | The procedure above, as written; the seed ran against RDS without touching code. |
+| 2 · same counts as the reference run | They match the Oct 15 figures against RDS (users, subscriptions, payments, rights holders and contracts). They were **not** compared with all 12 tables of a local run. |
+| 3 · idempotency | Catalog, F3 seed and F4 seed were repeated: `diff conteos1.txt conteos2.txt` shows no differences. The second F3 seed run took 4.9 s (the first, 7.2 s). |
+| 4 · from the VPC and RDS private | `PubliclyAccessible: false`. |
+
+**Counts in RDS** (12 rows, `conteos1.txt` identical to `conteos2.txt`): `contratos` 208, `exclusiones_territoriales` 32, `grupos_familiares` 766, `liquidaciones` 0, `miembros_familia` 3,040, `pagos` 69,227, `planes` 4, `reporte_regalias` 0, `seed_defectos` 194, `suscripciones` 8,712, `titulares_derechos` 50, `usuarios` 10,000.
+
+**Settlement published with the skeleton (EG-24).** With the seed alone, `liquidaciones` and `reporte_regalias` stay at 0; the skeleton publishes them. It ran **once** (each run creates a new append-only settlement): settlement `016719c8-2e99-42dd-82cf-537bb690e5fe`, period 2026-09, billing country CO. 100 F2 events, 38 plays, 5 discarded (`duracion_insuficiente` 4, `tope_diario` 1), 33 payable (AR 6, CL 4, CO 13, MX 2, PE 8). Afterwards: `liquidaciones` = 1 and `reporte_regalias` = 4 (4 rights holders). The top rights holder received USD 2,340.00 (9,000 advertising × 0.5 share × 52 %); the four royalties add up to the USD 4,926.88 distributed. 36 payments stayed out of the pool because of a null billing country (an F3 defect the seed introduces on purpose).
+
+**`GET /me/reportes` on the ALB** (HTTP, synthetic data only): `/health` → 200; with the token of rights holder `fb950a36-dd51-59f6-af5f-200916631894` → 200 with one row (2026-09, CO, advertising, 2340.00 USD); without a token → 401. It is the same value as the skeleton's local test.
+
+**Pending**
+- Criterion 2: take the count of the 12 tables in a local run (`docker compose up -d`) and compare table by table.
+- The advertising pool is **provisional** (45 % of USD 20,000, without the real F5) until EG-30; the royalties will change.
+- The API was tested over unencrypted HTTP. With a domain and `certificado_acm_arn`, repeat the test over HTTPS.
