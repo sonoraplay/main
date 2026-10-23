@@ -26,12 +26,19 @@ variable "proyecto" {
   default     = "sonoraplay"
 }
 
+variable "owner" {
+  description = "Valor de la etiqueta Owner: a quién se atribuye el costo en Cost Explorer (EG-32)."
+  type        = string
+  default     = "sonoraplay-equipo"
+}
+
 provider "aws" {
   region = var.region
 
   default_tags {
     tags = {
       Project   = var.proyecto
+      Owner     = var.owner
       ManagedBy = "terraform"
       Stack     = "bootstrap"
     }

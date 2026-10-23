@@ -44,3 +44,6 @@ skip-check:
   - CKV2_AWS_28  # WAF: ≈ 5 USD/mes + reglas; la API ya exige JWT y aísla por titular (ADR-0006)
   - CKV_AWS_2    # Listener HTTP: sin dominio no hay certificado de ACM; con certificado_acm_arn el 80 solo redirige a 443
   - CKV_AWS_378  # Target group HTTP: el TLS termina en el ALB; el tramo ALB → tarea va dentro de la VPC
+
+  # --- EG-32 · presupuesto y alarma ---
+  - CKV_AWS_26   # Cifrado del tema SNS: AWS Budgets no puede publicar en un tema con la clave aws/sns; una CMK cuesta 1 USD/mes

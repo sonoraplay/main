@@ -18,6 +18,7 @@ locals {
 
   etiquetas = {
     Project     = var.proyecto
+    Owner       = var.owner
     Environment = var.entorno
     ManagedBy   = "terraform"
   }

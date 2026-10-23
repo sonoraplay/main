@@ -24,8 +24,9 @@ Decisiones: [ADR-0009](../../docs/adr/0009-region-aws.md) (región), [ADR-0010](
 | `ecs.tf` (EG-27) | Clúster `sonoraplay-dev` con FARGATE y FARGATE_SPOT, grupos de logs `/ecs/sonoraplay/<servicio>` (7 días), secreto JWT en SSM y, con `api_titulares_imagen_tag`, la definición de tarea ARM64 y el servicio de la API de titulares en subredes privadas | EG-27: 2, 4, 5 |
 | `alb.tf` (EG-27) | ALB público en 2 AZ, target group con health check en `/health`, listener 80 (y 443 si hay `certificado_acm_arn`). Solo existe con `api_titulares_imagen_tag` | EG-27: 3 |
 | `ecr/` (EG-27) | Repositorios `sonoraplay/<servicio>` con etiquetas inmutables, escaneo y ciclo de vida. **Persistente**, con su propio estado (`sonoraplay/ecr.tfstate`) | EG-27: 1 |
+| `presupuesto/` | Stack persistente con el presupuesto mensual (50 USD), el tema SNS y la suscripción de correo. Ver `docs/infraestructura/eg32-presupuesto-alarma.md` | EG-32 |
 
-Todo lleva `Project=sonoraplay`, `Environment=dev` y `ManagedBy=terraform` (`default_tags`).
+Todo lleva `Project=sonoraplay`, `Owner=sonoraplay-equipo` (`owner`), `Environment=dev` y `ManagedBy=terraform` (`default_tags`).
 
 **Fuera de esta historia:**
 - el ALB y ECS: HU 18 (EG-27, ver abajo);
