@@ -184,3 +184,12 @@ Se confirma en la HU 23.
 The proposed AWS architecture separates public entry points from private compute and storage. An HTTPS Application Load Balancer exposes the rights-holder API; the contracts API, RabbitMQ, Airflow, and PostgreSQL remain private. ECS Fargate runs application services, while Spark runs as on-demand tasks. S3 holds Bronze/Silver/Gold data, RDS PostgreSQL stores transactional and reporting data, and CloudWatch, CloudTrail, SSM Parameter Store, AWS Budgets, and GitHub Actions provide observability, audit, secrets, budget alerts, and CI/CD. Terraform defines infrastructure. The design uses short deployment windows to limit costs, with resources destroyed after the demonstration.
 
 **Important distinction:** an accepted architectural design and successful CI do **not** establish that the AWS environment has been provisioned, that ECS services are reachable, or that an AWS invoice exists. Terraform `apply`, endpoint checks, security evidence, and actual billing records must be verified separately. Any infrastructure changes require the technical lead's review.
+
+
+## EG-31 / EG-32 — Design and cost review (2026-10-21)
+
+- [Dimensional model and Data Lake / Modelo dimensional y Data Lake](../datos/eg31-modelo-dimensional-en-es.md) — proposed design, not a deployed pipeline.
+- [ADR-0014 — Data Lake Parquet layout / Particiones Parquet](../adr/0014-data-lake-parquet-partitions.md) — accepted with conditions (2026-10-22); the conditions are listed in the ADR.
+- [AWS cost analysis v1 / Análisis de costos AWS v1](../costos/eg32-aws-cost-analysis-v1-en-es.md) — draft assumptions and two scenarios; AWS Pricing Calculator link, real billing and SNS alarm test pending.
+
+**Note / Nota:** The original RDS seven-day backup criterion in this architecture has an approved one-day Free-plan exception (Julián, 2026-10-20); the infrastructure ADR and EG-26 evidence should record the approval explicitly before the architecture baseline is updated.
