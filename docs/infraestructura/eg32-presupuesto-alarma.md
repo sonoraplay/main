@@ -18,7 +18,7 @@ title: "EG-32 · Presupuesto y alarma / Budget and alarm"
 | Tema SNS y suscripción de correo | La suscripción requiere un correo válido; Budgets publica en el tema y el tema envía el correo. El correo **no está en el repositorio**: se pasa al aplicar |
 | Etiqueta `Owner` | Valor `sonoraplay-equipo` en todos los recursos del stack principal, en el presupuesto y en el bootstrap |
 
-El límite de **50 USD por mes calendario es una propuesta pendiente de aprobación del equipo**, no una cifra derivada directamente de los ~35 USD estimados **para seis semanas**. La hoja de EG-32 del PR #12 estima aproximadamente **5,6 USD por mes** en ventanas de prueba (8 × 3 h) y **126 USD por mes** en operación continua, con supuestos y exclusiones documentados. El escenario de seis semanas incluye una última semana encendida y no se debe comparar directamente con un límite mensual sin distribuir los costos por mes calendario. Antes del despliegue, registrar la proyección máxima de cada mes y confirmar el umbral elegido. **AWS Budgets avisa; no bloquea el gasto ni apaga recursos.** Se cambia con `-var limite_usd=...`.
+El límite de **50 USD por mes calendario es una propuesta pendiente de aprobación del equipo**, no una cifra derivada directamente de los ~35 USD estimados **para seis semanas**. La hoja de EG-32 (PR #7) estima aproximadamente **5,6 USD por mes** en ventanas de prueba (8 × 3 h) y **126 USD por mes** en operación continua, con supuestos y exclusiones documentados. El escenario de seis semanas incluye una última semana encendida y no se debe comparar directamente con un límite mensual sin distribuir los costos por mes calendario. Antes del despliegue, registrar la proyección máxima de cada mes y confirmar el umbral elegido. **AWS Budgets avisa; no bloquea el gasto ni apaga recursos.** Se cambia con `-var limite_usd=...`.
 
 ### Aplicarlo (una sola vez, en CloudShell)
 
@@ -63,7 +63,7 @@ En un despliegue inicial, el plan debe crear 4 recursos: el tema, su política, 
     'TagSet=[{Key=Project,Value=sonoraplay},{Key=ManagedBy,Value=terraform},{Key=Stack,Value=bootstrap},{Key=Owner,Value=sonoraplay-equipo}]'
   ```
 - Para que Cost Explorer separe los costos hay que **activar las etiquetas** en la consola: Billing and Cost Management → Cost allocation tags → activar `Project` y `Owner`. Aparecen después de que haya recursos con esas etiquetas y pueden tardar hasta cerca de un día.
-- El stack de ECR del PR #10 también necesitará `Owner` en sus etiquetas cuando se fusione.
+- El stack de ECR ya lleva `Owner` en sus etiquetas desde el PR #24 (fusionado).
 
 ### Costo
 
@@ -89,7 +89,7 @@ En un despliegue inicial, el plan debe crear 4 recursos: el tema, su política, 
 | SNS topic and email subscription | A valid recipient email is required; Budgets publishes to the topic and the topic sends the email. The email is **not in the repository**: it is passed at apply time |
 | `Owner` tag | Value `sonoraplay-equipo` on every main-stack resource, on the budget stack and on the bootstrap |
 
-The **USD 50 per calendar month threshold is a proposal awaiting team approval**, not a direct conversion of the approximately **USD 35 six-week** project estimate. The EG-32 worksheet in PR #12 estimates approximately **USD 5.6/month** for test windows (8 × 3 h) and **USD 126/month** for always-on operations, subject to documented assumptions and exclusions. The six-week scenario includes a final always-on week and must be allocated to calendar months before comparing it to a monthly threshold. Before deployment, record the peak projected spend in each calendar month and approve the threshold. **AWS Budgets sends alerts; it does not cap spending or stop resources.** Change the threshold with `-var limite_usd=...`.
+The **USD 50 per calendar month threshold is a proposal awaiting team approval**, not a direct conversion of the approximately **USD 35 six-week** project estimate. The EG-32 worksheet (PR #7) estimates approximately **USD 5.6/month** for test windows (8 × 3 h) and **USD 126/month** for always-on operations, subject to documented assumptions and exclusions. The six-week scenario includes a final always-on week and must be allocated to calendar months before comparing it to a monthly threshold. Before deployment, record the peak projected spend in each calendar month and approve the threshold. **AWS Budgets sends alerts; it does not cap spending or stop resources.** Change the threshold with `-var limite_usd=...`.
 
 ### Apply it (once, in CloudShell)
 
@@ -107,7 +107,7 @@ The state bucket already exists and `infra/terraform/backend.hcl` is built as in
 - The main stack puts them on every resource through `default_tags` (`Owner` comes from `var.owner`). They show after the next `apply`.
 - The **state bucket already exists** and has no `Owner`. First inspect and save existing tags using `aws s3api get-bucket-tagging --bucket "sonoraplay-$CUENTA-tfstate"`. The following command **replaces every tag**: only use it if the four listed tags match all existing tags plus `Owner`; otherwise build a `TagSet` that preserves every existing tag: `aws s3api put-bucket-tagging` with `Project`, `ManagedBy`, `Stack` and `Owner` (full command in the Spanish section above).
 - For Cost Explorer to split costs, **activate the tags** in the console: Billing and Cost Management → Cost allocation tags → activate `Project` and `Owner`. They appear once resources carry them and can take up to about a day.
-- The ECR stack in PR #10 will also need `Owner` in its tags once merged.
+- The ECR stack already carries `Owner` in its tags since PR #24 (merged).
 
 ### Cost
 
