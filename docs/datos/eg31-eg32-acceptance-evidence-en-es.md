@@ -1,6 +1,6 @@
 # EG-31 and EG-32 — Acceptance evidence register / Registro de evidencia de aceptación
 
-**As of / Corte:** 2026-10-22 · **Review state / Estado:** awaiting technical review / pendiente revisión técnica.
+**As of / Corte:** 2026-10-23 · **Review state / Estado:** EG-31 dimensional contract approved by Julián on 2026-10-23 (ADR-0014 accepted with conditions on 2026-10-22); Spark/Parquet evidence pending; EG-32 awaiting its tests in AWS / contrato dimensional de EG-31 aprobado por Julián el 2026-10-23 (ADR-0014 aceptado con condiciones el 2026-10-22); pruebas de Spark/Parquet pendientes; EG-32 espera sus pruebas en AWS.
 
 This file is a **traceability register**, not a claim of deployed AWS infrastructure or completed Spark processing. / Este archivo es un **registro de trazabilidad**, no una afirmación de despliegue AWS ni de ejecución Spark terminada.
 
@@ -14,7 +14,7 @@ This file is a **traceability register**, not a claim of deployed AWS infrastruc
 | CA4: Bronze/Silver/Gold Parquet partitions + ADR-0014 | [ADR-0014](../adr/0014-data-lake-parquet-partitions.md) | layer paths, partition policy | Design documented; ADR accepted with conditions on 2026-10-22 / diseño, ADR aceptado con condiciones | run Parquet read/write, verify S3 layout and meet the ADR conditions |
 | CA5: churn and engagement | [model / modelo](eg31-modelo-dimensional-en-es.md) | F3 churn semantics, F2 session metrics | Design documented / diseño documentado | run EG-42 sample calculations and Power BI queries |
 
-**EG-31 acceptance gates / Puertas de aceptación EG-31:** (1) Julián's technical approval of the v2 dimensional contract (ADR-0014 was accepted with conditions on 2026-10-22; its conditions remain open); (2) Spark/Parquet materialization and partition evidence (EG-35/37); (3) executed integrity and reconciliation checks for paid plays, settlement versions and adjustments; (4) sample churn/engagement query results (EG-42). These are validation outcomes, not four new user-story requirements. **All five criteria are documented as a design, not demonstrated end-to-end.** / (1) aprobación del modelo v2 (el ADR-0014 se aceptó con condiciones el 2026-10-22; sus condiciones siguen abiertas); (2) pruebas de materialización y particiones Spark/Parquet; (3) consultas ejecutadas de integridad, versiones y ajustes; (4) resultados de muestra de churn/engagement. Son evidencias de validación, no requisitos nuevos. **Los cinco criterios están diseñados, pero no demostrados de extremo a extremo.**
+**EG-31 acceptance gates / Puertas de aceptación EG-31:** (1) Julián's technical approval of the v2 dimensional contract — **given on 2026-10-23** (ADR-0014 was accepted with conditions on 2026-10-22; its conditions remain open); (2) Spark/Parquet materialization and partition evidence (EG-35/37); (3) executed integrity and reconciliation checks for paid plays, settlement versions and adjustments; (4) sample churn/engagement query results (EG-42). These are validation outcomes, not four new user-story requirements. **All five criteria are documented as a design, not demonstrated end-to-end.** / (1) aprobación del modelo v2 — **otorgada el 2026-10-23** (el ADR-0014 se aceptó con condiciones el 2026-10-22; sus condiciones siguen abiertas); (2) pruebas de materialización y particiones Spark/Parquet; (3) consultas ejecutadas de integridad, versiones y ajustes; (4) resultados de muestra de churn/engagement. Son evidencias de validación, no requisitos nuevos. **Los cinco criterios están diseñados, pero no demostrados de extremo a extremo.**
 
 ## EG-32 — Cost analysis v1 and budget alarm
 
@@ -29,7 +29,7 @@ This file is a **traceability register**, not a claim of deployed AWS infrastruc
 ## Sequential dependency gate / Puertas de dependencias
 
 1. **EG-30:** PR #3 needs ADR-0021 decision, source approval, and month-end behavior confirmation. / Requiere decisión ADR-0021 y cierre de mes.
-2. **EG-31:** approve the dimensional contract before EG-35/37 implementation locks Gold schemas (ADR-0014 is already accepted with conditions). / Aprobar el contrato dimensional antes de fijar esquemas Gold (el ADR-0014 ya está aceptado con condiciones).
+2. **EG-31:** the dimensional contract was approved on 2026-10-23 and ADR-0014 is accepted with conditions, so EG-35/37 can lock the Gold schemas under those conditions; EG-31 stays open until the Spark/Parquet evidence exists. / El contrato dimensional se aprobó el 2026-10-23 y el ADR-0014 está aceptado con condiciones, así que EG-35/37 pueden fijar los esquemas Gold bajo esas condiciones; EG-31 sigue abierta hasta tener la evidencia de Spark/Parquet.
 3. **EG-26 and EG-29:** infrastructure and reliable messaging unblock EG-33 Bronze. / Infraestructura y mensajería desbloquean Bronze.
 4. **EG-33 → EG-35/36 → EG-37 → EG-38/45:** Bronze to Silver to Gold to monthly settlement. / Flujo de ingesta a liquidación.
 5. **EG-32:** budget controls must precede any new AWS test window. / Controles de gasto antes de nuevas ventanas AWS.
