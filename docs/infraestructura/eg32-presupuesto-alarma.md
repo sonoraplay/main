@@ -7,7 +7,7 @@ title: "EG-32 · Presupuesto y alarma / Budget and alarm"
 
 ## Español
 
-**Estado: código listo, NO aplicado en AWS.** Esta página explica cómo desplegar y probar el presupuesto con aviso por correo (criterio 3 de EG-32) y las etiquetas `Project` y `Owner` (criterio 4). Todavía no hay evidencia de AWS.
+**Estado: desplegado en AWS; prueba de transporte SNS superada el 2026-10-23.** Esta página explica cómo desplegar y probar el presupuesto con aviso por correo (criterio 3 de EG-32) y las etiquetas `Project` y `Owner` (criterio 4). Falta la notificación originada por AWS Budgets y la activación de etiquetas en Billing (ver «Evidencia de la prueba»). 
 
 ### Qué se agrega
 
@@ -70,15 +70,23 @@ En un despliegue inicial, el plan debe crear 4 recursos: el tema, su política, 
 - SNS por correo: los primeros 1.000 correos al mes son gratis (lista de precios de AWS).
 - AWS Budgets: no se pudo comprobar su precio con la lista de precios usada en la hoja de EG-32. Confirmar en la documentación de AWS si los dos primeros presupuestos son gratuitos.
 
+### Evidencia de la prueba (2026-10-23)
+
+**Estado desplegado**, comprobado con llamadas de solo lectura: presupuesto `sonoraplay-mensual` de 50 USD mensuales con `IncludeCredit = false`; tres notificaciones (50 % y 80 % del gasto real, 100 % de la proyección); tema SNS `sonoraplay-presupuesto-alertas` sin cifrar; suscripción de correo **confirmada**; etiquetas `Project`, `Owner=sonoraplay-equipo`, `Environment`, `ManagedBy` y `Stack` en el tema. `Project` y `Owner` también están en los 5 repositorios de ECR y en el bucket de estado.
+
+**Prueba de transporte.** Desde un CloudShell, Julián ejecutó `aws sns publish` con el asunto «Prueba EG-32»; SNS devolvió el `MessageId` `828ee581-a2c4-511d-8f19-86d42339f2a4`, y el correo **llegó a la bandeja principal** (no a spam) en el momento. Los comandos de comprobación previa devolvieron lo esperado. Esta prueba demuestra que SNS entrega el correo; **no** demuestra que AWS Budgets dispare la alerta.
+
+**Sigue sin evidencia:** una notificación originada por AWS Budgets (solo ocurre al cruzar un umbral; si no se logra, documentar la limitación); la activación de `Project` y `Owner` como etiquetas de asignación de costos en Billing y su atribución en Cost Explorer; el efecto exacto de `include_credit = false`.
+
 ### Lo que no está probado
 
-- Nada de esto se aplicó en AWS: pasó `terraform fmt`, `validate` en los tres stacks y Checkov (299 aprobados, 0 fallidos).
+- El código pasó `terraform fmt`, `validate` en los tres stacks y Checkov (299 aprobados, 0 fallidos), y el stack está desplegado (ver arriba); lo que sigue sin probarse es lo listado como «Sigue sin evidencia».
 - No se sabe aún si `include_credit = false` produce exactamente el gasto bruto esperado en esta cuenta: confirmarlo en la consola de Budgets tras el primer día.
 - El correo de alertas, el valor de `Owner` y el límite son decisiones del equipo; los valores del código son una propuesta.
 
 ## English
 
-**Status: code ready, NOT applied in AWS.** This page explains how to deploy and test the budget with email alerts (EG-32 criterion 3) and the `Project` and `Owner` tags (criterion 4). There is no AWS evidence yet.
+**Status: deployed in AWS; SNS transport test passed on 2026-10-23.** This page explains how to deploy and test the budget with email alerts (EG-32 criterion 3) and the `Project` and `Owner` tags (criterion 4). The AWS Budgets-originated notification and the Billing tag activation are still missing (see "Evidence of the test").
 
 ### What is added
 
@@ -114,8 +122,16 @@ The state bucket already exists and `infra/terraform/backend.hcl` is built as in
 - SNS email: the first 1,000 emails per month are free (AWS price list).
 - AWS Budgets: its price could not be checked with the price list used in the EG-32 worksheet. Confirm in the AWS documentation whether the first two budgets are free.
 
+### Evidence of the test (2026-10-23)
+
+**Deployed state**, checked with read-only calls: budget `sonoraplay-mensual` of USD 50 per month with `IncludeCredit = false`; three notifications (50 % and 80 % of actual spend, 100 % of the forecast); unencrypted SNS topic `sonoraplay-presupuesto-alertas`; **confirmed** email subscription; tags `Project`, `Owner=sonoraplay-equipo`, `Environment`, `ManagedBy` and `Stack` on the topic. `Project` and `Owner` are also on the 5 ECR repositories and the state bucket.
+
+**Transport test.** From a CloudShell, Julián ran `aws sns publish` with the subject "Prueba EG-32"; SNS returned `MessageId` `828ee581-a2c4-511d-8f19-86d42339f2a4`, and the email **arrived in the primary inbox** (not spam) right away. The pre-checks returned what was expected. This test shows that SNS delivers the email; it does **not** show that AWS Budgets fires the alert.
+
+**Still without evidence:** a notification originated by AWS Budgets (it only happens when a threshold is crossed; if it cannot be obtained, document the limitation); activation of `Project` and `Owner` as cost allocation tags in Billing and their attribution in Cost Explorer; the exact effect of `include_credit = false`.
+
 ### Not tested
 
-- None of this was applied in AWS: it passed `terraform fmt`, `validate` on the three stacks and Checkov (299 passed, 0 failed).
+- The code passed `terraform fmt`, `validate` on the three stacks and Checkov (299 passed, 0 failed), and the stack is deployed (see above); what is still untested is what is listed under "Still without evidence".
 - It is not yet known whether `include_credit = false` produces exactly the expected gross spend in this account: confirm it in the Budgets console after the first day.
 - The alert email, the `Owner` value and the limit are team decisions; the values in the code are a proposal.
