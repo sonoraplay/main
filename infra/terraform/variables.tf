@@ -83,3 +83,60 @@ variable "ecr_repositorio_prefijo" {
   type        = string
   default     = "sonoraplay"
 }
+
+# --- EG-27 · API de titulares en ECS Fargate detrás del ALB ---------------------------------
+
+variable "api_titulares_imagen_tag" {
+  description = <<-EOT
+    Etiqueta de la imagen en ECR = SHA corto del commit (criterio 1 de la EG-27), por ejemplo
+    "a1b2c3d". Vacía: no se crean el ALB, la definición de tarea ni el servicio, así una
+    ventana solo de la EG-26 no paga el ALB. Publica la imagen con infra/scripts/publicar-imagen.sh.
+  EOT
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.api_titulares_imagen_tag == "" || can(regex("^[0-9a-f]{7,40}$", var.api_titulares_imagen_tag))
+    error_message = "La etiqueta debe ser el SHA del commit (7 a 40 caracteres hexadecimales)."
+  }
+}
+
+variable "api_titulares_cpu" {
+  description = "CPU de la tarea en unidades de Fargate (256 = 0,25 vCPU; arquitectura v1)."
+  type        = number
+  default     = 256
+}
+
+variable "api_titulares_memoria" {
+  description = "Memoria de la tarea en MiB (arquitectura v1)."
+  type        = number
+  default     = 512
+}
+
+variable "api_titulares_tareas" {
+  description = "Tareas deseadas del servicio. 1 en las ventanas de prueba; 2 si se pide alta disponibilidad."
+  type        = number
+  default     = 1
+}
+
+variable "certificado_acm_arn" {
+  description = <<-EOT
+    ARN de un certificado de ACM para el dominio de la API. Con él, el ALB escucha en 443 y el
+    puerto 80 solo redirige (ADR-0006). Vacío: el ALB atiende en 80 (HTTP), solo para las
+    ventanas de prueba, hasta que el equipo tenga un dominio (ver ADR-0012, sección 5).
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "logs_retencion_dias" {
+  description = "Retención de los logs de ECS en CloudWatch (criterio 5 de la EG-27)."
+  type        = number
+  default     = 7
+}
+
+variable "jwt_secret_version" {
+  description = "Súbelo en 1 para rotar la clave de firma de los tokens de sellos."
+  type        = number
+  default     = 1
+}

@@ -43,6 +43,8 @@ jobs:
     env:
       TEST_DATABASE_URL: postgresql+psycopg://sonora:sonora_ci@localhost:5432/sonoraplay_test
       RABBITMQ_URL: amqp://sonora:sonora_ci@localhost:5672/%2F
+      # EG-51 criterio 1: la prueba de carga pico corre el minuto completo (>= 100 eventos/s).
+      PICO_60S: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -63,12 +65,12 @@ jobs:
       - run: terraform fmt -check -recursive infra/terraform
       # Sin backend ni credenciales: valida la sintaxis y los tipos, no toca AWS.
       - run: |
-          for d in infra/terraform infra/terraform/bootstrap infra/terraform/presupuesto; do
+          for d in infra/terraform infra/terraform/bootstrap infra/terraform/ecr infra/terraform/presupuesto; do
             terraform -chdir="$d" init -backend=false -input=false
             terraform -chdir="$d" validate
           done
       - uses: astral-sh/setup-uv@v6
-      # Excepciones justificadas en infra/terraform/.checkov.yaml (EG-26).
+      # Excepciones justificadas en infra/terraform/.checkov.yaml (EG-26 y EG-27).
       - run: uvx checkov==3.3.29 -d infra/terraform --config-file infra/terraform/.checkov.yaml
 
   secretos:

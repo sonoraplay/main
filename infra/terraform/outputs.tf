@@ -49,3 +49,19 @@ output "perfiles_ec2" {
 output "nat_instance_id" {
   value = aws_instance.nat.id
 }
+
+# --- EG-27 ----------------------------------------------------------------------------------
+
+output "ecs_cluster" {
+  value = aws_ecs_cluster.principal.name
+}
+
+output "api_titulares_url" {
+  description = "URL pública de la API de sellos (vacía si no se pasó api_titulares_imagen_tag)."
+  value       = local.api_activa ? "${local.api_https ? "https" : "http"}://${aws_lb.api[0].dns_name}" : ""
+}
+
+output "api_titulares_task_definition" {
+  description = "Revisión desplegada (family:N), criterio 2."
+  value       = local.api_activa ? "${aws_ecs_task_definition.api_titulares[0].family}:${aws_ecs_task_definition.api_titulares[0].revision}" : ""
+}
