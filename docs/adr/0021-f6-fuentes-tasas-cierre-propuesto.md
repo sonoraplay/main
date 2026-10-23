@@ -2,11 +2,11 @@
 
 | Campo / Field | Valor / Value |
 |---|---|
-| Estado / Status | **Propuesto / Proposed — NO aprobado / NOT approved** |
+| Estado / Status | **Aceptado / Accepted** — 2026-10-21 (Julián) |
 | Fecha / Date | 2026-10-15 |
 | Historia / Story | EG-30 (F5, F6, F7) |
 | Responsable / Owner | María Clara (propuesta para revisión del TL) |
-| Revisor / Reviewer | Joshua — pendiente / pending |
+| Revisor / Reviewer | Julián — aprobó el 2026-10-21 / approved on 2026-10-21 |
 | Referencias / References | ADR-0002; `TasaCambio`, `convertir_a_usd` en `reglas/liquidacion.py`; F3 |
 
 ## Español
@@ -101,3 +101,96 @@ La responsable de EG-30 comunica que Joshua autorizó **utilizar Frankfurter** y
 The EG-30 owner reports that Joshua authorized **Frankfurter** and instructed the team to use the **nearest previous business day's available rate** when calendar month-end falls on a **Saturday or Sunday**. The `fecha` field retains the calendar month-end required for settlement, while `fecha_observacion` preserves the actual quotation date. For Sunday 2026-05-31, the expected observation is Friday 2026-05-29 **if published by the provider**. Rates must never be fabricated.
 
 **Evidence scope:** this approval was reported by the team member in conversation; there is **no written TL confirmation in this ADR/PR yet**. Formal ADR status therefore remains **Proposed** until Joshua confirms it on GitHub. The reported approval names Frankfurter but **does not unambiguously specify v2 or blended-rate semantics**. The current adapter uses v2 because v1 lacks required currency coverage; live coverage and licensing checks remain necessary. Holiday cases where Friday has no quotation require a defined fallback policy. PostgreSQL persistence contracts also require coordination.
+
+
+## Actualización de evidencia técnica / Technical evidence update — 2026-10-20
+
+### Español
+
+**Estado:** Propuesto. Los resultados siguientes corresponden a pruebas locales de EG-30 y no sustituyen la aprobación formal del líder técnico.
+
+**F6 — Tasas de cambio**
+- Se verificó una ejecución real de Frankfurter v2 para septiembre de 2026, con las seis monedas ARS, BRL, CLP, COP, MXN y PEN.
+- Se generaron seis registros de cierre y 170 observaciones diarias; se mantienen separados el cierre calendario y la fecha real de observación.
+- Sigue pendiente una comprobación específica de cierre de fin de semana y festivos, así como la atribución y condiciones de uso de las tasas combinadas.
+
+**F7 — Países**
+- REST Countries v3.1 dejó de estar disponible; el equipo optó por no migrar a v5 debido a sus requisitos de clave y restricciones de uso.
+- La implementación utiliza el dataset público `mledoze/countries`, fijado al commit `c2ac0049c14edcf2436c7aa1b2493222a020b462`.
+- Una recuperación real validó 250 países. Fijar la revisión evita cambios inesperados y mejora la reproducibilidad.
+
+**Persistencia e integridad**
+- Una carga real a PostgreSQL produjo 6 registros F5, 6 cierres F6, 170 tasas diarias F6 y 250 países F7.
+- La repetición de la carga conservó esos conteos (idempotencia para el conjunto probado).
+- Una prueba de integración provocó un error después de iniciar inserciones y comprobó el rollback sin dejar países de prueba.
+- Se mejoró el mensaje de error ante fallos de conexión; las pruebas locales de fuentes finalizaron con **24 aprobadas**.
+
+**Pendiente:** aprobación formal de Julián sobre Frankfurter v2 y tasas combinadas, política de cierres no hábiles, procedencia y condiciones de uso de las fuentes, sustitución de F7, revisión del PR y resultados de CI. La referencia histórica a la autorización comunicada por Joshua (2026-10-16) se conserva como antecedente, no como aprobación formal.
+
+### English
+
+**Status:** Proposed. The results below are from local EG-30 validation and do not replace formal approval by the technical lead.
+
+**F6 — Exchange rates**
+- A live Frankfurter v2 run for September 2026 verified all six required currencies: ARS, BRL, CLP, COP, MXN, and PEN.
+- Six closing-rate records and 170 daily observations were generated, retaining separate calendar closing and actual observation dates.
+- Weekend and holiday month-end behavior, as well as attribution and terms of use for blended rates, still require specific verification.
+
+**F7 — Country data**
+- REST Countries v3.1 became unavailable; the team chose not to migrate to v5 because of API-key requirements and usage restrictions.
+- The implementation uses the public `mledoze/countries` dataset pinned to commit `c2ac0049c14edcf2436c7aa1b2493222a020b462`.
+- A live retrieval validated 250 countries. Pinning the revision prevents unexpected dataset changes and improves reproducibility.
+
+**Persistence and integrity**
+- A live PostgreSQL load produced 6 F5 records, 6 F6 closing rates, 170 F6 daily rates, and 250 F7 countries.
+- Re-running the load preserved these counts (idempotency for the tested dataset).
+- An integration test intentionally triggered a failure after insertions began and confirmed rollback without leaving test countries.
+- Connection failure reporting was improved; the local sources test suite completed with **24 passing tests**.
+
+**Pending:** Julián's formal approval of Frankfurter v2 and blended-rate semantics, non-business-day closing policy, source provenance and terms of use, F7 replacement, PR review, and CI results. The historical report of Joshua's authorization (2026-10-16) is retained as context, not treated as formal approval.
+
+## Decisión solicitada a Julián / Decision requested from Julián — 2026-10-21
+
+**Estado / Status:** **Aceptado / Accepted** el 2026-10-21 por Julián. / Accepted on 2026-10-21 by Julián.
+
+### Español
+
+**Decisión 1 · Fuente alternativa de países F7: dataset `mledoze/countries`.**
+- **Qué es:** dataset público fijado al commit `c2ac0049c14edcf2436c7aa1b2493222a020b462`. REST Countries v3.1 ya no está disponible y la v5 exige clave. Una recuperación real validó 250 países.
+- **Licencia (verificada el 2026-10-21 en el repositorio):** ODbL 1.0. Exige **atribución**; si se publicara una base de datos derivada, habría que licenciarla igual. El repositorio no publica la base derivada. Las banderas no están cubiertas por la ODbL y el proyecto no las usa.
+- **Recomendación:** aceptar, con estas condiciones: (a) registrar la atribución «mledoze/countries, ODbL 1.0, commit `c2ac0049…`» en la documentación de fuentes de EG-30; (b) cambiar el commit fijado solo con revisión; (c) no publicar la tabla de países derivada sin revisar la ODbL.
+
+**Decisión 2 · Cotización de cierre de mes.** La `fecha` queda como el último día calendario (UTC) y `fecha_observacion` conserva el día real de la tasa. Ya está probado el cierre en sábado y domingo (usa el viernes anterior; caso mayo de 2026).
+- **Lo que hace hoy el código** (`validar_tasas`, `f6_tasas.py`): toma la última cotización del mes que sea anterior o igual al cierre. **No limita la antigüedad**: si la última cotización fuera del día 10, la aceptaría.
+- **Opción A:** dejarlo como está. Cubre fines de semana y festivos mientras haya alguna cotización en el mes.
+- **Opción B (recomendada):** añadir un **tope de 5 días corridos** antes del cierre; si la última cotización es más antigua, la carga falla y no se inventa nada. Requiere un cambio pequeño en `validar_tasas` y una prueba (festivo con la cotización del día hábil anterior, y caso sin cotización dentro del tope).
+
+**Decisión 3 · Frankfurter v2 con tasas combinadas.** Son tasas de mercado (mid-market), no la tasa oficial de cada país. Falta aprobar esa semántica y la atribución del proveedor.
+
+**Resolución (2026-10-21):**
+- [x] **Fuente F7 `mledoze/countries`: aprobada** con las condiciones (a), (b) y (c).
+- [x] **Regla de cierre: opción B** (tope de 5 días corridos). Julián delegó la elección («la que veas mejor») y se adopta la B porque evita aceptar en silencio una cotización antigua.
+- [x] **Frankfurter v2 con tasas combinadas: aprobado.**
+
+**Implementado:** `validar_tasas` rechaza cotizaciones de más de 5 días antes del cierre (`MAX_ANTIGUEDAD_DIAS`), con pruebas de festivo, del límite exacto (5 días), del rechazo a los 6 días y del tope por moneda; la atribución ODbL queda en el registro de fuentes y en `f7_paises.py`. **Pendiente:** revisión del PR #3, prueba real de un cierre en fin de semana o festivo, y que el contrato de persistencia no cambie.
+
+### English
+
+**Decision 1 · Alternative F7 country source: the `mledoze/countries` dataset.**
+- **What it is:** a public dataset pinned to commit `c2ac0049c14edcf2436c7aa1b2493222a020b462`. REST Countries v3.1 is no longer available and v5 requires a key. A live retrieval validated 250 countries.
+- **License (checked on 2026-10-21 in the repository):** ODbL 1.0. It requires **attribution**, and a publicly shared derived database would have to be licensed the same way. This repository does not publish the derived database. Flags are not covered by the ODbL and the project does not use them.
+- **Recommendation:** accept, on three conditions: (a) record the attribution "mledoze/countries, ODbL 1.0, commit `c2ac0049…`" in the EG-30 sources documentation; (b) change the pinned commit only after review; (c) do not publish the derived country table without reviewing the ODbL.
+
+**Decision 2 · Month-end rate.** `fecha` stays the last calendar day (UTC) and `fecha_observacion` keeps the actual quotation day. Saturday and Sunday closings are already tested (the previous Friday is used; May 2026 case).
+- **What the code does today** (`validar_tasas`, `f6_tasas.py`): it takes the latest quotation in the month on or before the closing date. **It has no staleness limit**: a last quotation from the 10th would be accepted.
+- **Option A:** keep it as is. It covers weekends and holidays as long as the month has any quotation.
+- **Option B (recommended):** add a **5-calendar-day cap** before the closing date; an older last quotation makes the load fail and nothing is invented. It needs a small change in `validar_tasas` and a test (holiday using the previous business day's quotation, and a case with no quotation inside the cap).
+
+**Decision 3 · Frankfurter v2 combined rates.** These are mid-market rates, not each country's official rate. The semantics and the provider attribution still need approval.
+
+**Resolution (2026-10-21):**
+- [x] **F7 source `mledoze/countries`: approved** with conditions (a), (b) and (c).
+- [x] **Closing rule: option B** (5-calendar-day cap). Julián delegated the choice ("whichever you think is best") and B is adopted because it avoids silently accepting a stale quotation.
+- [x] **Frankfurter v2 combined rates: approved.**
+
+**Implemented:** `validar_tasas` rejects quotations more than 5 days before the closing date (`MAX_ANTIGUEDAD_DIAS`), with tests for a holiday, the exact 5-day limit, rejection at 6 days and the per-currency cap; the ODbL attribution is in the sources register and in `f7_paises.py`. **Pending:** PR #3 review, a live test of a weekend or holiday closing, and keeping the persistence contract unchanged.
