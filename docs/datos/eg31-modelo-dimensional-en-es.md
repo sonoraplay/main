@@ -4,7 +4,7 @@
 
 
 
-**Status / Estado:** Proposed design / Diseño propuesto — 2026-10-21. This is a design contract, **not** evidence that Spark tables or Parquet partitions are deployed.
+**Status / Estado:** Design contract approved by Julián on 2026-10-23 / Contrato de diseño aprobado por Julián el 2026-10-23 (proposed 2026-10-21). This is a design contract, **not** evidence that Spark tables or Parquet partitions are deployed.
 
 ## English
 
@@ -61,7 +61,7 @@ erDiagram
 
 ## Español
 
-**Estado:** diseño propuesto, todavía no implementado en Spark ni desplegado en AWS.
+**Estado:** contrato de diseño aprobado por Julián el 2026-10-23; todavía no implementado en Spark ni desplegado en AWS.
 
 ### Granularidad y claves
 
