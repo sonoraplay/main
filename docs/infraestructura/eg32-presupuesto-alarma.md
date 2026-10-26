@@ -80,7 +80,9 @@ En un despliegue inicial, el plan debe crear 4 recursos: el tema, su política, 
 
 **Efecto de `include_credit = false`.** El mismo día, Cost Explorer con créditos incluidos daba un costo neto cercano a 0, y sin créditos ni reembolsos 28,18 USD acumulados del 1 al 26 de octubre. Budgets avisó con 25,50 USD: es coherente con que el presupuesto mide el gasto bruto y no descuenta créditos (el comportamiento esperado de la configuración). No se compararon las dos cifras al centavo porque corresponden a fechas distintas.
 
-**Sigue sin evidencia:** la activación de `Project` y `Owner` como etiquetas de asignación de costos en Billing y su atribución en Cost Explorer.
+**Activación de etiquetas (2026-10-26).** Julián activó `Owner` como etiqueta de asignación de costos en Billing (según su informe; no se guardó captura). La atribución en Cost Explorer solo cubre el gasto posterior a la activación y puede tardar hasta unas 24 horas.
+
+**Sigue sin evidencia:** la atribución por `Project` y `Owner` en Cost Explorer (se verifica a partir del 2026-10-27).
 
 ### Lo que no está probado
 
@@ -136,7 +138,9 @@ The state bucket already exists and `infra/terraform/backend.hcl` is built as in
 
 **Effect of `include_credit = false`.** On the same day, Cost Explorer with credits included showed a net cost near zero, and excluding credits and refunds it showed USD 28.18 accumulated from 1 to 26 October. Budgets alerted at USD 25.50: this is consistent with the budget measuring gross spend and not deducting credits (the expected behavior of the setting). The two figures were not compared to the cent because they refer to different dates.
 
-**Still without evidence:** activation of `Project` and `Owner` as cost allocation tags in Billing and their attribution in Cost Explorer.
+**Tag activation (2026-10-26).** Julián activated `Owner` as a cost allocation tag in Billing (as reported by him; no screenshot kept). Cost Explorer attribution only covers spend after activation and can take up to about 24 hours.
+
+**Still without evidence:** attribution by `Project` and `Owner` in Cost Explorer (to be checked from 2026-10-27).
 
 ### Not tested
 
