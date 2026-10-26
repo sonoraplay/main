@@ -82,7 +82,7 @@ En un despliegue inicial, el plan debe crear 4 recursos: el tema, su política, 
 
 **Activación de etiquetas (2026-10-26).** Julián activó `Owner` como etiqueta de asignación de costos en Billing (según su informe; no se guardó captura). La atribución en Cost Explorer solo cubre el gasto posterior a la activación y puede tardar hasta unas 24 horas.
 
-**Sigue sin evidencia:** la atribución por `Project` y `Owner` en Cost Explorer (se verifica a partir del 2026-10-27).
+**Sigue sin evidencia:** la atribución por `Project` y `Owner` en Cost Explorer. **Decisión (2026-10-26): se verifica en la próxima ventana de despliegue**, con el stack principal encendido y recursos con costo. Cómo: Cost Explorer → Group by → Tag → `Owner` (y `Project`), rango que cubra la ventana, y guardar el resultado sin datos de cuenta. Hasta entonces EG-32 sigue «En curso».
 
 ### Lo que no está probado
 
@@ -140,7 +140,7 @@ The state bucket already exists and `infra/terraform/backend.hcl` is built as in
 
 **Tag activation (2026-10-26).** Julián activated `Owner` as a cost allocation tag in Billing (as reported by him; no screenshot kept). Cost Explorer attribution only covers spend after activation and can take up to about 24 hours.
 
-**Still without evidence:** attribution by `Project` and `Owner` in Cost Explorer (to be checked from 2026-10-27).
+**Still without evidence:** attribution by `Project` and `Owner` in Cost Explorer. **Decision (2026-10-26): verify it in the next deployment window**, with the main stack running and billable resources. How: Cost Explorer → Group by → Tag → `Owner` (and `Project`), date range covering the window, and keep the result without account data. Until then EG-32 stays "In progress".
 
 ### Not tested
 
