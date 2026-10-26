@@ -83,6 +83,25 @@ services:
         condition: service_completed_successfully
     restart: "no"
 
+  # EG-29 · Broker de eventos F2 (RNF-04, ADR-0013). Colas durables y mensajes persistentes en
+  # el volumen rabbitmq-datos: sobreviven a un reinicio del broker. Consola: http://localhost:15672
+  rabbitmq:
+    image: rabbitmq:4.1.8-management-alpine
+    container_name: sonoraplay-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-sonora}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Define RABBITMQ_PASSWORD en .env}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_CONSOLA_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq-datos:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   # EG-20 · API interna de contratos F4. Espera al seed para no responder sobre una base vacía.
   api-contratos:
     build:
@@ -120,3 +139,4 @@ services:
 volumes:
   pgdata:
   datos-procesados:
+  rabbitmq-datos:

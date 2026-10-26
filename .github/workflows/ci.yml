@@ -1,4 +1,5 @@
 name: CI
+# EG-30: validar rollback PostgreSQL en CI
 
 on:
   push:
@@ -30,13 +31,60 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U sonora -d sonoraplay"
           --health-interval 5s --health-timeout 3s --health-retries 10
+      # EG-29: las pruebas de reinicio del consumidor y del broker corren contra RabbitMQ real.
+      rabbitmq:
+        image: rabbitmq:4.1.8-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: sonora
+          RABBITMQ_DEFAULT_PASS: sonora_ci   # solo para el contenedor efímero del CI
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q check_port_connectivity"
+          --health-interval 10s --health-timeout 5s --health-retries 10
     env:
       TEST_DATABASE_URL: postgresql+psycopg://sonora:sonora_ci@localhost:5432/sonoraplay_test
+      EG30_DATABASE_URL: postgresql://sonora:sonora_ci@localhost:5432/sonoraplay
+      RABBITMQ_URL: amqp://sonora:sonora_ci@localhost:5672/%2F
+      # EG-51 criterio 1: la prueba de carga pico corre el minuto completo (>= 100 eventos/s).
+      PICO_60S: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --locked
+      - name: Initialize EG-30 schema in ephemeral PostgreSQL
+        run: |
+          uv run python - <<'PY'
+          import os
+          from pathlib import Path
+          import psycopg
+          ddl = Path('db/ddl/004_fuentes_f5_f6_f7.sql').read_text(encoding='utf-8')
+          with psycopg.connect(os.environ['EG30_DATABASE_URL']) as conn:
+              conn.execute(ddl)
+          PY
       - run: uv run pytest --cov=sonoraplay --cov-report=term-missing
+        env:
+          # La prueba de reinicio del broker reinicia el contenedor de servicio del job.
+          # El contexto job solo existe dentro de los pasos, no en el env del job.
+          RABBITMQ_REINICIO: docker restart ${{ job.services.rabbitmq.id }}
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.6
+      - run: terraform fmt -check -recursive infra/terraform
+      # Sin backend ni credenciales: valida la sintaxis y los tipos, no toca AWS.
+      - run: |
+          for d in infra/terraform infra/terraform/bootstrap infra/terraform/ecr infra/terraform/presupuesto; do
+            terraform -chdir="$d" init -backend=false -input=false
+            terraform -chdir="$d" validate
+          done
+      - uses: astral-sh/setup-uv@v6
+      # Excepciones justificadas en infra/terraform/.checkov.yaml (EG-26 y EG-27).
+      - run: uvx checkov==3.3.29 -d infra/terraform --config-file infra/terraform/.checkov.yaml
 
   secretos:
     runs-on: ubuntu-latest
