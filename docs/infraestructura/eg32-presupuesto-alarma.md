@@ -7,7 +7,7 @@ title: "EG-32 · Presupuesto y alarma / Budget and alarm"
 
 ## Español
 
-**Estado: desplegado en AWS; prueba de transporte SNS superada el 2026-10-23.** Esta página explica cómo desplegar y probar el presupuesto con aviso por correo (criterio 3 de EG-32) y las etiquetas `Project` y `Owner` (criterio 4). Falta la notificación originada por AWS Budgets y la activación de etiquetas en Billing (ver «Evidencia de la prueba»). 
+**Estado: desplegado en AWS; prueba de transporte SNS y alerta real de Budgets recibidas el 2026-10-23.** Esta página explica cómo desplegar y probar el presupuesto con aviso por correo (criterio 3 de EG-32) y las etiquetas `Project` y `Owner` (criterio 4). Alerta real de AWS Budgets recibida el 2026-10-23; falta la activación de etiquetas en Billing (ver «Evidencia de la prueba»). 
 
 ### Qué se agrega
 
@@ -76,17 +76,23 @@ En un despliegue inicial, el plan debe crear 4 recursos: el tema, su política, 
 
 **Prueba de transporte.** Desde un CloudShell, Julián ejecutó `aws sns publish` con el asunto «Prueba EG-32»; SNS devolvió el `MessageId` `828ee581-a2c4-511d-8f19-86d42339f2a4`, y el correo **llegó a la bandeja principal** (no a spam) en el momento. Los comandos de comprobación previa devolvieron lo esperado. Esta prueba demuestra que SNS entrega el correo; **no** demuestra que AWS Budgets dispare la alerta.
 
-**Sigue sin evidencia:** una notificación originada por AWS Budgets (solo ocurre al cruzar un umbral; si no se logra, documentar la limitación); la activación de `Project` y `Owner` como etiquetas de asignación de costos en Billing y su atribución en Cost Explorer; el efecto exacto de `include_credit = false`.
+**Alerta real de AWS Budgets (recibida el 2026-10-23, 19:29, hora local del buzón).** Llegó un correo del remitente `AWS Notifications` (`no-reply@sns.amazonaws.com`) con el asunto «AWS Budgets: sonoraplay-mensual has exceeded your alert threshold». Su cuerpo dice: presupuesto `sonoraplay-mensual`, tipo Cost, monto presupuestado 50,00 USD, tipo de alerta ACTUAL, umbral > 25,00 USD, **monto ACTUAL 25,50 USD**. Es decir, AWS Budgets cruzó el umbral del 50 % del gasto real y publicó en el tema SNS, que entregó el correo a la suscripción confirmada: **recorrido Budgets → SNS → correo demostrado**. Captura revisada por Julián el 2026-10-26; no se guarda en el repositorio porque muestra el número de cuenta.
+
+**Efecto de `include_credit = false`.** El mismo día, Cost Explorer con créditos incluidos daba un costo neto cercano a 0, y sin créditos ni reembolsos 28,18 USD acumulados del 1 al 26 de octubre. Budgets avisó con 25,50 USD: es coherente con que el presupuesto mide el gasto bruto y no descuenta créditos (el comportamiento esperado de la configuración). No se compararon las dos cifras al centavo porque corresponden a fechas distintas.
+
+**Activación de etiquetas (2026-10-26).** Julián activó `Owner` como etiqueta de asignación de costos en Billing (según su informe; no se guardó captura). La atribución en Cost Explorer solo cubre el gasto posterior a la activación y puede tardar hasta unas 24 horas.
+
+**Sigue sin evidencia:** la atribución por `Project` y `Owner` en Cost Explorer (se verifica a partir del 2026-10-27).
 
 ### Lo que no está probado
 
 - El código pasó `terraform fmt`, `validate` en los tres stacks y Checkov (299 aprobados, 0 fallidos), y el stack está desplegado (ver arriba); lo que sigue sin probarse es lo listado como «Sigue sin evidencia».
-- No se sabe aún si `include_credit = false` produce exactamente el gasto bruto esperado en esta cuenta: confirmarlo en la consola de Budgets tras el primer día.
+- `include_credit = false`: la alerta de 25,50 USD es coherente con gasto bruto, pero no se comparó al centavo contra Cost Explorer.
 - El correo de alertas, el valor de `Owner` y el límite son decisiones del equipo; los valores del código son una propuesta.
 
 ## English
 
-**Status: deployed in AWS; SNS transport test passed on 2026-10-23.** This page explains how to deploy and test the budget with email alerts (EG-32 criterion 3) and the `Project` and `Owner` tags (criterion 4). The AWS Budgets-originated notification and the Billing tag activation are still missing (see "Evidence of the test").
+**Status: deployed in AWS; SNS transport test and real Budgets alert received on 2026-10-23.** This page explains how to deploy and test the budget with email alerts (EG-32 criterion 3) and the `Project` and `Owner` tags (criterion 4). The real Budgets alert was received on 2026-10-23; only the Billing tag activation is still missing (see "Evidence of the test").
 
 ### What is added
 
@@ -128,10 +134,16 @@ The state bucket already exists and `infra/terraform/backend.hcl` is built as in
 
 **Transport test.** From a CloudShell, Julián ran `aws sns publish` with the subject "Prueba EG-32"; SNS returned `MessageId` `828ee581-a2c4-511d-8f19-86d42339f2a4`, and the email **arrived in the primary inbox** (not spam) right away. The pre-checks returned what was expected. This test shows that SNS delivers the email; it does **not** show that AWS Budgets fires the alert.
 
-**Still without evidence:** a notification originated by AWS Budgets (it only happens when a threshold is crossed; if it cannot be obtained, document the limitation); activation of `Project` and `Owner` as cost allocation tags in Billing and their attribution in Cost Explorer; the exact effect of `include_credit = false`.
+**Real AWS Budgets alert (received 2026-10-23, 19:29 mailbox local time).** An email from `AWS Notifications` (`no-reply@sns.amazonaws.com`) arrived with the subject "AWS Budgets: sonoraplay-mensual has exceeded your alert threshold". Its body states: budget `sonoraplay-mensual`, type Cost, budgeted amount USD 50.00, alert type ACTUAL, threshold > USD 25.00, **ACTUAL amount USD 25.50**. So AWS Budgets crossed the 50% actual-spend threshold and published to the SNS topic, which delivered the email to the confirmed subscription: **Budgets → SNS → email path demonstrated**. Julián reviewed the screenshot on 2026-10-26; it is not stored in the repository because it shows the account number.
+
+**Effect of `include_credit = false`.** On the same day, Cost Explorer with credits included showed a net cost near zero, and excluding credits and refunds it showed USD 28.18 accumulated from 1 to 26 October. Budgets alerted at USD 25.50: this is consistent with the budget measuring gross spend and not deducting credits (the expected behavior of the setting). The two figures were not compared to the cent because they refer to different dates.
+
+**Tag activation (2026-10-26).** Julián activated `Owner` as a cost allocation tag in Billing (as reported by him; no screenshot kept). Cost Explorer attribution only covers spend after activation and can take up to about 24 hours.
+
+**Still without evidence:** attribution by `Project` and `Owner` in Cost Explorer (to be checked from 2026-10-27).
 
 ### Not tested
 
 - The code passed `terraform fmt`, `validate` on the three stacks and Checkov (299 passed, 0 failed), and the stack is deployed (see above); what is still untested is what is listed under "Still without evidence".
-- It is not yet known whether `include_credit = false` produces exactly the expected gross spend in this account: confirm it in the Budgets console after the first day.
+- `include_credit = false`: the USD 25.50 alert is consistent with gross spend, but it was not compared to the cent against Cost Explorer.
 - The alert email, the `Owner` value and the limit are team decisions; the values in the code are a proposal.
