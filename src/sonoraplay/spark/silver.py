@@ -9,10 +9,15 @@ from sonoraplay.config import AtribucionOfflineConfig, ReglasValidezConfig
 from sonoraplay.reglas.atribucion import atribuir_reproduccion
 from sonoraplay.reglas.sesiones import reconstruir
 
+
 # Import Spark only when the Silver job is invoked; existing services need no Spark.
 def event_schema():
     from pyspark.sql.types import (
-        BooleanType, LongType, StringType, StructField, StructType,
+        BooleanType,
+        LongType,
+        StringType,
+        StructField,
+        StructType,
     )
 
     return StructType([
@@ -33,7 +38,11 @@ def event_schema():
 
 def play_schema():
     from pyspark.sql.types import (
-        BooleanType, IntegerType, StringType, StructField, StructType,
+        BooleanType,
+        IntegerType,
+        StringType,
+        StructField,
+        StructType,
     )
 
     return StructType([
@@ -102,7 +111,8 @@ def transform(events, catalog):
     catalog must contain a unique track_id column from F1. All sessions in the
     processing/reprocessing window must be present for a correct RN-02 count.
     """
-    from pyspark.sql import Window, functions as F
+    from pyspark.sql import Window
+    from pyspark.sql import functions as F
 
     required = set(event_schema().fieldNames())
     missing = required.difference(events.columns)
