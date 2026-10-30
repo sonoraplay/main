@@ -7,7 +7,7 @@ title: "EG-32 · Presupuesto y alarma / Budget and alarm"
 
 ## Español
 
-**Estado: desplegado en AWS; prueba de transporte SNS y alerta real de Budgets recibidas el 2026-10-23.** Esta página explica cómo desplegar y probar el presupuesto con aviso por correo (criterio 3 de EG-32) y las etiquetas `Project` y `Owner` (criterio 4). Alerta real de AWS Budgets recibida el 2026-10-23; falta la activación de etiquetas en Billing (ver «Evidencia de la prueba»). 
+**Estado: desplegado en AWS; prueba de transporte SNS y alerta real de Budgets recibidas el 2026-10-23.** Esta página explica cómo desplegar y probar el presupuesto con aviso por correo (criterio 3 de EG-32) y las etiquetas `Project` y `Owner` (criterio 4). Alerta real de AWS Budgets recibida el 2026-10-23; etiquetas activas en Billing y atribución comprobada en Cost Explorer el 2026-10-30 con los recursos persistentes (ver «Evidencia de la prueba»). 
 
 ### Qué se agrega
 
@@ -82,7 +82,21 @@ En un despliegue inicial, el plan debe crear 4 recursos: el tema, su política, 
 
 **Activación de etiquetas (2026-10-26).** Julián activó `Owner` como etiqueta de asignación de costos en Billing (según su informe; no se guardó captura). La atribución en Cost Explorer solo cubre el gasto posterior a la activación y puede tardar hasta unas 24 horas.
 
-**Sigue sin evidencia:** la atribución por `Project` y `Owner` en Cost Explorer. **Decisión (2026-10-26): se verifica en la próxima ventana de despliegue**, con el stack principal encendido y recursos con costo. Cómo: Cost Explorer → Group by → Tag → `Owner` (y `Project`), rango que cubra la ventana, y guardar el resultado sin datos de cuenta. Hasta entonces EG-32 sigue «En curso».
+**Verificaciones del 2026-10-30** (CloudShell, `us-east-1`, solo lectura; Julián y Andrea; sin número de cuenta ni correo en la salida).
+
+| Comprobación | Resultado |
+|---|---|
+| Etiquetas del tema SNS | `Project=sonoraplay` y `Owner=sonoraplay-equipo` |
+| Activación en Billing | `Owner` y `Project` en estado `Active` (`Owner` actualizada el 2026-10-26 12:09 UTC; `Project` el 2026-10-23 14:25 UTC) |
+| Atribución en Cost Explorer (rango 2026-10-27 a 2026-10-30, agrupado por etiqueta) | `Owner$sonoraplay-equipo` y `Project$sonoraplay` aparecen con 3 días de datos, entre 0,00053 y 0,00058 USD por día |
+| Presupuesto `sonoraplay-mensual` | 50 USD, `IncludeCredit = false`; notificaciones ACTUAL > 50 y > 80 y FORECASTED > 100 (la salida no muestra el tipo de umbral; coincide con el 50 %, 80 % y 100 % del diseño) |
+| Suscripción de correo | 1 suscripción confirmada |
+
+**Atribución.** Cost Explorer ya separa el gasto por `Project` y `Owner`, pero solo con los recursos persistentes (ECR, bucket de estado y SNS), de costo mínimo. Junto a cada grupo etiquetado aparece un grupo sin etiqueta (`Owner$`, `Project$`) con importes negativos casi iguales, así que el neto es cercano a cero. Es coherente con los créditos de la cuenta, que no llevan etiqueta; esa explicación no se confirmó con un desglose por tipo de cargo.
+
+**No se re-verificó el 2026-10-30:** las etiquetas de los 5 repositorios de ECR y del bucket de estado (siguen con la verificación del 2026-10-23) ni la presencia del correo real de Budgets en la bandeja.
+
+**Sigue sin evidencia:** la atribución de los recursos del stack principal (ECS, RDS, ALB y otros), hoy destruido. Se confirma en la próxima ventana de despliegue: Cost Explorer → Group by → Tag → `Owner` (y `Project`), rango que cubra la ventana, sin datos de cuenta. Cerrar el criterio 4 con esta evidencia o esperar a esa ventana es decisión de Julián.
 
 ### Lo que no está probado
 
@@ -92,7 +106,7 @@ En un despliegue inicial, el plan debe crear 4 recursos: el tema, su política, 
 
 ## English
 
-**Status: deployed in AWS; SNS transport test and real Budgets alert received on 2026-10-23.** This page explains how to deploy and test the budget with email alerts (EG-32 criterion 3) and the `Project` and `Owner` tags (criterion 4). The real Budgets alert was received on 2026-10-23; only the Billing tag activation is still missing (see "Evidence of the test").
+**Status: deployed in AWS; SNS transport test and real Budgets alert received on 2026-10-23.** This page explains how to deploy and test the budget with email alerts (EG-32 criterion 3) and the `Project` and `Owner` tags (criterion 4). The real Budgets alert was received on 2026-10-23; the tags are active in Billing and attribution was shown in Cost Explorer on 2026-10-30 using the persistent resources (see "Evidence of the test").
 
 ### What is added
 
@@ -140,7 +154,21 @@ The state bucket already exists and `infra/terraform/backend.hcl` is built as in
 
 **Tag activation (2026-10-26).** Julián activated `Owner` as a cost allocation tag in Billing (as reported by him; no screenshot kept). Cost Explorer attribution only covers spend after activation and can take up to about 24 hours.
 
-**Still without evidence:** attribution by `Project` and `Owner` in Cost Explorer. **Decision (2026-10-26): verify it in the next deployment window**, with the main stack running and billable resources. How: Cost Explorer → Group by → Tag → `Owner` (and `Project`), date range covering the window, and keep the result without account data. Until then EG-32 stays "In progress".
+**Checks of 2026-10-30** (CloudShell, `us-east-1`, read-only; Julián and Andrea; no account number or email in the output).
+
+| Check | Result |
+|---|---|
+| SNS topic tags | `Project=sonoraplay` and `Owner=sonoraplay-equipo` |
+| Billing activation | `Owner` and `Project` are `Active` (`Owner` updated 2026-10-26 12:09 UTC; `Project` 2026-10-23 14:25 UTC) |
+| Cost Explorer attribution (range 2026-10-27 to 2026-10-30, grouped by tag) | `Owner$sonoraplay-equipo` and `Project$sonoraplay` appear with 3 days of data, between USD 0.00053 and 0.00058 per day |
+| Budget `sonoraplay-mensual` | USD 50, `IncludeCredit = false`; notifications ACTUAL > 50 and > 80 and FORECASTED > 100 (the output does not show the threshold type; it matches the designed 50 %, 80 % and 100 %) |
+| Email subscription | 1 confirmed subscription |
+
+**Attribution.** Cost Explorer now splits spend by `Project` and `Owner`, but only with the persistent resources (ECR, state bucket and SNS), at minimal cost. Next to each tagged group there is an untagged group (`Owner$`, `Project$`) with almost equal negative amounts, so the net is close to zero. This is consistent with account credits, which carry no tag; that explanation was not confirmed with a charge-type breakdown.
+
+**Not re-checked on 2026-10-30:** the tags on the 5 ECR repositories and the state bucket (they keep the 2026-10-23 verification) and the presence of the real Budgets email in the inbox.
+
+**Still without evidence:** attribution of the main stack resources (ECS, RDS, ALB and others), currently destroyed. It is confirmed in the next deployment window: Cost Explorer → Group by → Tag → `Owner` (and `Project`), date range covering the window, no account data. Whether to close criterion 4 with this evidence or wait for that window is Julián's decision.
 
 ### Not tested
 
