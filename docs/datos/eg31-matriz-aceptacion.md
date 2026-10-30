@@ -39,7 +39,7 @@ Leyenda: **D** = diseño documentado · **P** = pendiente de ejecutar · **H** =
 
 Aprobado por: Julián Vanegas · Revisado con: María Clara
 
-## Inconsistencias en la documentación existente (para corregir en el PR de consolidación)
+## Inconsistencias en la documentación existente (corregidas el 2026-10-30)
 
 - `eg31-eg32-acceptance-evidence-en-es.md` aún dice que PR #3 "needs ADR-0021 decision" y que el PR #7 está pendiente de fusión; ambos ya están fusionados.
 - En la fila CA3 de EG-32 de ese mismo archivo el estado es "Parcial", pero la sección correctiva dice "Cumplido".

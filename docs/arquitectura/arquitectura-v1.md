@@ -190,6 +190,6 @@ The proposed AWS architecture separates public entry points from private compute
 
 - [Dimensional model and Data Lake / Modelo dimensional y Data Lake](../datos/eg31-modelo-dimensional-en-es.md) — proposed design, not a deployed pipeline.
 - [ADR-0014 — Data Lake Parquet layout / Particiones Parquet](../adr/0014-data-lake-parquet-partitions.md) — accepted with conditions (2026-10-22); the conditions are listed in the ADR.
-- [AWS cost analysis v1 / Análisis de costos AWS v1](../costos/eg32-aws-cost-analysis-v1-en-es.md) — draft assumptions and two scenarios; AWS Pricing Calculator link, real billing and SNS alarm test pending.
+- [AWS cost analysis v1 / Análisis de costos AWS v1](../costos/eg32-aws-cost-analysis-v1-en-es.md) — draft assumptions and two scenarios; budget alarm proven on 2026-10-23; AWS Pricing Calculator links and Cost Explorer tag attribution pending.
 
 **Note / Nota:** The original RDS seven-day backup criterion in this architecture has an approved one-day Free-plan exception (Julián, 2026-10-20); the infrastructure ADR and EG-26 evidence should record the approval explicitly before the architecture baseline is updated.
