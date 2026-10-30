@@ -5,7 +5,7 @@ title: "Cierre del Sprint 3 · Pendientes y responsables"
 
 # Cierre del Sprint 3 · Lista única de pendientes y responsables
 
-**Corte:** 2026-10-30. Sprint 3 "S3 · AWS Foundations": 7 de 9 elementos están Finalizados; faltan EG-31 y EG-32.
+**Corte:** 2026-10-30 (revisado contra Jira y GitHub). Sprint 3 "S3 · AWS Foundations": 7 de 9 elementos están Finalizados; faltan EG-31 y EG-32.
 
 **Cómo leer la columna «Responsable confirmado por»:**
 - **Plan del día:** el responsable sale del plan de trabajo que pasó Julián.
@@ -21,14 +21,14 @@ title: "Cierre del Sprint 3 · Pendientes y responsables"
 | 3 | Decidir si el criterio 4 de EG-32 se cierra con la evidencia del 2026-10-30 o espera a la ventana con el stack principal | EG-32, criterio 4 | Julián | Plan del día (aprobaciones de Julián) | Pendiente de decisión |
 | 4 | Etiquetas de los 5 repositorios de ECR y del bucket de estado, y correo real de Budgets del 23-oct en la bandeja | EG-32, criterios 3 y 4 | Julián y Andrea | Plan del día | **Hecho el 2026-10-30** |
 | 5 | Definir quién accede a AWS y reservar la ventana de pruebas | EG-32 y verificaciones | Julián | **Por confirmar** (la actividad no tiene nombre en el plan) | Pendiente |
-| 6 | Completar el Sprint 3 en el tablero y mover EG-31 y EG-32 al Sprint 4 | Tablero Jira | Julián | **Por confirmar** | Pendiente |
+| 6 | Completar el Sprint 3 en el tablero y mover EG-31 y EG-32 al Sprint 4 | Tablero Jira | Julián | **Por confirmar** | Pendiente. En Jira el Sprint 3 sigue «activo» y EG-31 y EG-32 siguen asignadas solo a él; el Sprint 4 figura «futuro» (con fechas del 21 al 27 de octubre, ya pasadas) |
 
 ## B. Para cerrar EG-31 y EG-32 después (Sprint 4 o próxima ventana)
 
 | # | Pendiente | Tarea | Responsable | Confirmado por | Estado |
 |---|---|---|---|---|---|
 | 7 | Verificar en Cost Explorer la atribución por `Project` y `Owner` de los recursos del stack principal | EG-32, criterio 4 | Julián | Decisión del 2026-10-26 | Depende de #5 |
-| 8 | Lectura y escritura reales de Parquet en Silver; país, retención, datos tardíos y compactación | EG-35 (condiciones del ADR-0014) | María Clara y Joshua | Jira | Sprint 4 |
+| 8 | Lectura y escritura reales de Parquet en Silver; país, retención, datos tardíos y compactación | EG-35 (condiciones del ADR-0014) | María Clara y Joshua | Jira | Sprint 4. El PR #38 («Spark Silver initial implementation and acceptance tests», de María Clara) está abierto y sin fusionar; EG-35 sigue en «Tareas por hacer» |
 | 9 | Parquet real en Gold; conciliación por `play_id`; reserva sobre `settlement_id` | EG-37 (condiciones del ADR-0014) | Andrea | Jira | Sprint 4 |
 | 10 | Cifrado e IAM de `silver/` y `gold/` | EG-26 / ADR-0014 | Julián | **Por confirmar** (la matriz de EG-31 lo propone) | Sprint 4 |
 
@@ -36,7 +36,7 @@ title: "Cierre del Sprint 3 · Pendientes y responsables"
 
 | # | Pendiente | Tarea | Responsable | Confirmado por | Estado |
 |---|---|---|---|---|---|
-| 11 | Ensayo de la demo de 40 minutos: guion con tiempos, plan de respaldo y ventana de AWS | EG-50 | Julián | Plan del día | Ensayo propuesto para el 2026-10-31 a las 9:00; ventana y plan de respaldo sin definir |
+| 11 | Ensayo de la demo de 40 minutos: guion con tiempos, plan de respaldo y ventana de AWS | EG-50 | Julián | Plan del día | Ensayo propuesto para el 2026-10-31 a las 9:00; ventana y plan de respaldo sin definir. En Jira, EG-50 está en el Sprint 6 (3 al 6 de noviembre) y sin persona asignada |
 
 ## Cuándo se cierra cada tarea
 
