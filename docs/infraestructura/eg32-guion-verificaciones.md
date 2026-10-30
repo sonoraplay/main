@@ -111,6 +111,6 @@ Registrar este texto en el documento y en Jira:
 | Presupuesto de 50 USD, `IncludeCredit = false` | Correcto | 2026-10-30 | Julián y Andrea | Salida de CloudShell |
 | 3 notificaciones del presupuesto | Correcto: ACTUAL > 50, ACTUAL > 80, FORECASTED > 100 (el tipo de umbral no se mostró) | 2026-10-30 | Julián y Andrea | Salida de CloudShell |
 | Suscripción de correo confirmada | Correcto: 1 suscripción confirmada | 2026-10-30 | Julián y Andrea | Salida de CloudShell |
-| Correo real de Budgets (23-oct) visible | No reportado | | | |
+| Correo real de Budgets (23-oct) visible | Correcto: en la bandeja principal; 50 USD, ACTUAL > 25 USD, monto 25,50 USD | 2026-10-30 | Julián | Revisión en el correo (sin captura en el repositorio) |
 
 **Cierre de la sesión:** pasar este registro a `eg32-presupuesto-alarma.md` y comentar el resultado en EG-32.

@@ -96,7 +96,7 @@ En un despliegue inicial, el plan debe crear 4 recursos: el tema, su política, 
 
 **Etiquetas de ECR y del bucket de estado (2026-10-30, segunda ronda, mismo método):** los 5 repositorios de ECR (`simulador`, `api-titulares`, `api-contratos`, `consumidor` y `spark`) y el bucket de estado tienen `Project=sonoraplay` y `Owner=sonoraplay-equipo`.
 
-**No se re-verificó el 2026-10-30:** la presencia del correo real de Budgets en la bandeja.
+**Correo real de Budgets (2026-10-30):** Julián confirmó que el correo de `sonoraplay-mensual` sigue en la bandeja principal (no en spam): presupuesto de 50 USD, alerta ACTUAL > 25 USD, monto actual 25,50 USD. La fecha dentro del cuerpo del correo es el 2026-10-24 (UTC); llegó el 2026-10-23 a las 19:29, hora de Colombia. No se guarda captura en el repositorio porque muestra el número de cuenta y el correo de alertas.
 
 **Sigue sin evidencia:** la atribución de los recursos del stack principal (ECS, RDS, ALB y otros), hoy destruido. Se confirma en la próxima ventana de despliegue: Cost Explorer → Group by → Tag → `Owner` (y `Project`), rango que cubra la ventana, sin datos de cuenta. Cerrar el criterio 4 con esta evidencia o esperar a esa ventana es decisión de Julián.
 
@@ -170,7 +170,7 @@ The state bucket already exists and `infra/terraform/backend.hcl` is built as in
 
 **ECR and state bucket tags (2026-10-30, second round, same method):** the 5 ECR repositories (`simulador`, `api-titulares`, `api-contratos`, `consumidor` and `spark`) and the state bucket carry `Project=sonoraplay` and `Owner=sonoraplay-equipo`.
 
-**Not re-checked on 2026-10-30:** the presence of the real Budgets email in the inbox.
+**Real Budgets email (2026-10-30):** Julián confirmed that the `sonoraplay-mensual` email is still in the main inbox (not spam): USD 50 budget, ACTUAL > USD 25 alert, actual amount USD 25.50. The date inside the email body is 2026-10-24 (UTC); it arrived on 2026-10-23 at 19:29 Colombia time. No screenshot is kept in the repository because it shows the account number and the alert email address.
 
 **Still without evidence:** attribution of the main stack resources (ECS, RDS, ALB and others), currently destroyed. It is confirmed in the next deployment window: Cost Explorer → Group by → Tag → `Owner` (and `Project`), date range covering the window, no account data. Whether to close criterion 4 with this evidence or wait for that window is Julián's decision.
 
