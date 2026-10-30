@@ -103,14 +103,14 @@ Registrar este texto en el documento y en Jira:
 
 | Comprobación | Resultado | Hora | Quién | Captura o salida guardada en |
 |---|---|---|---|---|
-| Tema SNS con `Project` y `Owner` | PENDIENTE | | | |
-| 5 repositorios ECR con `Project` y `Owner` | PENDIENTE | | | |
-| Bucket de estado con `Project` y `Owner` | PENDIENTE | | | |
-| `Project` y `Owner` activas en Billing | PENDIENTE | | | |
-| Atribución en Cost Explorer (monto, rango) | PENDIENTE | | | |
-| Presupuesto de 50 USD, `IncludeCredit = false` | PENDIENTE | | | |
-| 3 notificaciones del presupuesto | PENDIENTE | | | |
-| Suscripción de correo confirmada | PENDIENTE | | | |
-| Correo real de Budgets (23-oct) visible | PENDIENTE | | | |
+| Tema SNS con `Project` y `Owner` | Correcto: `Project=sonoraplay`, `Owner=sonoraplay-equipo` | 2026-10-30 | Julián y Andrea | Salida de CloudShell (sin cuenta) |
+| 5 repositorios ECR con `Project` y `Owner` | No consultado hoy (verificado el 2026-10-23) | | | |
+| Bucket de estado con `Project` y `Owner` | No consultado hoy (verificado el 2026-10-23) | | | |
+| `Project` y `Owner` activas en Billing | Correcto: ambas `Active` (`Owner` 2026-10-26, `Project` 2026-10-23) | 2026-10-30 | Julián y Andrea | Salida de CloudShell |
+| Atribución en Cost Explorer (monto, rango) | Correcto con recursos persistentes: 3 días entre 0,00053 y 0,00058 USD por día, rango 2026-10-27 a 2026-10-30; grupo sin etiqueta negativo casi igual (probables créditos, sin confirmar) | 2026-10-30 | Julián y Andrea | Salida de CloudShell |
+| Presupuesto de 50 USD, `IncludeCredit = false` | Correcto | 2026-10-30 | Julián y Andrea | Salida de CloudShell |
+| 3 notificaciones del presupuesto | Correcto: ACTUAL > 50, ACTUAL > 80, FORECASTED > 100 (el tipo de umbral no se mostró) | 2026-10-30 | Julián y Andrea | Salida de CloudShell |
+| Suscripción de correo confirmada | Correcto: 1 suscripción confirmada | 2026-10-30 | Julián y Andrea | Salida de CloudShell |
+| Correo real de Budgets (23-oct) visible | No reportado | | | |
 
 **Cierre de la sesión:** pasar este registro a `eg32-presupuesto-alarma.md` y comentar el resultado en EG-32.
