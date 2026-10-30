@@ -5,8 +5,6 @@ catalog quarantine -> RN-01/RN-02/RN-04 -> partitioned Silver Parquet.
 """
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 from sonoraplay.config import AtribucionOfflineConfig, ReglasValidezConfig
 from sonoraplay.reglas.atribucion import atribuir_reproduccion
 from sonoraplay.reglas.sesiones import reconstruir
@@ -61,7 +59,7 @@ def _session_rows(pdf):
     import pandas as pd
 
     records = pdf.to_dict("records")
-    first = records[0]
+    first = min(records, key=lambda e: (e["server_ts"], e["event_id"]))
     if len({(e["user_id"], e["device_id"], e["track_id"]) for e in records}) != 1:
         reason = "identidad_sesion_inconsistente"
     else:
@@ -106,6 +104,11 @@ def transform(events, catalog):
     """
     from pyspark.sql import Window, functions as F
 
+    required = set(event_schema().fieldNames())
+    missing = required.difference(events.columns)
+    if missing:
+        raise ValueError(f"Missing required F2 fields: {sorted(missing)}")
+
     if catalog.select("track_id").distinct().count() != catalog.count():
         raise ValueError("F1 catalog must contain exactly one row per track_id")
 
@@ -137,7 +140,8 @@ def transform(events, catalog):
     valid = good.filter("valida_rn01").withColumn("_rn", F.row_number().over(order))
     invalid = good.filter("NOT valida_rn01").withColumn("_rn", F.lit(None).cast("int"))
     result = valid.unionByName(invalid).withColumn(
-        "pagable", F.col("valida_rn01") & (F.col("_rn") <= cfg.max_reproducciones_dia)
+        "pagable", F.when(~F.col("valida_rn01"), F.lit(False))
+        .otherwise(F.col("_rn") <= cfg.max_reproducciones_dia)
     ).withColumn(
         "motivo_validez",
         F.when(~F.col("valida_rn01"), "duracion_insuficiente")
@@ -153,7 +157,7 @@ def run(spark, bronze_path, catalog, silver_path, quarantine_path):
     """Read F2 Bronze and write partitioned Parquet; never overwrite published Gold."""
     events = spark.read.schema(event_schema()).json(bronze_path)
     silver, quarantine = transform(events, catalog)
-    silver.write.mode("overwrite").partitionBy("year", "month", "country").parquet(
+    silver.write.mode("errorifexists").partitionBy("year", "month", "country").parquet(
         silver_path
     )
-    quarantine.write.mode("overwrite").parquet(quarantine_path)
+    quarantine.write.mode("errorifexists").parquet(quarantine_path)
