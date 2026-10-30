@@ -57,3 +57,36 @@ def test_unknown_track_is_quarantined(spark):
 def test_unclosed_segment_counts_only_closed_segments(spark):
     silver, _ = transform(_events(spark, "evento_sin_fin"), _catalog(spark))
     assert silver.first()["ms_continuos_max"] == 40_000
+
+
+def test_rn01_exact_30_seconds(spark):
+    """RN-01 accepts a single uninterrupted 30-second segment."""
+    from datetime import datetime, timedelta
+
+    original = [row.asDict() for row in _events(
+        spark, "duplicado_por_reintento"
+    ).collect()]
+    start = next(e.copy() for e in original if e["event_type"] == "start")
+    end = next(e.copy() for e in original if e["event_type"] == "end")
+    start["event_id"] = "boundary-start"
+    end["event_id"] = "boundary-end"
+    end["session_id"] = start["session_id"]
+    end["user_id"] = start["user_id"]
+    end["device_id"] = start["device_id"]
+    end["track_id"] = start["track_id"]
+    end["country_playback"] = start["country_playback"]
+    end["position_ms"] = start["position_ms"] + 30_000
+    end["device_ts"] = (
+        datetime.fromisoformat(start["device_ts"]) + timedelta(seconds=30)
+    ).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    start["server_ts"] = start["device_ts"]
+    end["server_ts"] = end["device_ts"]
+
+    silver, quarantine = transform(
+        spark.createDataFrame([start, end], schema=event_schema()), _catalog(spark)
+    )
+    assert quarantine.count() == 0
+    result = silver.first()
+    assert result["ms_continuos_max"] == 30_000
+    assert result["valida_rn01"] is True
+    assert result["pagable"] is True
