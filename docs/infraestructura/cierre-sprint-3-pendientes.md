@@ -28,7 +28,7 @@ title: "Cierre del Sprint 3 · Pendientes y responsables"
 | # | Pendiente | Tarea | Responsable | Confirmado por | Estado |
 |---|---|---|---|---|---|
 | 7 | Verificar en Cost Explorer la atribución por `Project` y `Owner` de los recursos del stack principal | EG-32, criterio 4 | Julián | Decisión del 2026-10-26 | Depende de #5 |
-| 8 | Lectura y escritura reales de Parquet en Silver; país, retención, datos tardíos y compactación | EG-35 (condiciones del ADR-0014) | María Clara y Joshua | Jira | Sprint 4. El PR #38 («Spark Silver initial implementation and acceptance tests», de María Clara) está abierto y sin fusionar; EG-35 sigue en «Tareas por hacer» |
+| 8 | Lectura y escritura reales de Parquet en Silver; país, retención, datos tardíos y compactación | EG-35 (condiciones del ADR-0014) | María Clara (implementa) y Julián (revisor, en lugar de Joshua) | Jira (María Clara) y la descripción del PR #38 (revisor) | Sprint 4. El PR #38 («Spark Silver initial implementation and acceptance tests», de María Clara) es un borrador sin fusionar: `lint` falla por formato y las pruebas de Spark no se han ejecutado. EG-35 sigue en «Tareas por hacer» |
 | 9 | Parquet real en Gold; conciliación por `play_id`; reserva sobre `settlement_id` | EG-37 (condiciones del ADR-0014) | Andrea | Jira | Sprint 4 |
 | 10 | Cifrado e IAM de `silver/` y `gold/` | EG-26 / ADR-0014 | Julián | **Por confirmar** (la matriz de EG-31 lo propone) | Sprint 4 |
 
