@@ -104,8 +104,8 @@ Registrar este texto en el documento y en Jira:
 | Comprobación | Resultado | Hora | Quién | Captura o salida guardada en |
 |---|---|---|---|---|
 | Tema SNS con `Project` y `Owner` | Correcto: `Project=sonoraplay`, `Owner=sonoraplay-equipo` | 2026-10-30 | Julián y Andrea | Salida de CloudShell (sin cuenta) |
-| 5 repositorios ECR con `Project` y `Owner` | No consultado hoy (verificado el 2026-10-23) | | | |
-| Bucket de estado con `Project` y `Owner` | No consultado hoy (verificado el 2026-10-23) | | | |
+| 5 repositorios ECR con `Project` y `Owner` | Correcto: `simulador`, `api-titulares`, `api-contratos`, `consumidor` y `spark`, todos con `Project=sonoraplay` y `Owner=sonoraplay-equipo` | 2026-10-30 | Julián | Salida de CloudShell |
+| Bucket de estado con `Project` y `Owner` | Correcto: `Project=sonoraplay`, `Owner=sonoraplay-equipo` | 2026-10-30 | Julián | Salida de CloudShell |
 | `Project` y `Owner` activas en Billing | Correcto: ambas `Active` (`Owner` 2026-10-26, `Project` 2026-10-23) | 2026-10-30 | Julián y Andrea | Salida de CloudShell |
 | Atribución en Cost Explorer (monto, rango) | Correcto con recursos persistentes: 3 días entre 0,00053 y 0,00058 USD por día, rango 2026-10-27 a 2026-10-30; grupo sin etiqueta negativo casi igual (probables créditos, sin confirmar) | 2026-10-30 | Julián y Andrea | Salida de CloudShell |
 | Presupuesto de 50 USD, `IncludeCredit = false` | Correcto | 2026-10-30 | Julián y Andrea | Salida de CloudShell |

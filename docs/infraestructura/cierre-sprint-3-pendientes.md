@@ -19,7 +19,7 @@ title: "Cierre del Sprint 3 · Pendientes y responsables"
 | 1 | Generar las dos URL compartibles del AWS Pricing Calculator (24/7 y ventanas) y entregarlas para pegarlas en `docs/costos/` | EG-32, criterio 1 | María Clara | Plan del día | Pendiente |
 | 2 | Aprobar la matriz de EG-31 y decidir sus 3 puntos (criterios 1, 3 y 4) | EG-31 | Julián, con María Clara | Plan del día | Pendiente de firma |
 | 3 | Decidir si el criterio 4 de EG-32 se cierra con la evidencia del 2026-10-30 o espera a la ventana con el stack principal | EG-32, criterio 4 | Julián | Plan del día (aprobaciones de Julián) | Pendiente de decisión |
-| 4 | Consultar las etiquetas de los 5 repositorios de ECR y del bucket de estado, y confirmar el correo real de Budgets del 23-oct | EG-32, criterios 3 y 4 | Julián y Andrea | Plan del día | Pendiente (no se corrió hoy) |
+| 4 | Confirmar el correo real de Budgets del 23-oct en la bandeja. Las etiquetas de los 5 repositorios de ECR y del bucket de estado ya se consultaron el 2026-10-30 y están correctas | EG-32, criterios 3 y 4 | Julián y Andrea | Plan del día | Parcial: solo falta confirmar el correo |
 | 5 | Definir quién accede a AWS y reservar la ventana de pruebas | EG-32 y verificaciones | Julián | **Por confirmar** (la actividad no tiene nombre en el plan) | Pendiente |
 | 6 | Completar el Sprint 3 en el tablero y mover EG-31 y EG-32 al Sprint 4 | Tablero Jira | Julián | **Por confirmar** | Pendiente |
 
