@@ -91,3 +91,44 @@ Silver y cuarentena. Quien ejecuta el proceso debe indicar la versión real del
 origen y un identificador único. La transformación permite suministrar los tres
 campos para pruebas reproducibles. Esto **no** garantiza escrituras atómicas ni
 reprocesamiento seguro de datos tardíos. Falta comprobar este cambio en CI.
+
+
+## Daily orchestration decision / Decisión de orquestación diaria
+
+**English — decision for the next implementation, not yet delivered:** Keep
+ADR-0014's `year/month/country` Silver partitions. Do not introduce a daily
+partition. Rebuild each **complete affected playback month to date**, including
+events required to finish sessions crossing UTC midnight, and reevaluate RN-02
+on the full UTC day. Offline events that arrive after the initial window may
+affect an older playback month; they must be detected and their entire affected
+month recalculated rather than dropped. Around the RN-04 cutoff, account for
+both playback and settlement months without confusing their partition keys.
+
+A daily batch that overwrites a month partition with only one day's plays is
+**forbidden**: it would erase prior days. Dynamic partition overwrite is safe
+from that specific data-loss bug *only* when the incoming data covers every
+record in every partition being replaced. It is still not an atomic S3
+transaction. The design therefore needs staged output and a safe publication
+protocol before production use, plus integration tests for retries, cross-day
+sessions, late events, and an empty or missing source day. Until that work is
+proven, `run()` remains non-idempotent and must not be connected to Airflow
+as if it met EG-34's idempotency acceptance criterion.
+
+**Español — decisión para la siguiente implementación, todavía pendiente:**
+Conservamos las particiones `year/month/country` del ADR-0014. No agregaremos
+partición por día. Reconstruiremos cada **mes de reproducción afectado completo
+hasta la fecha procesada**, incluyendo los eventos necesarios para cerrar
+sesiones que cruzan medianoche UTC, y volveremos a calcular RN-02 con todos los
+datos del día UTC. Los eventos offline que lleguen más tarde pueden modificar
+un mes de reproducción anterior: habrá que detectar ese mes y recalcularlo
+completo, no ignorar la llegada tardía. El mes de liquidación RN-04 es distinto
+del mes usado para particionar las reproducciones.
+
+**No** se puede sobrescribir una partición mensual con datos de un solo día,
+porque se borrarían reproducciones anteriores. `dynamic overwrite` solo evita
+ese problema concreto si se reconstruye **toda** la información de cada
+partición afectada; no convierte la escritura en una transacción atómica de S3.
+Antes de usarlo en AWS necesitamos escritura temporal, publicación segura y
+pruebas de reintentos, cruces de medianoche, eventos tardíos y ausencia de datos
+Bronze del día solicitado. Hasta comprobarlo, `run()` sigue sin ser
+idempotente y no debe conectarse al DAG como si cumpliera EG-34.

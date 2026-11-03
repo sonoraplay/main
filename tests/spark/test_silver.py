@@ -169,12 +169,12 @@ def test_rn02_eleventh_play_exceeds_daily_cap(spark):
 )
 def test_rn04_offline_cutoff(spark, sync_day, expected_month, expected_type):
     """An offline September play stays in September until the UTC cutoff."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import UTC, datetime, timedelta
 
     original = [row.asDict() for row in _events(spark, "duplicado_por_reintento").collect()]
     start = next(e.copy() for e in original if e["event_type"] == "start")
     end = next(e.copy() for e in original if e["event_type"] == "end")
-    playback = datetime(2026, 9, 28, 12, tzinfo=timezone.utc)
+    playback = datetime(2026, 9, 28, 12, tzinfo=UTC)
     start["event_id"] = "offline-start"
     end["event_id"] = "offline-end"
     start["is_offline"] = end["is_offline"] = True
