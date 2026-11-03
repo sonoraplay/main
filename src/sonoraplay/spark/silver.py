@@ -76,6 +76,10 @@ def _session_rows(pdf):
     first = min(records, key=lambda e: (e["server_ts"], e["event_id"]))
     if len({(e["user_id"], e["device_id"], e["track_id"]) for e in records}) != 1:
         reason = "identidad_sesion_inconsistente"
+    elif len({e["country_playback"] for e in records}) != 1:
+        reason = "pais_reproduccion_inconsistente"
+    elif len({e["schema_version"] for e in records}) != 1:
+        reason = "version_esquema_inconsistente"
     else:
         reason = None
 
@@ -146,8 +150,22 @@ def transform(events, catalog, *, run_id=None, source_version=None, ingested_at_
     if missing:
         raise ValueError(f"Missing required F2 fields: {sorted(missing)}")
 
-    if catalog.select("track_id").distinct().count() != catalog.count():
+    if "track_id" not in catalog.columns:
+        raise ValueError("F1 catalog is missing track_id")
+    if catalog.filter(F.col("track_id").isNull()).limit(1).count():
+        raise ValueError("F1 catalog cannot contain null track_id")
+    if catalog.groupBy("track_id").count().filter(F.col("count") > 1).limit(1).count():
         raise ValueError("F1 catalog must contain exactly one row per track_id")
+
+    # Fail closed on missing mandatory event fields: Spark JSON schemas are nullable at read time.
+    missing_values = None
+    for field in event_schema().fieldNames():
+        empty = F.col(field).isNull()
+        if field != "position_ms" and field != "is_offline":
+            empty = empty | (F.trim(F.col(field)) == "")
+        missing_values = empty if missing_values is None else missing_values | empty
+    if events.filter(missing_values).limit(1).count():
+        raise ValueError("Bronze contains null or empty mandatory F2 fields")
 
     # Retries can differ in server_ts; keep the earliest received event.
     event_window = Window.partitionBy("event_id").orderBy(

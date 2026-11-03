@@ -219,3 +219,33 @@ def test_lineage_requires_complete_metadata(spark):
             _catalog(spark),
             run_id="incomplete",
         )
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid_value"),
+    [("event_id", None), ("session_id", ""), ("country_playback", None)],
+)
+def test_reject_missing_required_bronze_values(spark, field, invalid_value):
+    """A declared StructType does not validate non-null JSON at runtime."""
+    rows = [row.asDict() for row in _events(spark, "duplicado_por_reintento").collect()]
+    rows[0][field] = invalid_value
+    with pytest.raises(ValueError, match="mandatory F2 fields"):
+        transform(spark.createDataFrame(rows, schema=event_schema()), _catalog(spark))
+
+
+def test_quarantine_conflicting_playback_countries(spark):
+    """A session must not silently inherit an arbitrary playback country."""
+    rows = [row.asDict() for row in _events(spark, "duplicado_por_reintento").collect()]
+    rows[-1]["country_playback"] = "ZZ"
+    silver, quarantine = transform(
+        spark.createDataFrame(rows, schema=event_schema()), _catalog(spark)
+    )
+    assert silver.count() == 0
+    assert quarantine.first()["motivo_cuarentena"] == "pais_reproduccion_inconsistente"
+
+
+def test_reject_duplicate_catalog_track(spark):
+    """A duplicated F1 key could multiply Silver rows during the join."""
+    catalog = spark.createDataFrame([(TRACK,), (TRACK,)], ["track_id"])
+    with pytest.raises(ValueError, match="exactly one row"):
+        transform(_events(spark, "duplicado_por_reintento"), catalog)

@@ -132,3 +132,20 @@ Antes de usarlo en AWS necesitamos escritura temporal, publicación segura y
 pruebas de reintentos, cruces de medianoche, eventos tardíos y ausencia de datos
 Bronze del día solicitado. Hasta comprobarlo, `run()` sigue sin ser
 idempotente y no debe conectarse al DAG como si cumpliera EG-34.
+
+
+## F2 validation / Validación F2
+
+**English:** Spark's explicit JSON `StructType` does not enforce non-null
+values during ingestion. The transform now fails closed on null or blank
+mandatory F2 fields. A session with conflicting playback countries or schema
+versions goes to quarantine with an explicit reason instead of inheriting an
+arbitrary value. Duplicate or null catalog keys are rejected before the join.
+These checks require a passing Spark CI run before being considered verified.
+
+**Español:** Declarar `StructType` no garantiza que Spark rechace campos nulos
+al leer JSON. La transformación ahora rechaza los campos F2 obligatorios nulos
+o vacíos. Si una sesión contiene países de reproducción o versiones de esquema
+contradictorios, pasa a cuarentena con un motivo explícito. También se rechazan
+claves duplicadas o nulas en el catálogo F1 antes del `join`. Falta confirmar
+estas pruebas en el CI de Spark.
