@@ -229,14 +229,19 @@ def test_reject_missing_required_bronze_values(spark, field, invalid_value):
     """A declared StructType does not validate non-null JSON at runtime."""
     rows = [row.asDict() for row in _events(spark, "duplicado_por_reintento").collect()]
     rows[0][field] = invalid_value
+    from pyspark.sql.types import StructField, StructType
+
+    schema = StructType(
+        [StructField(item.name, item.dataType, True) for item in event_schema().fields]
+    )
     with pytest.raises(ValueError, match="mandatory F2 fields"):
-        transform(spark.createDataFrame(rows, schema=event_schema()), _catalog(spark))
+        transform(spark.createDataFrame(rows, schema=schema), _catalog(spark))
 
 
 def test_quarantine_conflicting_playback_countries(spark):
     """A session must not silently inherit an arbitrary playback country."""
     rows = [row.asDict() for row in _events(spark, "duplicado_por_reintento").collect()]
-    rows[-1]["country_playback"] = "ZZ"
+    next(row for row in rows if row["event_type"] == "end")["country_playback"] = "ZZ"
     silver, quarantine = transform(
         spark.createDataFrame(rows, schema=event_schema()), _catalog(spark)
     )
