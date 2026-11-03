@@ -201,9 +201,8 @@ def transform(events, catalog):
         .drop("_rn")
     )
     # Partition by the corrected UTC playback date, not the settlement period.
-    result = (
-        result.withColumn("year", F.substring("inicio_utc", 1, 4))
-        .withColumn("month", F.substring("inicio_utc", 6, 2))
+    result = result.withColumn("year", F.substring("inicio_utc", 1, 4)).withColumn(
+        "month", F.substring("inicio_utc", 6, 2)
     )
     return result, quarantine
 
@@ -212,7 +211,5 @@ def run(spark, bronze_path, catalog, silver_path, quarantine_path):
     """Read F2 Bronze and write partitioned Parquet; never overwrite published Gold."""
     events = spark.read.schema(event_schema()).json(bronze_path)
     silver, quarantine = transform(events, catalog)
-    silver.write.mode("errorifexists").partitionBy("year", "month", "country").parquet(
-        silver_path
-    )
+    silver.write.mode("errorifexists").partitionBy("year", "month", "country").parquet(silver_path)
     quarantine.write.mode("errorifexists").parquet(quarantine_path)
