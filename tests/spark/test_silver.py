@@ -394,3 +394,70 @@ def test_replay_coverage_rejects_invalid_month():
 
     with pytest.raises(ValueError, match="Invalid playback month"):
         validate_replay_coverage(["2026-13"], ["2026-13"])
+
+
+def _synthetic_plays(spark, durations_ms):
+    """Build complete F2 sessions without changing the production business rules."""
+    from datetime import UTC, datetime, timedelta
+
+    template = json.loads(
+        (FIXTURES / "duplicado_por_reintento.json").read_text(encoding="utf-8")
+    )["eventos"]
+    start_template = next(event for event in template if event["event_type"] == "start")
+    end_template = next(event for event in template if event["event_type"] == "end")
+    base = datetime(2026, 9, 19, 0, 0, tzinfo=UTC)
+    events = []
+    for index, duration in enumerate(durations_ms):
+        start_time = base + timedelta(minutes=index * 10)
+        end_time = start_time + timedelta(milliseconds=duration)
+        session = f"session-{index:03d}"
+        for kind, source, moment, position in (
+            ("start", start_template, start_time, 0),
+            ("end", end_template, end_time, duration),
+        ):
+            event = source.copy()
+            event.update(
+                event_id=f"{session}-{kind}",
+                session_id=session,
+                device_ts=moment.isoformat().replace("+00:00", "Z"),
+                server_ts=(moment + timedelta(milliseconds=200))
+                .isoformat()
+                .replace("+00:00", "Z"),
+                position_ms=position,
+            )
+            events.append(event)
+    return spark.createDataFrame(events, schema=event_schema())
+
+
+def test_rn01_29_seconds_is_not_payable(spark):
+    """RN-01: below 30 seconds must not earn royalties."""
+    silver, quarantine = transform(_synthetic_plays(spark, [29_000]), _catalog(spark))
+    row = silver.first()
+    assert quarantine.count() == 0
+    assert row["ms_continuos_max"] == 29_000
+    assert row["valida_rn01"] is False
+    assert row["pagable"] is False
+    assert row["motivo_validez"] == "duracion_insuficiente"
+
+
+def test_rn02_eleventh_valid_play_is_not_payable(spark):
+    """RN-02: the cap is 10 valid plays per user, track and UTC day."""
+    silver, quarantine = transform(
+        _synthetic_plays(spark, [30_000] * 11), _catalog(spark)
+    )
+    assert quarantine.count() == 0
+    rows = {row["play_id"]: row for row in silver.collect()}
+    assert len(rows) == 11
+    assert sum(row["pagable"] for row in rows.values()) == 10
+    assert rows["session-010"]["pagable"] is False
+    assert rows["session-010"]["motivo_validez"] == "tope_diario"
+
+
+def test_rn02_replay_of_complete_month_is_deterministic(spark):
+    """Replaying identical full-month events does not change logical plays."""
+    events = _synthetic_plays(spark, [30_000] * 11)
+    first, _ = transform(events, _catalog(spark))
+    second, _ = transform(events, _catalog(spark))
+    fields = ("play_id", "pagable", "motivo_validez", "inicio_utc")
+    snapshot = lambda frame: sorted(tuple(row[name] for name in fields) for row in frame.collect())
+    assert snapshot(first) == snapshot(second)
