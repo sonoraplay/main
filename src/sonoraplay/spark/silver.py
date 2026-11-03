@@ -297,7 +297,6 @@ def bronze_partition_paths(bronze_root, fecha):
     return [f"{root}/fecha={day.isoformat()}" for day in bronze_window(fecha)]
 
 
-
 def read_bronze_window(spark, bronze_root, fecha):
     """Read existing EG-33 arrival partitions; require the requested day.
 
