@@ -400,9 +400,9 @@ def _synthetic_plays(spark, durations_ms):
     """Build complete F2 sessions without changing the production business rules."""
     from datetime import UTC, datetime, timedelta
 
-    template = json.loads(
-        (FIXTURES / "duplicado_por_reintento.json").read_text(encoding="utf-8")
-    )["eventos"]
+    template = json.loads((FIXTURES / "duplicado_por_reintento.json").read_text(encoding="utf-8"))[
+        "eventos"
+    ]
     start_template = next(event for event in template if event["event_type"] == "start")
     end_template = next(event for event in template if event["event_type"] == "end")
     base = datetime(2026, 9, 19, 0, 0, tzinfo=UTC)
@@ -420,9 +420,7 @@ def _synthetic_plays(spark, durations_ms):
                 event_id=f"{session}-{kind}",
                 session_id=session,
                 device_ts=moment.isoformat().replace("+00:00", "Z"),
-                server_ts=(moment + timedelta(milliseconds=200))
-                .isoformat()
-                .replace("+00:00", "Z"),
+                server_ts=(moment + timedelta(milliseconds=200)).isoformat().replace("+00:00", "Z"),
                 position_ms=position,
             )
             events.append(event)
@@ -442,9 +440,7 @@ def test_rn01_29_seconds_synthetic_fixture_is_not_payable(spark):
 
 def test_rn02_eleventh_valid_play_is_not_payable(spark):
     """RN-02: the cap is 10 valid plays per user, track and UTC day."""
-    silver, quarantine = transform(
-        _synthetic_plays(spark, [30_000] * 11), _catalog(spark)
-    )
+    silver, quarantine = transform(_synthetic_plays(spark, [30_000] * 11), _catalog(spark))
     assert quarantine.count() == 0
     rows = {row["play_id"]: row for row in silver.collect()}
     assert len(rows) == 11
@@ -461,8 +457,6 @@ def test_rn02_replay_of_complete_month_is_deterministic(spark):
     fields = ("play_id", "pagable", "motivo_validez", "inicio_utc")
 
     def snapshot(frame):
-        return sorted(
-            tuple(row[name] for name in fields) for row in frame.collect()
-        )
+        return sorted(tuple(row[name] for name in fields) for row in frame.collect())
 
     assert snapshot(first) == snapshot(second)

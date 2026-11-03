@@ -325,7 +325,6 @@ def read_bronze_window(spark, bronze_root, fecha):
     return events
 
 
-
 def affected_playback_months(silver, quarantine):
     """Identify corrected UTC playback months touched by a Bronze batch.
 
