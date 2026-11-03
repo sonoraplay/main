@@ -99,12 +99,15 @@ def refrescar_referencia(
     return {"paises": len(paises), "publicidad": len(publicidad)}
 
 
-def lanzar_silver(fecha: str | date, entorno: dict[str, str] | None = None) -> int:
+def lanzar_silver(
+    fecha: str | date, entorno: dict[str, str] | None = None, run_id: str = ""
+) -> int:
     """Lanza el job Bronze → Silver de ``fecha`` con el comando de ``SILVER_JOB_COMMAND``.
 
-    Contrato con EG-35: el comando recibe ``{fecha}`` (AAAA-MM-DD, UTC) y debe **sobrescribir**
-    únicamente las particiones de esa fecha (``partitionOverwriteMode=dynamic``), de modo que
-    repetir la fecha no duplique. Sin comando configurado lanza ``SilverNoConfigurado``:
+    Contrato con EG-35: el comando recibe ``{fecha}`` (AAAA-MM-DD, UTC, el día cerrado que se
+    procesa) y ``{run_id}`` (ID de la corrida de Airflow, para el linaje). Repetir la misma fecha
+    no debe duplicar ni fallar; cómo lo logra Silver (reconstruir el mes hasta la fecha) lo
+    decide el job, no el DAG. Sin comando configurado lanza ``SilverNoConfigurado``:
     la integración no existe aún y no se finge.
     """
     env = os.environ if entorno is None else entorno
@@ -115,5 +118,8 @@ def lanzar_silver(fecha: str | date, entorno: dict[str, str] | None = None) -> i
             "todavía no está conectado."
         )
     dia = a_fecha(fecha).isoformat()
-    comando = [parte.replace("{fecha}", dia) for parte in shlex.split(plantilla)]
+    comando = [
+        parte.replace("{fecha}", dia).replace("{run_id}", run_id)
+        for parte in shlex.split(plantilla)
+    ]
     return subprocess.run(comando, check=True).returncode

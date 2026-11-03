@@ -36,9 +36,9 @@ def _referencia(logical_date, **_):
         return t.refrescar_referencia(t.fecha_procesada(logical_date), conexion)
 
 
-def _silver(logical_date, **_):
+def _silver(logical_date, run_id, **_):
     try:
-        t.lanzar_silver(t.fecha_procesada(logical_date))
+        t.lanzar_silver(t.fecha_procesada(logical_date), run_id=run_id)
     except t.SilverNoConfigurado as exc:
         raise AirflowSkipException(str(exc)) from exc
 
