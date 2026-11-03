@@ -137,6 +137,20 @@ data "aws_iam_policy_document" "consumidor" {
     actions   = ["s3:PutObject"]
     resources = ["${local.arn_s3["bronze"]}/*"]
   }
+
+  # EG-33 criterio 5: profundidad de la cola y errores en CloudWatch. PutMetricData no admite
+  # recursos, así que se acota por espacio de nombres.
+  statement {
+    sid       = "PublicaMetricas"
+    actions   = ["cloudwatch:PutMetricData"]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "cloudwatch:namespace"
+      values   = ["SonoraPlay/Mensajeria"]
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "consumidor" {

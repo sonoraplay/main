@@ -5,6 +5,7 @@ Uso: python -m sonoraplay.streaming.consumidor [--salir-si-vacia] [--retraso-ms 
 
 import argparse
 import json
+import os
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -15,6 +16,7 @@ from sonoraplay.simulador.f2_minimo import validador
 from sonoraplay.streaming.bronze import AlmacenBronze
 from sonoraplay.streaming.bronze_s3 import AlmacenBronzeS3
 from sonoraplay.streaming.config import StreamingConfig
+from sonoraplay.streaming.metricas import PublicadorMetricas, profundidades
 from sonoraplay.streaming.topologia import declarar
 
 
@@ -69,6 +71,15 @@ def crear_almacen(cfg: StreamingConfig):
     return AlmacenBronze(cfg.destino_bronze)
 
 
+def crear_publicador(cfg: StreamingConfig) -> PublicadorMetricas | None:
+    """Métricas a CloudWatch solo si ``METRICAS_CLOUDWATCH=1`` (en AWS; no en local ni en CI)."""
+    if os.environ.get("METRICAS_CLOUDWATCH") != "1":
+        return None
+    import boto3
+
+    return PublicadorMetricas(boto3.client("cloudwatch"), cfg.cola)
+
+
 def consumir(cfg: StreamingConfig, salir_si_vacia: bool = False, retraso_ms: int = 0) -> Conteo:
     import pika
 
@@ -83,8 +94,30 @@ def consumir(cfg: StreamingConfig, salir_si_vacia: bool = False, retraso_ms: int
     diferido = hasattr(almacen, "volcar")
     pendientes: list[int] = []
 
+    metricas = crear_publicador(cfg)
+
+    def publicar_metricas(fallos_s3: int = 0) -> None:
+        if metricas is None:
+            return
+        valores = {
+            "EventosGuardados": conteo.guardados,
+            "EventosDuplicados": conteo.duplicados,
+            "EventosADLQ": conteo.a_dlq,
+            "FallosEscrituraS3": fallos_s3,
+        }
+        try:
+            valores.update(profundidades(canal, cfg.cola, cfg.cola_dlq))
+        except Exception:  # noqa: BLE001 - sin profundidad igual se publican los contadores
+            pass
+        metricas.publicar(valores)
+
     def volcar_y_confirmar() -> None:
-        almacen.volcar()  # si S3 falla, la excepción sube y NO se confirma nada
+        try:
+            almacen.volcar()  # si S3 falla, la excepción sube y NO se confirma nada
+        except Exception:
+            publicar_metricas(fallos_s3=1)
+            raise
+        publicar_metricas()
         if pendientes:
             canal.basic_ack(delivery_tag=pendientes[-1], multiple=True)
             pendientes.clear()
