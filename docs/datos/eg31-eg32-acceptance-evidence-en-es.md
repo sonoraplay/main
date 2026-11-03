@@ -4,6 +4,62 @@
 
 This file is a **traceability register**, not a claim of deployed AWS infrastructure or completed Spark processing. / Este archivo es un **registro de trazabilidad**, no una afirmación de despliegue AWS ni de ejecución Spark terminada.
 
+## Latest acceptance review / Revisión de aceptación más reciente (2026-11-03)
+
+**English.** This section supersedes older dated status statements below, which
+are retained as an audit trail. EG-31 and EG-32 remain **In progress** in Jira.
+
+- **EG-31:** Julián approved the v2 dimensional contract; ADR-0014 is accepted
+  with conditions. EG-35's draft PR #38 includes a real local Spark Silver
+  Parquet write/read test and a dedicated PySpark CI job. This is **partial
+  Silver evidence**, not proof of a deployed S3 pipeline. Preserve the exact
+  successful run URL and test log before claiming a verified round trip.
+  Gold Parquet read/write, reconciliation of distinct `play_id` against
+  published original/adjustment settlements, the bridge history and
+  country/retention/compaction/encryption/IAM checks remain outstanding.
+  EG-42 query examples are also pending. No closure is authorized.
+- **EG-32 CA1:** the priced worksheet exists but **two shareable AWS Pricing
+  Calculator estimate URLs** are still missing. These must be genuine estimate
+  links, not the Calculator homepage. Do not invent estimates or prices.
+- **EG-32 CA2:** 24/7 versus testing-window comparison is documented as an
+  estimate, not as verified monthly AWS charges.
+- **EG-32 CA3:** **passed** on 2026-10-23: actual AWS Budgets notification
+  (USD 25.50 against USD 25 threshold) arrived through SNS email.
+- **EG-32 CA4:** `Project` and `Owner` tags are active for persistent
+  resources, and attribution was observed in Cost Explorer on 2026-10-30.
+  Main-stack attribution awaits the next **authorized** AWS test window.
+- **EG-32 CA5:** cost documentation and architecture link are already merged
+  into `develop`. Confirm links still resolve in the final review.
+
+**Español.** Esta sección sustituye los estados antiguos que aparecen más
+abajo, conservados como historial. EG-31 y EG-32 siguen **En curso** en Jira.
+
+- **EG-31:** Julián aprobó el contrato dimensional v2; el ADR-0014 está
+  aceptado con condiciones. El PR #38 de EG-35 incluye una prueba local de
+  escritura/lectura Parquet Silver con Spark y un job dedicado de PySpark.
+  Es **evidencia parcial de Silver**, no prueba de un Data Lake S3 desplegado.
+  Antes de afirmar que la prueba pasó, registrar la ejecución y el log
+  correspondientes. Faltan Parquet Gold, conciliación de `play_id` con
+  liquidaciones originales y ajustes, historial del puente, verificaciones
+  de país/retención/compactación/cifrado/IAM y consultas de EG-42.
+- **EG-32 CA1:** existe la hoja cotizada, pero faltan **dos enlaces reales y
+  compartibles de AWS Pricing Calculator**. No sirven enlaces genéricos.
+- **EG-32 CA2:** se documentaron ambos escenarios como estimaciones, no
+  como facturación mensual real.
+- **EG-32 CA3:** **cumplido** el 2026-10-23: llegó una alerta real de AWS
+  Budgets (USD 25,50 frente al umbral de USD 25) mediante SNS.
+- **EG-32 CA4:** etiquetas `Project` y `Owner` activas para recursos
+  persistentes y atribución observada en Cost Explorer el 2026-10-30.
+  Falta comprobar el stack principal durante una ventana AWS **autorizada**.
+- **EG-32 CA5:** documentación de costos y enlace arquitectónico ya
+  integrados en `develop`. Comprobar enlaces en la revisión final.
+
+**Evidence policy / Política de evidencias:** A passing unit test, a
+design diagram, or an estimate cannot be substituted for an actual AWS
+deployment, Gold reconciliation, or Calculator share link. Do not merge
+or close either Jira issue without the remaining evidence. / No sustituir
+evidencia real con diseños, estimaciones o pruebas de otra capa.
+
 ## EG-31 — Dimensional model and Data Lake
 
 | Criterion / Criterio | Deliverable / Entregable | Evidence / Evidencia | Status / Estado | Next verification / Siguiente verificación |
