@@ -30,11 +30,11 @@ Requisitos: Terraform ≥ 1.11, AWS CLI v2, Docker con buildx, sesión de AWS en
 1. **Estado de Terraform (una sola vez).** `terraform -chdir=infra/terraform/bootstrap init && … apply`; copia `backend.hcl.example` a `backend.hcl` con el bucket que imprime.
 2. **Persistentes (una sola vez).** ECR (`infra/terraform/ecr`) y presupuesto (`infra/terraform/presupuesto`, ver [EG-32](../infraestructura/eg32-presupuesto-alarma.md)).
 3. **Imágenes.** `infra/scripts/publicar-imagen.sh api-titulares` (repite para cada servicio). Imprime la etiqueta (SHA del commit).
-4. **Entorno.** `terraform -chdir=infra/terraform init -backend-config=backend.hcl`, luego `plan -out=ventana.tfplan` y `apply ventana.tfplan` (añade `-var api_titulares_imagen_tag=<sha>` para la API). Detalle y variables: [README de Terraform](../../infra/terraform/README.md).
+4. **Entorno.** `terraform -chdir=infra/terraform init -backend-config=backend.hcl`, luego `plan -out=ventana.tfplan` y `apply ventana.tfplan` (añade `-var api_titulares_imagen_tag=<sha>` para la API). Detalle y variables: `infra/terraform/README.md`.
 5. **Datos (seed).** RDS es privada: corre el seed desde CloudShell **dentro de la VPC**, según [eg28-seed-rds.md](../infraestructura/eg28-seed-rds.md).
 6. **Mensajería y Airflow.** Con Docker Compose: `cp .env.example .env`, cambia **todos** los `cambia_esto` (ver §4) y
    `docker compose -f docker-compose.yml -f docker-compose.airflow.yml up -d --build`.
-7. **DAGs.** Interfaz en `http://localhost:8080` (o por túnel SSM). Activa `sonoraplay_ingesta_diaria` y `sonoraplay_liquidacion_mensual`; define `SILVER_JOB_COMMAND` y `LIQUIDACION_JOB_COMMAND` cuando EG-35 / EG-37 existan ([contratos](../orquestacion/airflow-dags.md)).
+7. **DAGs.** Interfaz en `http://localhost:8080` (o por túnel SSM). Activa `sonoraplay_ingesta_diaria` y `sonoraplay_liquidacion_mensual`; define `SILVER_JOB_COMMAND` y `LIQUIDACION_JOB_COMMAND` cuando EG-35 / EG-37 existan (contratos en `docs/orquestacion/airflow-dags.md`, PR de EG-38).
 
 ## 2 · Comprobar que cada componente está sano
 
