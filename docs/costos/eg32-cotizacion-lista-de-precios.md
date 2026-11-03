@@ -8,13 +8,29 @@ title: "EG-32 · Cotización con la lista de precios oficial de AWS"
 
 ## Resultado
 
-| Escenario | Total mensual (USD) | Cómo se calcula |
-|---|---:|---|
-| **A · Infraestructura 24/7** | **126,21** | 730 h para todo lo que corre continuo |
-| **B · Ventanas de prueba** | **5,61** | 8 ventanas × 3 h = 24 h; lo persistente se cobra todo el mes |
-| **EKS (aparte, no suma en A ni B)** | 86,86 (730 h) · 2,86 (24 h) | Plano de control + 1 nodo `t4g.small` + 20 GB de disco |
+| Escenario | USD/mes | USD/año (mes redondeado × 12) | Cómo se calcula |
+|---|---:|---:|---|
+| **A · Infraestructura 24/7** | **126,21** | **1.514,52** | 730 h para todo lo que corre continuo |
+| **B · Ventanas de prueba** | **5,61** | **67,32** | 8 ventanas × 3 h = 24 h; lo persistente se cobra todo el mes |
+| **EKS (aparte, no suma en A ni B)** | 86,86 (730 h) · 2,86 (24 h) | 1.042,32 · 34,32 | Plano de control + 1 nodo `t4g.small` + 20 GB de disco |
 
 Región `us-east-1`, USD, precios de lista **On-Demand sin descuentos, sin créditos y sin capa gratuita** (como la calculadora por defecto). Coinciden con las cifras que el equipo ya tenía en la hoja de la EG-32 (≈ 126 y ≈ 5,6 USD/mes).
+
+## Primera estimación de la calculadora (2026-11-03): rechazada
+
+La primera estimación guardada en la calculadora sumó **248,63 USD/mes (2.983,56 USD/año)** con seis servicios. **No es válida como evidencia** porque no reproduce el inventario del ticket ni coincide con ninguno de los dos escenarios:
+
+| Servicio | Calculadora (USD/mes) | Esperado A (24/7) | Esperado B (ventanas) | Qué indica |
+|---|---:|---:|---:|---|
+| RDS PostgreSQL | **221,30** | 13,98 | 0,46 | Un `db.t4g.micro` Single-AZ cuesta ≈ 14 USD; 221 sugiere otra clase de instancia o Multi-AZ. Es el 89 % del total |
+| CloudWatch | **9,13** | 1,16 | 0,09 | Tiene entradas de monitoreo móvil; el inventario es 1 alarma y 2 GB de logs |
+| EC2 | 1,53 | 47,56 | 1,56 | Coincide con 24 h (B), no con 730 h (A) |
+| Elastic Load Balancing | 16,66 | 22,27 | 0,73 | Parece 730 h; la calculadora deriva los LCU del tráfico que se le declara |
+| AWS Fargate | **0,00** | 29,40 | 1,51 | Vacío: sin tareas u horas |
+| S3 | **0,01** | 0,70 | 0,70 | Casi vacío: faltan 5 GB, PUT y GET |
+| ECR, IPv4 públicas | no aparecen | 0,20 / 10,95 | 0,20 / 0,36 | Faltan |
+
+Las seis filas suman exactamente 248,63 (× 12 = 2.983,56): la aritmética es correcta; las **entradas** no. Las estimaciones corregidas deben dar **126,21 USD/mes (1.514,52 USD/año)** en A y **5,61 USD/mes (67,32 USD/año)** en B, con EKS aparte. **Los totales corregidos de la calculadora siguen pendientes de que alguien rehaga las estimaciones y pegue los enlaces:** las cifras de esta página son del cálculo con la lista de precios, no de la calculadora.
 
 ## Detalle por servicio
 
