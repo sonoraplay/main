@@ -274,7 +274,6 @@ def run(
     quarantine.write.mode("errorifexists").parquet(quarantine_path)
 
 
-
 def bronze_window(fecha):
     """Return required server-arrival dates for a monthly Bronze rebuild.
 
