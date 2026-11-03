@@ -11,7 +11,7 @@ USER airflow
 ARG AIRFLOW_VERSION=3.1.3
 RUN pip install --no-cache-dir \
     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-3.12.txt" \
-    "apache-airflow-providers-celery" "psycopg[binary]>=3.1" "pandas>=2.2,<3" "pyarrow>=17,<25"
+    "apache-airflow-providers-celery" "psycopg[binary]>=3.1"
 
 COPY --chown=airflow:root pyproject.toml README.md LICENSE /opt/sonoraplay/
 COPY --chown=airflow:root src /opt/sonoraplay/src

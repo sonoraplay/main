@@ -84,7 +84,7 @@ jobs:
           uv pip install --python .venv-airflow/bin/python \
             --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-3.12.txt" \
             "apache-airflow==${AIRFLOW_VERSION}" apache-airflow-providers-celery \
-            "psycopg[binary]" "pandas>=2.2,<3" "pyarrow>=17,<25" pytest
+            "psycopg[binary]" pytest
       - name: Prueba de DagBag
         env:
           PYTHONPATH: src
