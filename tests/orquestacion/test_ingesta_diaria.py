@@ -122,3 +122,13 @@ def test_la_corrida_de_las_02_procesa_el_dia_anterior_cerrado():
 
     assert t.fecha_procesada(datetime(2026, 11, 3, 2, tzinfo=UTC)) == date(2026, 11, 2)
     assert t.fecha_procesada(datetime(2026, 11, 1, 2, tzinfo=UTC)) == date(2026, 10, 31)
+
+
+def test_silver_recibe_tambien_el_run_id_para_el_linaje(tmp_path):
+    marca = tmp_path / "args.txt"
+    codigo = f"import sys,pathlib; pathlib.Path(r'{marca}').write_text(' '.join(sys.argv[1:]))"
+    comando = f'"{sys.executable}" -c "{codigo}" --fecha {{fecha}} --run-id {{run_id}}'
+    t.lanzar_silver(
+        "2026-09-15", entorno={t.VARIABLE_COMANDO_SILVER: comando}, run_id="scheduled__2026-09-16"
+    )
+    assert marca.read_text() == "--fecha 2026-09-15 --run-id scheduled__2026-09-16"
