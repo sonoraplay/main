@@ -158,3 +158,37 @@ def test_rn02_eleventh_play_exceeds_daily_cap(spark):
     assert silver.count() == 11
     assert silver.filter("pagable").count() == 10
     assert silver.filter("motivo_validez = 'tope_diario'").count() == 1
+
+
+@pytest.mark.parametrize(
+    ("sync_day", "expected_month", "expected_type"),
+    [
+        ("2026-10-02", "2026-09-01", "normal"),
+        ("2026-10-03", "2026-10-01", "ajuste"),
+    ],
+)
+def test_rn04_offline_cutoff(spark, sync_day, expected_month, expected_type):
+    """An offline September play stays in September until the UTC cutoff."""
+    from datetime import datetime, timedelta, timezone
+
+    original = [row.asDict() for row in _events(spark, "duplicado_por_reintento").collect()]
+    start = next(e.copy() for e in original if e["event_type"] == "start")
+    end = next(e.copy() for e in original if e["event_type"] == "end")
+    playback = datetime(2026, 9, 28, 12, tzinfo=timezone.utc)
+    start["event_id"] = "offline-start"
+    end["event_id"] = "offline-end"
+    start["is_offline"] = end["is_offline"] = True
+    start["device_ts"] = playback.isoformat()
+    end["device_ts"] = (playback + timedelta(seconds=35)).isoformat()
+    end["position_ms"] = start["position_ms"] + 35_000
+    sync = datetime.fromisoformat(f"{sync_day}T23:59:30+00:00")
+    start["server_ts"] = (sync - timedelta(seconds=1)).isoformat()
+    end["server_ts"] = sync.isoformat()
+    silver, quarantine = transform(
+        spark.createDataFrame([start, end], schema=event_schema()), _catalog(spark)
+    )
+    assert quarantine.count() == 0
+    row = silver.first()
+    assert row["mes_reproduccion"] == "2026-09-01"
+    assert row["mes_liquidacion"] == expected_month
+    assert row["tipo_atribucion"] == expected_type
