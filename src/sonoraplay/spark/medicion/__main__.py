@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 import sys
 from pathlib import Path
 
@@ -35,6 +36,13 @@ def main(argv: list[str] | None = None) -> int:
     m.add_argument("--variantes", nargs="*", default=list(medir.VARIANTES))
     m.add_argument("--hasta", default=None, help="AAAA-MM-DD: procesa hasta esa fecha (poda)")
     m.add_argument("--repeticiones", type=int, default=3)
+    m.add_argument(
+        "--orden-aleatorio",
+        type=int,
+        default=None,
+        metavar="SEMILLA",
+        help="mezcla el orden de las variantes (quita el sesgo de que `base` corra primero)",
+    )
     m.add_argument("--nucleos", type=int, default=2)
     m.add_argument("--memoria", default="6g")
     m.add_argument("--evento-log", default=None, help="carpeta para el historial de Spark UI")
@@ -67,6 +75,10 @@ def main(argv: list[str] | None = None) -> int:
         if "base" not in a.variantes:
             print("La variante `base` es obligatoria: es la referencia.", file=sys.stderr)
             return 2
+        orden = list(a.variantes)
+        if a.orden_aleatorio is not None:
+            random.Random(a.orden_aleatorio).shuffle(orden)
+            print("Orden de ejecución:", " ".join(orden), flush=True)
         resultados = [
             medir.correr(
                 medir.VARIANTES[n],
@@ -79,7 +91,7 @@ def main(argv: list[str] | None = None) -> int:
                 nucleos=a.nucleos,
                 evento_log=a.evento_log,
             )
-            for n in a.variantes
+            for n in orden
         ]
         problemas = medir.verificar_identico(resultados)
         Path(a.salida).write_text(
@@ -88,6 +100,7 @@ def main(argv: list[str] | None = None) -> int:
                     "entorno": medir.entorno(a.nucleos, a.memoria),
                     "datos": a.datos,
                     "hasta": a.hasta,
+                    "orden": orden,
                     "resultados": resultados,
                     "problemas": problemas,
                 },
