@@ -116,10 +116,16 @@ def _sales(spark):
 
 
 def huella(df, columnas: list[str]) -> dict:
-    """Resumen independiente del orden: nº de filas y suma de un hash por fila."""
+    """Resumen independiente del orden: nº de filas y suma de un hash por fila.
+
+    El hash se acota con ``pmod`` para que la suma no desborde en modo ANSI (Spark 4).
+    """
     from pyspark.sql import functions as F
 
-    fila = df.agg(F.count("*").alias("filas"), F.sum(F.xxhash64(*columnas)).alias("hash")).first()
+    fila = df.agg(
+        F.count("*").alias("filas"),
+        F.sum(F.pmod(F.xxhash64(*columnas), F.lit(1_000_000_007))).alias("hash"),
+    ).first()
     return {"filas": fila["filas"], "hash": int(fila["hash"] or 0)}
 
 
