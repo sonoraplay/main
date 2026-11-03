@@ -47,4 +47,4 @@ Guarda la salida de cada paso y el costo real de Cost Explorer como evidencia.
 | 1 | Un componente en EKS con Deployment y Service que responde | Manifiestos listos; **sin probar** |
 | 2 | Misma imagen que ECS, desde ECR | Por diseño (mismo repositorio y etiqueta); **sin probar** |
 | 3 | Creado y destruido con Terraform, solo en la ventana | Stack y script listos; **sin ejecutar** |
-| 4 | Comparación de costo, complejidad y encaje + ADR-0018 | ADR escrito (Propuesto); falta el costo real |
+| 4 | Comparación de costo, complejidad y encaje + ADR-0018 | ADR escrito (Propuesto). Precio del plano de control de EKS verificado en la fuente oficial (0,10 USD por clúster-hora); faltan los precios de Fargate y del nodo, y el costo real de la ventana |

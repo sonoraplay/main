@@ -36,14 +36,14 @@ ECS Fargate sigue siendo el cómputo del proyecto. EKS se levanta **una sola vez
 
 | Criterio | ECS Fargate | EKS (nodos gestionados) |
 |---|---|---|
-| Costo fijo | Ninguno | Plano de control por hora (precio de lista a confirmar en el Pricing Calculator) |
+| Costo fijo | Ninguno | Plano de control: **0,10 USD por clúster-hora** con versión de Kubernetes en soporte estándar (0,60 USD en soporte extendido). Fuente: [Amazon EKS Pricing](https://aws.amazon.com/eks/pricing/), consultada el 2026-11-03 |
 | Costo de cómputo | vCPU-hora + GB-hora por tarea, exacto por lo que corre | Instancias por hora, estén llenas o vacías |
 | Tareas de operación | Definición de tarea + servicio | Versión de Kubernetes, AMI de nodos, CNI, RBAC / access entries, manifiestos, probes |
 | Jobs batch (Spark) | `RunTask` desde Airflow, se apaga solo | Hay que añadir Jobs/operador y capacidad de nodos |
 | Portabilidad | Específico de AWS | Alta |
 | Encaje con el proyecto | Alto | Bajo: ningún requisito lo exige más allá del tema 19 |
 
-Los números concretos de costo por hora de ambas opciones **no se afirman aquí**: se rellenan con la cotización del Pricing Calculator y con el costo real de la ventana (EG-48).
+Solo el precio del plano de control de EKS está verificado en la fuente oficial. Con él, una ventana de *H* horas cuesta *H* × 0,10 USD de plano de control **más** las horas del nodo `t4g.small` y su disco; por ejemplo, 4 h son 0,40 USD de plano de control (el nodo y el disco se suman aparte). Los precios de Fargate (Spot y On-Demand) y del nodo **no se afirman aquí**: se rellenan con el Pricing Calculator y con el costo real de la ventana (EG-48). Elegir una versión de Kubernetes que ya esté en soporte extendido multiplicaría por seis el plano de control; por eso la versión del stack se verifica antes de aplicar.
 
 ## 6. Pendiente de comprobar
 
