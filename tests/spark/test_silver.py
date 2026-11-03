@@ -321,10 +321,12 @@ def test_bronze_paths_match_eg33_layout():
     from sonoraplay.spark.silver import bronze_partition_paths
 
     paths = bronze_partition_paths("s3a://bronze/f2/", date(2026, 9, 2))
-    assert paths == [
+    assert paths[0] == "s3a://bronze/f2/fecha=2026-08-01"
+    assert paths[-2:] == [
         "s3a://bronze/f2/fecha=2026-09-01",
         "s3a://bronze/f2/fecha=2026-09-02",
     ]
+    assert len(paths) == 33
 
 
 def test_read_bronze_window_reads_eg33_jsonl(spark, tmp_path):
