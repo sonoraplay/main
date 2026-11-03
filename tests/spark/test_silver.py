@@ -192,3 +192,30 @@ def test_rn04_offline_cutoff(spark, sync_day, expected_month, expected_type):
     assert row["mes_reproduccion"] == "2026-09-01"
     assert row["mes_liquidacion"] == expected_month
     assert row["tipo_atribucion"] == expected_type
+
+
+def test_lineage_is_preserved_in_silver_and_quarantine(spark):
+    """One caller-supplied lineage tuple is preserved for all output rows."""
+    events = _events(spark, "track_desconocido")
+    silver, quarantine = transform(
+        events,
+        _catalog(spark),
+        run_id="eg35-test-run",
+        source_version="fixture-track-desconocido-v1",
+        ingested_at_utc="2026-11-03T12:00:00+00:00",
+    )
+    assert silver.count() == 0
+    row = quarantine.first()
+    assert row["run_id"] == "eg35-test-run"
+    assert row["source_version"] == "fixture-track-desconocido-v1"
+    assert row["ingested_at_utc"] == "2026-11-03T12:00:00Z"
+
+
+def test_lineage_requires_complete_metadata(spark):
+    """Do not silently publish partial lineage metadata."""
+    with pytest.raises(ValueError, match="must be provided together"):
+        transform(
+            _events(spark, "duplicado_por_reintento"),
+            _catalog(spark),
+            run_id="incomplete",
+        )
