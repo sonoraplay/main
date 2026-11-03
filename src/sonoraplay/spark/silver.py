@@ -20,7 +20,8 @@ def event_schema():
         StructType,
     )
 
-    return StructType([
+    return StructType(
+        [
         StructField("schema_version", StringType(), False),
         StructField("event_id", StringType(), False),
         StructField("event_type", StringType(), False),
@@ -33,7 +34,8 @@ def event_schema():
         StructField("position_ms", LongType(), False),
         StructField("country_playback", StringType(), False),
         StructField("is_offline", BooleanType(), False),
-    ])
+        ]
+    )
 
 
 def play_schema():
@@ -45,7 +47,8 @@ def play_schema():
         StructType,
     )
 
-    return StructType([
+    return StructType(
+        [
         StructField("play_id", StringType()),
         StructField("user_id", StringType()),
         StructField("track_id", StringType()),
@@ -60,7 +63,8 @@ def play_schema():
         StructField("tipo_atribucion", StringType()),
         StructField("motivo_cuarentena", StringType()),
         StructField("schema_version", StringType()),
-    ])
+        ]
+    )
 
 
 def _session_rows(pdf):
@@ -126,8 +130,11 @@ def transform(events, catalog):
     event_window = Window.partitionBy("event_id").orderBy(
         F.col("server_ts").asc(), F.col("session_id").asc()
     )
-    unique = (events.withColumn("_rank", F.row_number().over(event_window))
-              .filter(F.col("_rank") == 1).drop("_rank"))
+    unique = (
+        events.withColumn("_rank", F.row_number().over(event_window))
+        .filter(F.col("_rank") == 1)
+        .drop("_rank")
+    )
     plays = unique.groupBy("session_id").applyInPandas(_session_rows, play_schema())
 
     known = catalog.select("track_id").distinct().withColumn("_known", F.lit(True))
@@ -158,8 +165,10 @@ def transform(events, catalog):
         .when(~F.col("pagable"), "tope_diario").otherwise("pagable")
     ).drop("_rn")
     # Partition by the corrected UTC playback date, not the settlement period.
-    result = (result.withColumn("year", F.substring("inicio_utc", 1, 4))
-              .withColumn("month", F.substring("inicio_utc", 6, 2)))
+    result = (
+        result.withColumn("year", F.substring("inicio_utc", 1, 4))
+        .withColumn("month", F.substring("inicio_utc", 6, 2))
+    )
     return result, quarantine
 
 
