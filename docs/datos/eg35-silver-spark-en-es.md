@@ -12,8 +12,8 @@ start-less sessions, applies RN-01 and the RN-02 daily cap per user, track and U
 Silver Parquet partitioned by corrected UTC `year/month` and playback country.
 
 **Local validation:** install compatible PySpark and run
-`uv run --with pyspark pytest tests/spark/test_silver.py`.
-The tests reuse F2 defect fixtures. The dedicated `spark-silver` CI job now installs PySpark 3.5.7 and executes
+`uv run --with pyspark==4.0.1 pytest -q tests/spark/test_silver.py`.
+The tests reuse F2 defect fixtures. The dedicated `spark-silver` CI job now installs PySpark 4.0.1 and executes
 the suite without `importorskip`. Its result must be verified before acceptance. Run a real Parquet write/read and record command, environment,
 timestamp, input/output counts and paths before checking CA6.
 
@@ -24,7 +24,7 @@ timestamp, input/output counts and paths before checking CA6.
 - Validate malformed JSON, duplicate IDs with conflicting payloads, and
   incomplete sessions; the existing reconstruction currently counts open
   segments as zero but does not emit a dedicated `sin_fin` quality flag.
-- Add lineage fields (`run_id`, UTC ingestion time and source version), verify
+- Verify the newly added lineage fields (`run_id`, UTC ingestion time and source version) in CI and downstream Parquet; verify
   S3 encryption/IAM, choose compaction and retention, and record a real
   Parquet round trip.
 - Confirm `applyInPandas` grouped-session memory behavior and performance at
@@ -47,15 +47,15 @@ el tope RN-02 por usuario, pista y día UTC, y escribe Parquet particionado por 
 corregido y país de reproducción.
 
 **Validación local:** instalar PySpark compatible y ejecutar
-`uv run --with pyspark pytest tests/spark/test_silver.py`.
-Las pruebas usan fixtures F2 existentes. Se agregó un job de CI que instala PySpark 3.5.7 y ejecuta las pruebas sin saltarlas.
+`uv run --with pyspark==4.0.1 pytest -q tests/spark/test_silver.py`.
+Las pruebas usan fixtures F2 existentes. Se agregó un job de CI que instala PySpark 4.0.1 y ejecuta las pruebas sin saltarlas.
 Es necesario comprobar su resultado antes de aceptar el criterio.
 Antes de aceptar CA6 hay que probar lectura y escritura reales de Parquet. Se añadió la prueba de round trip,
 pero falta verificar su ejecución y registrar comando, entorno, fecha, conteos y rutas.
 
 **Pendientes:** `run()` utiliza `errorifexists`: no sobrescribe rutas existentes, pero aún
 falta una estrategia idempotente para reprocesar datos tardíos en S3. Faltan control de JSON inválido, marcas
-de calidad `sin_fin`, metadatos de linaje, cifrado/IAM, compactación,
+de calidad `sin_fin`, pruebas del linaje, cifrado/IAM, compactación,
 retención, pruebas de volumen y cobertura completa de EG-17/EG-22 (29/30 s,
 reproducción 11 y corte offline). La prueba de Gold y conciliación es EG-37.
 
@@ -75,3 +75,19 @@ que Spark funcione. Hay que revisar el job `spark-silver` y guardar el enlace de
 la ejecución y sus resultados. El round trip local de Parquet no demuestra
 cifrado en S3, permisos IAM, compactación, reproceso seguro de eventos tardíos
 ni conciliación Gold del ADR-0014. EG-31 y EG-35 siguen pendientes de evidencia.
+
+## Lineage contract / Contrato de linaje
+
+**English:** `run()` now requires keyword arguments `run_id` and `source_version`.
+It captures one UTC ingestion timestamp for the run and writes all three fields
+on both Silver and quarantine rows. The caller is responsible for supplying the
+real upstream version and a unique run ID. The transformation accepts these
+three fields together for deterministic tests. This is **not** a guarantee of
+atomic writes or safe late-arrival replay. CI evidence for this change is pending.
+
+**Español:** `run()` ahora exige `run_id` y `source_version` como argumentos
+nombrados. Registra un instante UTC por ejecución y guarda los tres campos en
+Silver y cuarentena. Quien ejecuta el proceso debe indicar la versión real del
+origen y un identificador único. La transformación permite suministrar los tres
+campos para pruebas reproducibles. Esto **no** garantiza escrituras atómicas ni
+reprocesamiento seguro de datos tardíos. Falta comprobar este cambio en CI.
