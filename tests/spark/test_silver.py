@@ -270,13 +270,20 @@ def test_cli_refuses_unsafe_daily_publication(tmp_path):
     from sonoraplay.spark.silver import main
 
     args = [
-        "--fecha", "2026-09-17",
-        "--bronze", str(tmp_path / "bronze"),
-        "--catalogo", str(tmp_path / "catalog"),
-        "--silver", str(tmp_path / "silver"),
-        "--cuarentena", str(tmp_path / "quarantine"),
-        "--run-id", "test-run",
-        "--source-version", "fixture-v1",
+        "--fecha",
+        "2026-09-17",
+        "--bronze",
+        str(tmp_path / "bronze"),
+        "--catalogo",
+        str(tmp_path / "catalog"),
+        "--silver",
+        str(tmp_path / "silver"),
+        "--cuarentena",
+        str(tmp_path / "quarantine"),
+        "--run-id",
+        "test-run",
+        "--source-version",
+        "fixture-v1",
     ]
     with pytest.raises(SystemExit) as exc:
         main(args)
