@@ -272,3 +272,41 @@ def run(
     )
     silver.write.mode("errorifexists").partitionBy("year", "month", "country").parquet(silver_path)
     quarantine.write.mode("errorifexists").parquet(quarantine_path)
+
+
+def main(argv=None):
+    """Validated CLI entry point; refuse unsafe daily publication until implemented."""
+    import argparse
+    import os
+    from datetime import date
+
+    parser = argparse.ArgumentParser(description="EG-35 Silver processing")
+    parser.add_argument("--fecha", required=True, help="Closed UTC day (YYYY-MM-DD)")
+    parser.add_argument("--bronze", default=os.getenv("SONORAPLAY_BRONZE_PATH"))
+    parser.add_argument("--catalogo", default=os.getenv("SONORAPLAY_CATALOG_PATH"))
+    parser.add_argument("--silver", default=os.getenv("SONORAPLAY_SILVER_PATH"))
+    parser.add_argument("--cuarentena", default=os.getenv("SONORAPLAY_QUARANTINE_PATH"))
+    parser.add_argument("--run-id", default=os.getenv("SONORAPLAY_RUN_ID"))
+    parser.add_argument("--source-version", default=os.getenv("SONORAPLAY_SOURCE_VERSION"))
+    args = parser.parse_args(argv)
+
+    try:
+        parsed = date.fromisoformat(args.fecha)
+        if parsed.isoformat() != args.fecha:
+            raise ValueError("date must be canonical")
+    except ValueError:
+        parser.error("--fecha must be a valid UTC date in YYYY-MM-DD format")
+    for name in ("bronze", "catalogo", "silver", "cuarentena", "run_id", "source_version"):
+        if not getattr(args, name):
+            parser.error(f"--{name.replace('_', '-')} or its environment variable is required")
+
+    # A daily job must not call run(): it uses errorifexists and has no safe
+    # full-month replay / atomic publication protocol. Fail rather than lose data.
+    parser.error(
+        "daily Silver publication is not enabled: safe month-to-date replay, "
+        "late-event detection and atomic publication are not implemented"
+    )
+
+
+if __name__ == "__main__":
+    main()

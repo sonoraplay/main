@@ -254,3 +254,32 @@ def test_reject_duplicate_catalog_track(spark):
     catalog = spark.createDataFrame([(TRACK,), (TRACK,)], ["track_id"])
     with pytest.raises(ValueError, match="exactly one row"):
         transform(_events(spark, "duplicado_por_reintento"), catalog)
+
+
+def test_cli_rejects_invalid_date():
+    """Airflow must not silently accept a malformed processing day."""
+    from sonoraplay.spark.silver import main
+
+    with pytest.raises(SystemExit) as exc:
+        main(["--fecha", "2026-02-30"])
+    assert exc.value.code != 0
+
+
+def test_cli_refuses_unsafe_daily_publication(tmp_path):
+    """Never report a successful Airflow run before idempotent publication exists."""
+    from sonoraplay.spark.silver import main
+
+    args = [
+        "--fecha", "2026-09-17",
+        "--bronze", str(tmp_path / "bronze"),
+        "--catalogo", str(tmp_path / "catalog"),
+        "--silver", str(tmp_path / "silver"),
+        "--cuarentena", str(tmp_path / "quarantine"),
+        "--run-id", "test-run",
+        "--source-version", "fixture-v1",
+    ]
+    with pytest.raises(SystemExit) as exc:
+        main(args)
+    assert exc.value.code != 0
+    assert not (tmp_path / "silver").exists()
+    assert not (tmp_path / "quarantine").exists()

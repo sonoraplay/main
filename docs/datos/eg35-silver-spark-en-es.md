@@ -149,3 +149,25 @@ o vacíos. Si una sesión contiene países de reproducción o versiones de esque
 contradictorios, pasa a cuarentena con un motivo explícito. También se rechazan
 claves duplicadas o nulas en el catálogo F1 antes del `join`. Falta confirmar
 estas pruebas en el CI de Spark.
+
+
+## Airflow CLI guard / Protección del CLI para Airflow
+
+**English:** The module now exposes `python -m sonoraplay.spark.silver
+--fecha YYYY-MM-DD` and accepts `--bronze`, `--catalogo`, `--silver`,
+`--cuarentena`, `--run-id` and `--source-version`. Paths and lineage
+arguments can also be supplied through `SONORAPLAY_BRONZE_PATH`,
+`SONORAPLAY_CATALOG_PATH`, `SONORAPLAY_SILVER_PATH`,
+`SONORAPLAY_QUARANTINE_PATH`, `SONORAPLAY_RUN_ID` and
+`SONORAPLAY_SOURCE_VERSION`. It validates the UTC date and required
+arguments, then **exits nonzero without writing**. This is intentional:
+the existing `run()` cannot safely replay a date or publish an entire
+affected month atomically. Do **not** activate `SILVER_JOB_COMMAND` yet.
+
+**Español:** El módulo ya reconoce el comando `python -m
+sonoraplay.spark.silver --fecha AAAA-MM-DD` y los argumentos de rutas y
+linaje indicados arriba. Valida la fecha UTC y los parámetros obligatorios,
+pero **termina con error sin escribir datos**. Es una protección deliberada:
+`run()` todavía no garantiza reejecuciones idempotentes ni publicación
+atómica de los meses afectados. **No** habilitar todavía
+`SILVER_JOB_COMMAND` en Airflow.
