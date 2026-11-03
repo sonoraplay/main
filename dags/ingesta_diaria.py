@@ -13,6 +13,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG
 
 from sonoraplay.orquestacion import ingesta_diaria as t
+from sonoraplay.orquestacion import liquidacion_mensual as liq
 
 REINTENTOS = 2
 ESPERA_ENTRE_REINTENTOS = timedelta(minutes=5)
@@ -42,6 +43,11 @@ def _silver(logical_date, **_):
         raise AirflowSkipException(str(exc)) from exc
 
 
+def _marcar(logical_date, run_id, **_):
+    with t.conexion_postgres() as conexion:
+        liq.marcar_ingesta(conexion, t.fecha_procesada(logical_date), run_id)
+
+
 with DAG(
     dag_id="sonoraplay_ingesta_diaria",
     description="EG-34: tasas F6, datos de referencia y Bronze → Silver, una vez al día (UTC)",
@@ -56,4 +62,7 @@ with DAG(
     refrescar = PythonOperator(task_id="refrescar_referencia", python_callable=_referencia)
     silver = PythonOperator(task_id="spark_bronze_a_silver", python_callable=_silver)
 
-    cargar_f6 >> refrescar >> silver
+    # Solo corre si Silver terminó: un día omitido (EG-35 sin conectar) no cuenta como ingerido.
+    marcar = PythonOperator(task_id="marcar_ingesta_completa", python_callable=_marcar)
+
+    cargar_f6 >> refrescar >> silver >> marcar
