@@ -15,7 +15,7 @@ Corre a las 02:00 UTC y procesa el **día UTC anterior ya cerrado** (ADR-0002).
 |---|---|---|
 | `cargar_tasas_f6` | Descarga las cotizaciones F6 de la semana que termina en el día procesado y las upserta | `ON CONFLICT (moneda, fecha_observacion)` |
 | `refrescar_referencia` | Refresca F7 (países) y F5 (publicidad) del mes en una transacción | upsert por país / (mes, país) |
-| `spark_bronze_a_silver` | Ejecuta `SILVER_JOB_COMMAND` con `{fecha}` | el job debe sobrescribir solo las particiones de esa fecha (contrato con EG-35) |
+| `spark_bronze_a_silver` | Ejecuta `SILVER_JOB_COMMAND` con `{fecha}` y `{run_id}` | repetir la fecha no debe duplicar ni fallar. María Clara lo resolverá reconstruyendo el mes hasta la fecha, sin `dynamic overwrite` sobre un lote de un solo día (comentario en el PR #38) |
 | `marcar_ingesta_completa` | Anota el día en `ingesta_diaria_estado` | upsert por fecha |
 
 Reintentos: 2, con 5 min de espera y retroceso exponencial.
@@ -35,7 +35,7 @@ Reintentos: 2 con 10 min. Al agotarlos, `on_failure_callback` deja el error en e
 
 | Variable | Dueño | Contrato | Sin definir |
 |---|---|---|---|
-| `SILVER_JOB_COMMAND` | EG-35 | Recibe `{fecha}`; sobrescribe solo esa fecha | La tarea queda **omitida** y el día **no** se marca como ingerido |
+| `SILVER_JOB_COMMAND` | EG-35 | Recibe `{fecha}` (día UTC cerrado) y `{run_id}`; el job reconstruye el mes hasta esa fecha. Pendiente en su PR (#38): `--fecha`, idempotencia, publicación segura en S3 y pruebas de reproceso | La tarea queda **omitida** y el día **no** se marca como ingerido |
 | `LIQUIDACION_JOB_COMMAND` | EG-37 | Recibe `{periodo}`; crea una `liquidaciones` nueva y la publica (`publicada_en`) | La tarea queda **omitida** |
 
 Mientras falte `SILVER_JOB_COMMAND`, el sensor mensual no se cumple: es el comportamiento buscado, para no liquidar con días sin procesar.
