@@ -1,4 +1,5 @@
 """EG-35 Spark acceptance tests; run in the dedicated Spark CI job."""
+
 import json
 from pathlib import Path
 
@@ -97,9 +98,7 @@ def test_rn01_exact_30_seconds(spark):
 
 def test_partitioned_parquet_roundtrip(spark, tmp_path):
     """Verify real Parquet write/read and the required partition columns."""
-    silver, quarantine = transform(
-        _events(spark, "duplicado_por_reintento"), _catalog(spark)
-    )
+    silver, quarantine = transform(_events(spark, "duplicado_por_reintento"), _catalog(spark))
     assert quarantine.count() == 0
     target = str(tmp_path / "silver")
     silver.write.mode("errorifexists").partitionBy("year", "month", "country").parquet(target)
