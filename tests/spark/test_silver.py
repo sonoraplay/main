@@ -4,6 +4,10 @@ from pathlib import Path
 
 import pytest
 
+pytest.importorskip("pyspark")
+pytest.importorskip("pandas")
+pytest.importorskip("pyarrow")
+
 from pyspark.sql import SparkSession
 
 from sonoraplay.spark.silver import event_schema, transform
