@@ -81,6 +81,7 @@ def test_rn01_exact_30_seconds(spark):
         (datetime.fromisoformat(start["device_ts"]) + timedelta(seconds=30))
         .isoformat(timespec="milliseconds")
         .replace("+00:00", "Z")
+    )
     start["server_ts"] = start["device_ts"]
     end["server_ts"] = end["device_ts"]
 
