@@ -459,5 +459,8 @@ def test_rn02_replay_of_complete_month_is_deterministic(spark):
     first, _ = transform(events, _catalog(spark))
     second, _ = transform(events, _catalog(spark))
     fields = ("play_id", "pagable", "motivo_validez", "inicio_utc")
-    def snapshot(frame):\n        return sorted(tuple(row[name] for name in fields) for row in frame.collect())
+    def snapshot(frame):
+        return sorted(
+            tuple(row[name] for name in fields) for row in frame.collect()
+        )
     assert snapshot(first) == snapshot(second)
