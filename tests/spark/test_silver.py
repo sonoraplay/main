@@ -339,7 +339,7 @@ def test_read_bronze_window_reads_eg33_jsonl(spark, tmp_path):
         partition.mkdir(parents=True)
         rows = [row.asDict() for row in _events(spark, "duplicado_por_reintento").collect()]
         (partition / "lote-0001.jsonl").write_text(
-            "\\n".join(json.dumps(row) for row in rows) + "\\n", encoding="utf-8"
+            "\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8"
         )
     events = read_bronze_window(spark, str(root), date(2026, 9, 2))
     assert events.count() == 2 * len(rows)
@@ -354,6 +354,6 @@ def test_read_bronze_window_requires_target_day(spark, tmp_path):
 
     partition = tmp_path / "f2" / "fecha=2026-09-01"
     partition.mkdir(parents=True)
-    (partition / "lote-0001.jsonl").write_text("{}\\n", encoding="utf-8")
+    (partition / "lote-0001.jsonl").write_text("{}\n", encoding="utf-8")
     with pytest.raises(FileNotFoundError, match="2026-09-02"):
         read_bronze_window(spark, str(tmp_path / "f2"), date(2026, 9, 2))
