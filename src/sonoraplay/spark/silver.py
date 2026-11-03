@@ -3,6 +3,7 @@
 Bronze JSON -> deterministic event deduplication -> session reconstruction ->
 catalog quarantine -> RN-01/RN-02/RN-04 -> partitioned Silver Parquet.
 """
+
 from __future__ import annotations
 
 from sonoraplay.config import AtribucionOfflineConfig, ReglasValidezConfig
@@ -22,18 +23,18 @@ def event_schema():
 
     return StructType(
         [
-        StructField("schema_version", StringType(), False),
-        StructField("event_id", StringType(), False),
-        StructField("event_type", StringType(), False),
-        StructField("user_id", StringType(), False),
-        StructField("device_id", StringType(), False),
-        StructField("track_id", StringType(), False),
-        StructField("session_id", StringType(), False),
-        StructField("device_ts", StringType(), False),
-        StructField("server_ts", StringType(), False),
-        StructField("position_ms", LongType(), False),
-        StructField("country_playback", StringType(), False),
-        StructField("is_offline", BooleanType(), False),
+            StructField("schema_version", StringType(), False),
+            StructField("event_id", StringType(), False),
+            StructField("event_type", StringType(), False),
+            StructField("user_id", StringType(), False),
+            StructField("device_id", StringType(), False),
+            StructField("track_id", StringType(), False),
+            StructField("session_id", StringType(), False),
+            StructField("device_ts", StringType(), False),
+            StructField("server_ts", StringType(), False),
+            StructField("position_ms", LongType(), False),
+            StructField("country_playback", StringType(), False),
+            StructField("is_offline", BooleanType(), False),
         ]
     )
 
@@ -49,20 +50,20 @@ def play_schema():
 
     return StructType(
         [
-        StructField("play_id", StringType()),
-        StructField("user_id", StringType()),
-        StructField("track_id", StringType()),
-        StructField("country", StringType()),
-        StructField("device_id", StringType()),
-        StructField("inicio_utc", StringType()),
-        StructField("sincronizado_utc", StringType()),
-        StructField("ms_continuos_max", IntegerType()),
-        StructField("is_offline", BooleanType()),
-        StructField("mes_reproduccion", StringType()),
-        StructField("mes_liquidacion", StringType()),
-        StructField("tipo_atribucion", StringType()),
-        StructField("motivo_cuarentena", StringType()),
-        StructField("schema_version", StringType()),
+            StructField("play_id", StringType()),
+            StructField("user_id", StringType()),
+            StructField("track_id", StringType()),
+            StructField("country", StringType()),
+            StructField("device_id", StringType()),
+            StructField("inicio_utc", StringType()),
+            StructField("sincronizado_utc", StringType()),
+            StructField("ms_continuos_max", IntegerType()),
+            StructField("is_offline", BooleanType()),
+            StructField("mes_reproduccion", StringType()),
+            StructField("mes_liquidacion", StringType()),
+            StructField("tipo_atribucion", StringType()),
+            StructField("motivo_cuarentena", StringType()),
+            StructField("schema_version", StringType()),
         ]
     )
 
@@ -83,30 +84,52 @@ def _session_rows(pdf):
         if not reps:
             reason = "sesion_sin_inicio"
     if reason:
-        return pd.DataFrame([{
-            "play_id": first["session_id"], "user_id": first["user_id"],
-            "track_id": first["track_id"], "country": first["country_playback"],
-            "device_id": first["device_id"], "inicio_utc": None,
-            "sincronizado_utc": None, "ms_continuos_max": None,
-            "is_offline": first["is_offline"], "mes_reproduccion": None,
-            "mes_liquidacion": None, "tipo_atribucion": None,
-            "motivo_cuarentena": reason, "schema_version": first["schema_version"],
-        }])
+        return pd.DataFrame(
+            [
+                {
+                    "play_id": first["session_id"],
+                    "user_id": first["user_id"],
+                    "track_id": first["track_id"],
+                    "country": first["country_playback"],
+                    "device_id": first["device_id"],
+                    "inicio_utc": None,
+                    "sincronizado_utc": None,
+                    "ms_continuos_max": None,
+                    "is_offline": first["is_offline"],
+                    "mes_reproduccion": None,
+                    "mes_liquidacion": None,
+                    "tipo_atribucion": None,
+                    "motivo_cuarentena": reason,
+                    "schema_version": first["schema_version"],
+                }
+            ]
+        )
+    if len(reps) != 1:
+        raise ValueError("Expected exactly one reconstructed play per session")
     rep = reps[0]
     attribution = atribuir_reproduccion(
         rep.inicio, rep.sincronizado, rep.is_offline, AtribucionOfflineConfig()
     )
-    return pd.DataFrame([{
-        "play_id": rep.reproduccion_id, "user_id": rep.cuenta_id,
-        "track_id": rep.track_id, "country": first["country_playback"],
-        "device_id": first["device_id"], "inicio_utc": rep.inicio.isoformat(),
-        "sincronizado_utc": rep.sincronizado.isoformat(),
-        "ms_continuos_max": rep.ms_continuos_max, "is_offline": rep.is_offline,
-        "mes_reproduccion": attribution.mes_reproduccion.isoformat(),
-        "mes_liquidacion": attribution.mes_liquidacion.isoformat(),
-        "tipo_atribucion": str(attribution.tipo),
-        "motivo_cuarentena": None, "schema_version": first["schema_version"],
-    }])
+    return pd.DataFrame(
+        [
+            {
+                "play_id": rep.reproduccion_id,
+                "user_id": rep.cuenta_id,
+                "track_id": rep.track_id,
+                "country": first["country_playback"],
+                "device_id": first["device_id"],
+                "inicio_utc": rep.inicio.isoformat(),
+                "sincronizado_utc": rep.sincronizado.isoformat(),
+                "ms_continuos_max": rep.ms_continuos_max,
+                "is_offline": rep.is_offline,
+                "mes_reproduccion": attribution.mes_reproduccion.isoformat(),
+                "mes_liquidacion": attribution.mes_liquidacion.isoformat(),
+                "tipo_atribucion": str(attribution.tipo),
+                "motivo_cuarentena": None,
+                "schema_version": first["schema_version"],
+            }
+        ]
+    )
 
 
 def transform(events, catalog):
@@ -138,11 +161,16 @@ def transform(events, catalog):
     plays = unique.groupBy("session_id").applyInPandas(_session_rows, play_schema())
 
     known = catalog.select("track_id").distinct().withColumn("_known", F.lit(True))
-    checked = plays.join(known, "track_id", "left").withColumn(
-        "motivo_cuarentena",
-        F.when(F.col("motivo_cuarentena").isNotNull(), F.col("motivo_cuarentena"))
-        .when(F.col("_known").isNull(), F.lit("track_desconocido"))
-    ).drop("_known")
+    checked = (
+        plays.join(known, "track_id", "left")
+        .withColumn(
+            "motivo_cuarentena",
+            F.when(F.col("motivo_cuarentena").isNotNull(), F.col("motivo_cuarentena")).when(
+                F.col("_known").isNull(), F.lit("track_desconocido")
+            ),
+        )
+        .drop("_known")
+    )
 
     quarantine = checked.filter(F.col("motivo_cuarentena").isNotNull())
     good = checked.filter(F.col("motivo_cuarentena").isNull()).drop("motivo_cuarentena")
@@ -151,19 +179,27 @@ def transform(events, catalog):
         "valida_rn01", F.col("ms_continuos_max") >= cfg.segundos_min_validez * 1000
     )
     # RN-02 ranks ONLY RN-01-valid plays, with deterministic tie-breaking.
-    order = Window.partitionBy(
-        "user_id", "track_id", F.substring("inicio_utc", 1, 10)
-    ).orderBy("inicio_utc", "play_id")
+    order = Window.partitionBy("user_id", "track_id", F.substring("inicio_utc", 1, 10)).orderBy(
+        "inicio_utc", "play_id"
+    )
     valid = good.filter("valida_rn01").withColumn("_rn", F.row_number().over(order))
     invalid = good.filter("NOT valida_rn01").withColumn("_rn", F.lit(None).cast("int"))
-    result = valid.unionByName(invalid).withColumn(
-        "pagable", F.when(~F.col("valida_rn01"), F.lit(False))
-        .otherwise(F.col("_rn") <= cfg.max_reproducciones_dia)
-    ).withColumn(
-        "motivo_validez",
-        F.when(~F.col("valida_rn01"), "duracion_insuficiente")
-        .when(~F.col("pagable"), "tope_diario").otherwise("pagable")
-    ).drop("_rn")
+    result = (
+        valid.unionByName(invalid)
+        .withColumn(
+            "pagable",
+            F.when(~F.col("valida_rn01"), F.lit(False)).otherwise(
+                F.col("_rn") <= cfg.max_reproducciones_dia
+            ),
+        )
+        .withColumn(
+            "motivo_validez",
+            F.when(~F.col("valida_rn01"), "duracion_insuficiente")
+            .when(~F.col("pagable"), "tope_diario")
+            .otherwise("pagable"),
+        )
+        .drop("_rn")
+    )
     # Partition by the corrected UTC playback date, not the settlement period.
     result = (
         result.withColumn("year", F.substring("inicio_utc", 1, 4))
