@@ -364,7 +364,7 @@ def validate_replay_coverage(affected_months, replayed_months):
     affected = set(affected_months)
     replayed = set(replayed_months)
     for month in affected | replayed:
-        if not isinstance(month, str) or not re.fullmatch(r"\\d{4}-(0[1-9]|1[0-2])", month):
+        if not isinstance(month, str) or not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", month):
             raise ValueError(f"Invalid playback month: {month!r}")
     missing = affected - replayed
     if missing:
