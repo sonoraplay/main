@@ -12,9 +12,11 @@ title: "EG-37 · Liquidación en Spark (Gold) / Settlement in Spark (Gold)"
 4. **Append-only (ADR-0007, CA-07).** Cada `run_id` produce un `liquidacion_id` determinista (UUIDv5). Un `run_id` nuevo agrega una liquidación nueva y no toca las anteriores; repetir el mismo `run_id` no duplica filas, y si el resultado difiere de lo ya cargado lanza error en vez de sobrescribir.
 
 ```python
-salida, plays = liquidar(spark, silver, usuarios, catalogo, condiciones, bolsas, date(2026, 9, 1), run_id)
+salida, plays = liquidar(
+    spark, silver, usuarios, catalogo, condiciones, bolsas, date(2026, 9, 1), run_id
+)
 escribir_gold(salida, plays, "s3://<gold>/")
-cargar_rds(conexion_psycopg, salida)   # una transacción; publicada_en al final
+cargar_rds(conexion_psycopg, salida)  # una transacción; publicada_en al final
 ```
 
 Entradas: `silver` (salida de la EG-35: `play_id, user_id, track_id, country, inicio_utc, mes_liquidacion, pagable`), `usuarios` (`user_id, pais_facturacion, componente`), `catalogo` (`track_id, titular_id`), `condiciones` (F4 como `CondicionContrato`) y `bolsas` (una `BolsaPais` por país). Si falta la bolsa de un país o un usuario no tiene país de facturación, **falla**: no inventa datos.
