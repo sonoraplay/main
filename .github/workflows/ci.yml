@@ -80,7 +80,7 @@ jobs:
       - run: uv sync --locked
       # Spark 4 supports Python 3.12; Spark 3.5 fails on removed distutils.
       - name: Run EG-35 Spark acceptance tests (no skips)
-        run: uv run --with pyspark==4.0.1 pytest -q tests/spark/test_silver.py
+        run: uv run --with pyspark==4.0.1 pytest -q tests/spark/test_silver.py tests/spark/test_medicion.py
 
   terraform:
     runs-on: ubuntu-latest

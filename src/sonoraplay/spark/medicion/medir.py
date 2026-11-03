@@ -63,7 +63,11 @@ VARIANTES: dict[str, Variante] = {
 
 
 def sesion(
-    variante: Variante, memoria: str = "6g", nucleos: int = 2, evento_log: str | None = None
+    variante: Variante,
+    memoria: str = "6g",
+    nucleos: int = 2,
+    evento_log: str | None = None,
+    base_conf: dict | None = None,
 ):
     from pyspark.sql import SparkSession
 
@@ -76,7 +80,7 @@ def sesion(
     )
     if evento_log:
         b = b.config("spark.eventLog.enabled", "true").config("spark.eventLog.dir", evento_log)
-    for k, v in {**BASE_CONF, **variante.conf}.items():
+    for k, v in {**BASE_CONF, **(base_conf or {}), **variante.conf}.items():
         b = b.config(k, v)
     return b.getOrCreate()
 
@@ -140,11 +144,12 @@ def correr(
     memoria: str = "6g",
     nucleos: int = 2,
     evento_log: str | None = None,
+    base_conf: dict | None = None,
     reloj: Callable[[], float] = time.perf_counter,
 ) -> dict:
     from sonoraplay.spark.silver import transform
 
-    spark = sesion(variante, memoria, nucleos, evento_log)
+    spark = sesion(variante, memoria, nucleos, evento_log, base_conf)
     try:
         cat = spark.read.parquet(catalogo_ruta)
         tiempos: dict[str, list[float]] = {"silver": [], "liquidacion": []}

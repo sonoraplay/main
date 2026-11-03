@@ -14,6 +14,10 @@ PEQUENO = Parametros(
 )
 
 
+# Solo para que la prueba sea rápida: la línea base real usa 200 particiones de shuffle.
+RAPIDO = {"spark.sql.shuffle.partitions": "4"}
+
+
 @pytest.fixture(scope="module")
 def datos(tmp_path_factory):
     from pyspark.sql import SparkSession
@@ -65,6 +69,7 @@ def test_todas_las_variantes_dan_el_mismo_resultado(datos):
             f"{carpeta}/salida",
             repeticiones=1,
             memoria="1g",
+            base_conf=RAPIDO,
         )
         for v in medir.VARIANTES.values()
     ]
@@ -83,6 +88,7 @@ def test_la_poda_y_su_contraparte_dan_lo_mismo_con_alcance_acotado(datos):
             hasta="2026-09-03",
             repeticiones=1,
             memoria="1g",
+            base_conf=RAPIDO,
         )
         for nombre in ("base", "poda")
     ]
