@@ -171,3 +171,26 @@ pero **termina con error sin escribir datos**. Es una protección deliberada:
 `run()` todavía no garantiza reejecuciones idempotentes ni publicación
 atómica de los meses afectados. **No** habilitar todavía
 `SILVER_JOB_COMMAND` en Airflow.
+
+
+## Bronze read-window planner / Planificación de lectura Bronze
+
+**English:** `bronze_window(fecha)` now returns all UTC server-arrival days
+from the first of the month through the closed processing day. For processing
+days 1–3, it starts at the first of the previous month, to include the RN-04
+grace period. `bronze_partition_paths(root, fecha)` produces paths matching
+EG-33's `f2/fecha=YYYY-MM-DD` layout. These are **planning helpers**, not a
+complete incremental processing implementation. Because Bronze is partitioned
+by `server_ts`, a late offline playback can belong to an older playback month
+than this arrival window. A correct production job must inspect affected
+playback months and rebuild all affected partitions, including older months
+when needed. The helpers do not publish or overwrite Silver.
+
+**Español:** `bronze_window(fecha)` calcula los días de llegada UTC desde el
+primero del mes hasta la fecha cerrada. En los días 1–3 incluye el mes anterior
+por el margen de RN-04. `bronze_partition_paths(root, fecha)` genera rutas
+compatibles con `f2/fecha=AAAA-MM-DD` de EG-33. Son **funciones de
+planificación**, no una solución completa de reproceso. Bronze se particiona
+por `server_ts`; una reproducción offline tardía puede pertenecer a un mes
+de reproducción mucho más antiguo. Antes de publicar, hay que detectar y
+reconstruir todos los meses afectados. Estas funciones no sobrescriben Silver.

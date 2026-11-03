@@ -290,3 +290,38 @@ def test_cli_refuses_unsafe_daily_publication(tmp_path):
     assert exc.value.code != 0
     assert not (tmp_path / "silver").exists()
     assert not (tmp_path / "quarantine").exists()
+
+
+def test_bronze_window_uses_month_to_date():
+    """RN-02 must be computed with earlier days in the same UTC month."""
+    from datetime import date
+
+    from sonoraplay.spark.silver import bronze_window
+
+    assert bronze_window(date(2026, 9, 17))[0] == date(2026, 9, 1)
+    assert bronze_window(date(2026, 9, 17))[-1] == date(2026, 9, 17)
+    assert len(bronze_window(date(2026, 9, 17))) == 17
+
+
+def test_bronze_window_includes_previous_month_during_rn04_grace():
+    """The first three days must also inspect the prior month's arrivals."""
+    from datetime import date
+
+    from sonoraplay.spark.silver import bronze_window
+
+    assert bronze_window(date(2026, 10, 2))[0] == date(2026, 9, 1)
+    assert bronze_window(date(2026, 10, 2))[-1] == date(2026, 10, 2)
+    assert bronze_window(date(2026, 10, 4))[0] == date(2026, 10, 1)
+
+
+def test_bronze_paths_match_eg33_layout():
+    """No accidental day partitioning of Silver or wrong Bronze prefix."""
+    from datetime import date
+
+    from sonoraplay.spark.silver import bronze_partition_paths
+
+    paths = bronze_partition_paths("s3a://bronze/f2/", date(2026, 9, 2))
+    assert paths == [
+        "s3a://bronze/f2/fecha=2026-09-01",
+        "s3a://bronze/f2/fecha=2026-09-02",
+    ]

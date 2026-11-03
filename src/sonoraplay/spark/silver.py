@@ -274,6 +274,30 @@ def run(
     quarantine.write.mode("errorifexists").parquet(quarantine_path)
 
 
+
+def bronze_window(fecha):
+    """Return required server-arrival dates for a monthly Bronze rebuild.
+
+    Bronze EG-33 is partitioned by UTC server_ts, not corrected playback time.
+    Include the previous month during the RN-04 grace period (days 1-3).
+    This bounded window is NOT sufficient for arbitrary late offline arrivals.
+    """
+    from datetime import date, timedelta
+
+    if not isinstance(fecha, date):
+        raise TypeError("fecha must be a date")
+    first = fecha.replace(day=1)
+    if fecha.day <= 3:
+        first = (first - timedelta(days=1)).replace(day=1)
+    return [first + timedelta(days=offset) for offset in range((fecha - first).days + 1)]
+
+
+def bronze_partition_paths(bronze_root, fecha):
+    """Match EG-33's f2/fecha=YYYY-MM-DD/lote-*.jsonl convention."""
+    root = bronze_root.rstrip("/")
+    return [f"{root}/fecha={day.isoformat()}" for day in bronze_window(fecha)]
+
+
 def main(argv=None):
     """Validated CLI entry point; refuse unsafe daily publication until implemented."""
     import argparse
