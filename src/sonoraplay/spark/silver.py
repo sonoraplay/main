@@ -325,6 +325,53 @@ def read_bronze_window(spark, bronze_root, fecha):
     return events
 
 
+
+def affected_playback_months(silver, quarantine):
+    """Identify corrected UTC playback months touched by a Bronze batch.
+
+    This is a planning primitive for safe full-month replay. It does not
+    publish or replace partitions. Include quarantined sessions when their
+    corrected playback timestamp is available, so later catalog corrections
+    cannot be silently omitted from the replay plan.
+    """
+    from pyspark.sql import functions as F
+
+    required = {"inicio_utc"}
+    for name, frame in (("silver", silver), ("quarantine", quarantine)):
+        missing = required.difference(frame.columns)
+        if missing:
+            raise ValueError(f"{name} is missing required columns: {sorted(missing)}")
+
+    dates = silver.select("inicio_utc").unionByName(quarantine.select("inicio_utc"))
+    months = (
+        dates.filter(F.col("inicio_utc").isNotNull())
+        .select(F.substring("inicio_utc", 1, 7).alias("playback_month"))
+        .distinct()
+        .orderBy("playback_month")
+    )
+    return [row.playback_month for row in months.collect()]
+
+
+def validate_replay_coverage(affected_months, replayed_months):
+    """Fail closed if a late playback month was not fully rebuilt.
+
+    Affected months come from corrected playback dates, not Bronze arrival
+    partitions or the settlement month. The caller must supply evidence that
+    each affected month was rebuilt from its complete event history.
+    """
+    import re
+
+    affected = set(affected_months)
+    replayed = set(replayed_months)
+    for month in affected | replayed:
+        if not isinstance(month, str) or not re.fullmatch(r"\\d{4}-(0[1-9]|1[0-2])", month):
+            raise ValueError(f"Invalid playback month: {month!r}")
+    missing = affected - replayed
+    if missing:
+        raise ValueError(f"Missing complete replay for playback months: {sorted(missing)}")
+    return True
+
+
 def main(argv=None):
     """Validated CLI entry point; refuse unsafe daily publication until implemented."""
     import argparse

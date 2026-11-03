@@ -215,3 +215,24 @@ Las pruebas cubren la estructura real y el error por día faltante.
 Es una función de solo lectura: no resuelve eventos offline arbitrariamente
 tardíos, reconstrucción de meses afectados, publicación idempotente ni
 atomicidad en S3. El CLI de Airflow sigue bloqueado.
+
+
+## Late-arrival replay planning / Planificación de reproceso tardío
+
+**English:** `affected_playback_months(silver, quarantine)` derives the distinct
+corrected UTC playback months from both accepted and quarantined plays.
+`validate_replay_coverage(affected_months, replayed_months)` refuses a
+publication plan that omits an affected month. This prevents treating the
+bounded Bronze arrival window as sufficient proof of full-month coverage.
+Tests include a late offline playback from an older month. These helpers
+are not an atomic S3 publisher: full historical replay, safe staging,
+publication/rollback and Airflow integration remain open acceptance gates.
+
+**Español:** `affected_playback_months(silver, quarantine)` identifica los
+meses UTC de reproducción corregida en las reproducciones aceptadas y en
+cuarentena. `validate_replay_coverage(affected_months, replayed_months)`
+rechaza planes que omitan un mes afectado. Así no confundimos la ventana
+limitada de llegada Bronze con un reproceso histórico completo. Las pruebas
+incluyen una reproducción offline tardía de un mes anterior. Estas funciones
+no publican atómicamente en S3: siguen pendientes la reconstrucción histórica
+completa, el staging, la publicación/reversión segura y Airflow.

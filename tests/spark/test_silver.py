@@ -359,3 +359,38 @@ def test_read_bronze_window_requires_target_day(spark, tmp_path):
     (partition / "lote-0001.jsonl").write_text("{}\n", encoding="utf-8")
     with pytest.raises(FileNotFoundError, match="2026-09-02"):
         read_bronze_window(spark, str(tmp_path / "f2"), date(2026, 9, 2))
+
+
+def test_affected_months_include_late_offline_playback(spark):
+    """The playback month, not the Bronze arrival month, drives replay."""
+    from sonoraplay.spark.silver import affected_playback_months
+
+    silver = spark.createDataFrame(
+        [("2026-08-31T23:59:00+00:00",), ("2026-09-01T00:01:00+00:00",)],
+        ["inicio_utc"],
+    )
+    quarantine = spark.createDataFrame(
+        [("2026-07-15T10:00:00+00:00",)],
+        ["inicio_utc"],
+    )
+    assert affected_playback_months(silver, quarantine) == [
+        "2026-07",
+        "2026-08",
+        "2026-09",
+    ]
+
+
+def test_replay_coverage_rejects_missing_older_month():
+    """Never publish if an offline event affects an unrebuilt month."""
+    from sonoraplay.spark.silver import validate_replay_coverage
+
+    with pytest.raises(ValueError, match="2026-07"):
+        validate_replay_coverage(["2026-07", "2026-09"], ["2026-09"])
+    assert validate_replay_coverage(["2026-07", "2026-09"], ["2026-07", "2026-09"])
+
+
+def test_replay_coverage_rejects_invalid_month():
+    from sonoraplay.spark.silver import validate_replay_coverage
+
+    with pytest.raises(ValueError, match="Invalid playback month"):
+        validate_replay_coverage(["2026-13"], ["2026-13"])
