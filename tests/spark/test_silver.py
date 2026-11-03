@@ -106,3 +106,56 @@ def test_partitioned_parquet_roundtrip(spark, tmp_path):
     restored = spark.read.parquet(target)
     assert restored.count() == 1
     assert {"year", "month", "country"} <= set(restored.columns)
+
+
+def test_rn01_29_seconds_is_not_payable(spark):
+    """A 29-second uninterrupted play must not pass RN-01."""
+    from datetime import datetime, timedelta
+
+    original = [row.asDict() for row in _events(spark, "duplicado_por_reintento").collect()]
+    start = next(e.copy() for e in original if e["event_type"] == "start")
+    end = next(e.copy() for e in original if e["event_type"] == "end")
+    start["event_id"] = "short-start"
+    end["event_id"] = "short-end"
+    end["position_ms"] = start["position_ms"] + 29_000
+    end["device_ts"] = (
+        datetime.fromisoformat(start["device_ts"]) + timedelta(seconds=29)
+    ).isoformat()
+    start["server_ts"] = start["device_ts"]
+    end["server_ts"] = end["device_ts"]
+    silver, quarantine = transform(
+        spark.createDataFrame([start, end], schema=event_schema()), _catalog(spark)
+    )
+    assert quarantine.count() == 0
+    assert silver.first()["ms_continuos_max"] == 29_000
+    assert silver.first()["pagable"] is False
+
+
+def test_rn02_eleventh_play_exceeds_daily_cap(spark):
+    """Only the first ten valid plays per user/track/UTC day are payable."""
+    from datetime import datetime, timedelta
+
+    original = [row.asDict() for row in _events(spark, "duplicado_por_reintento").collect()]
+    start_template = next(e for e in original if e["event_type"] == "start")
+    end_template = next(e for e in original if e["event_type"] == "end")
+    base = datetime.fromisoformat(start_template["device_ts"])
+    events = []
+    for number in range(11):
+        start = start_template.copy()
+        end = end_template.copy()
+        start["session_id"] = end["session_id"] = f"daily-{number}"
+        start["event_id"] = f"daily-start-{number}"
+        end["event_id"] = f"daily-end-{number}"
+        start_at = base + timedelta(minutes=5 * number)
+        end_at = start_at + timedelta(seconds=35)
+        start["device_ts"] = start["server_ts"] = start_at.isoformat()
+        end["device_ts"] = end["server_ts"] = end_at.isoformat()
+        end["position_ms"] = start["position_ms"] + 35_000
+        events.extend([start, end])
+    silver, quarantine = transform(
+        spark.createDataFrame(events, schema=event_schema()), _catalog(spark)
+    )
+    assert quarantine.count() == 0
+    assert silver.count() == 11
+    assert silver.filter("pagable").count() == 10
+    assert silver.filter("motivo_validez = 'tope_diario'").count() == 1
