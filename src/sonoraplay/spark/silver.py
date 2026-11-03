@@ -132,7 +132,7 @@ def _session_rows(pdf):
     )
 
 
-def transform(events, catalog):
+def transform(events, catalog, *, run_id=None, source_version=None, ingested_at_utc=None):
     """Return (silver, quarantine), without performing external writes.
 
     catalog must contain a unique track_id column from F1. All sessions in the
@@ -204,12 +204,53 @@ def transform(events, catalog):
     result = result.withColumn("year", F.substring("inicio_utc", 1, 4)).withColumn(
         "month", F.substring("inicio_utc", 6, 2)
     )
+    # Lineage is provided by the caller, not inferred from the Spark executor clock.
+    # Keep it on both accepted and quarantined records.
+    if any(value is not None for value in (run_id, source_version, ingested_at_utc)):
+        if not all(value is not None for value in (run_id, source_version, ingested_at_utc)):
+            raise ValueError("run_id, source_version and ingested_at_utc must be provided together")
+        if not run_id or not source_version:
+            raise ValueError("run_id and source_version must be non-empty")
+        from datetime import UTC, datetime
+
+        timestamp = datetime.fromisoformat(ingested_at_utc.replace("Z", "+00:00"))
+        if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+            raise ValueError("ingested_at_utc must include a timezone")
+        ingestion_utc = timestamp.astimezone(UTC).isoformat().replace("+00:00", "Z")
+        for column, value in (
+            ("run_id", run_id),
+            ("source_version", source_version),
+            ("ingested_at_utc", ingestion_utc),
+        ):
+            result = result.withColumn(column, F.lit(value))
+            quarantine = quarantine.withColumn(column, F.lit(value))
     return result, quarantine
 
 
-def run(spark, bronze_path, catalog, silver_path, quarantine_path):
-    """Read F2 Bronze and write partitioned Parquet; never overwrite published Gold."""
+def run(
+    spark,
+    bronze_path,
+    catalog,
+    silver_path,
+    quarantine_path,
+    *,
+    run_id,
+    source_version,
+):
+    """Write a new immutable Silver run; existing paths are never overwritten.
+
+    The caller must supply the actual source version and a unique run identifier.
+    This does not implement safe late-arrival reprocessing or atomic multi-path writes.
+    """
+    from datetime import UTC, datetime
+
     events = spark.read.schema(event_schema()).json(bronze_path)
-    silver, quarantine = transform(events, catalog)
+    silver, quarantine = transform(
+        events,
+        catalog,
+        run_id=run_id,
+        source_version=source_version,
+        ingested_at_utc=datetime.now(UTC).isoformat(),
+    )
     silver.write.mode("errorifexists").partitionBy("year", "month", "country").parquet(silver_path)
     quarantine.write.mode("errorifexists").parquet(quarantine_path)
