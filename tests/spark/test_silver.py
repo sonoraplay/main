@@ -1,12 +1,8 @@
-"""EG-35 Spark acceptance tests. Run with: uv run --with pyspark pytest tests/spark."""
+"""EG-35 Spark acceptance tests; run in the dedicated Spark CI job."""
 import json
 from pathlib import Path
 
 import pytest
-
-pytest.importorskip("pyspark")
-pytest.importorskip("pandas")
-pytest.importorskip("pyarrow")
 
 from pyspark.sql import SparkSession
 
@@ -18,9 +14,12 @@ TRACK = "23Mcmg5O8rBKAOzxvrTjnD"
 
 @pytest.fixture(scope="module")
 def spark():
-    session = (SparkSession.builder.master("local[2]").appName("eg35-test")
-               .config("spark.sql.session.timeZone", "UTC")
-               .getOrCreate())
+    session = (
+        SparkSession.builder.master("local[2]")
+        .appName("eg35-test")
+        .config("spark.sql.session.timeZone", "UTC")
+        .getOrCreate()
+    )
     yield session
     session.stop()
 
@@ -63,9 +62,7 @@ def test_rn01_exact_30_seconds(spark):
     """RN-01 accepts a single uninterrupted 30-second segment."""
     from datetime import datetime, timedelta
 
-    original = [row.asDict() for row in _events(
-        spark, "duplicado_por_reintento"
-    ).collect()]
+    original = [row.asDict() for row in _events(spark, "duplicado_por_reintento").collect()]
     start = next(e.copy() for e in original if e["event_type"] == "start")
     end = next(e.copy() for e in original if e["event_type"] == "end")
     start["event_id"] = "boundary-start"
@@ -77,8 +74,9 @@ def test_rn01_exact_30_seconds(spark):
     end["country_playback"] = start["country_playback"]
     end["position_ms"] = start["position_ms"] + 30_000
     end["device_ts"] = (
-        datetime.fromisoformat(start["device_ts"]) + timedelta(seconds=30)
-    ).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+        (datetime.fromisoformat(start["device_ts"]) + timedelta(seconds=30))
+        .isoformat(timespec="milliseconds")
+        .replace("+00:00", "Z")
     start["server_ts"] = start["device_ts"]
     end["server_ts"] = end["device_ts"]
 
@@ -90,3 +88,16 @@ def test_rn01_exact_30_seconds(spark):
     assert result["ms_continuos_max"] == 30_000
     assert result["valida_rn01"] is True
     assert result["pagable"] is True
+
+
+def test_partitioned_parquet_roundtrip(spark, tmp_path):
+    """Verify real Parquet write/read and the required partition columns."""
+    silver, quarantine = transform(
+        _events(spark, "duplicado_por_reintento"), _catalog(spark)
+    )
+    assert quarantine.count() == 0
+    target = str(tmp_path / "silver")
+    silver.write.mode("errorifexists").partitionBy("year", "month", "country").parquet(target)
+    restored = spark.read.parquet(target)
+    assert restored.count() == 1
+    assert {"year", "month", "country"} <= set(restored.columns)
