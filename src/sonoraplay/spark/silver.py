@@ -297,6 +297,35 @@ def bronze_partition_paths(bronze_root, fecha):
     return [f"{root}/fecha={day.isoformat()}" for day in bronze_window(fecha)]
 
 
+
+def read_bronze_window(spark, bronze_root, fecha):
+    """Read existing EG-33 arrival partitions; require the requested day.
+
+    Missing historical dates are allowed (no events), but the closed target
+    date must exist. This is only a reader, not a safe monthly publisher.
+    """
+    from pyspark.sql import functions as F
+
+    paths = bronze_partition_paths(bronze_root, fecha)
+    hadoop = spark._jvm.org.apache.hadoop
+    configuration = spark._jsc.hadoopConfiguration()
+    existing = []
+    for path in paths:
+        uri = hadoop.fs.Path(path)
+        filesystem = uri.getFileSystem(configuration)
+        if filesystem.exists(uri):
+            existing.append(path)
+        elif path == paths[-1]:
+            raise FileNotFoundError(f"Missing Bronze partition for processing date: {path}")
+    if not existing:
+        raise FileNotFoundError(f"No Bronze partitions found for {fecha.isoformat()}")
+    # Read all files in the directories; Spark JSON supports EG-33 JSONL.
+    events = spark.read.schema(event_schema()).json(existing)
+    if events.filter(F.col("server_ts").isNull()).limit(1).count():
+        raise ValueError("Bronze contains malformed or missing server_ts")
+    return events
+
+
 def main(argv=None):
     """Validated CLI entry point; refuse unsafe daily publication until implemented."""
     import argparse

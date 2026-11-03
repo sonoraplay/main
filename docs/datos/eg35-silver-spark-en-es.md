@@ -194,3 +194,24 @@ planificación**, no una solución completa de reproceso. Bronze se particiona
 por `server_ts`; una reproducción offline tardía puede pertenecer a un mes
 de reproducción mucho más antiguo. Antes de publicar, hay que detectar y
 reconstruir todos los meses afectados. Estas funciones no sobrescriben Silver.
+
+
+## Real Bronze reader / Lector real de Bronze
+
+**English:** `read_bronze_window(spark, bronze_root, fecha)` uses Spark's
+explicit F2 schema to read EG-33 JSONL files from existing
+`fecha=YYYY-MM-DD` arrival partitions. It tolerates missing historical
+dates but raises `FileNotFoundError` when the requested closed day has
+no partition. Tests cover the actual directory layout and missing-day
+failure. This is a read-only integration helper. It does not solve
+arbitrarily late offline events, full affected-month rebuilding,
+idempotent publication or S3 atomicity. The Airflow CLI remains disabled.
+
+**Español:** `read_bronze_window(spark, bronze_root, fecha)` lee los JSONL
+de EG-33 con el esquema F2 explícito desde las particiones de llegada
+`fecha=AAAA-MM-DD` existentes. Permite días históricos sin partición,
+pero genera `FileNotFoundError` cuando falta la fecha cerrada solicitada.
+Las pruebas cubren la estructura real y el error por día faltante.
+Es una función de solo lectura: no resuelve eventos offline arbitrariamente
+tardíos, reconstrucción de meses afectados, publicación idempotente ni
+atomicidad en S3. El CLI de Airflow sigue bloqueado.
