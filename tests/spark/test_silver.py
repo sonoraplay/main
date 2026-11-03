@@ -429,7 +429,7 @@ def _synthetic_plays(spark, durations_ms):
     return spark.createDataFrame(events, schema=event_schema())
 
 
-def test_rn01_29_seconds_is_not_payable(spark):
+def test_rn01_29_seconds_synthetic_fixture_is_not_payable(spark):
     """RN-01: below 30 seconds must not earn royalties."""
     silver, quarantine = transform(_synthetic_plays(spark, [29_000]), _catalog(spark))
     row = silver.first()
