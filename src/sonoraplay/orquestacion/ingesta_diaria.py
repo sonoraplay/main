@@ -36,6 +36,12 @@ def a_fecha(valor: str | date) -> date:
     return valor if isinstance(valor, date) else date.fromisoformat(valor)
 
 
+def fecha_procesada(logical_date: datetime | date) -> date:
+    """Día UTC cerrado que procesa la corrida: la de las 02:00 del día D procesa D-1 (ADR-0002)."""
+    dia = logical_date.date() if isinstance(logical_date, datetime) else logical_date
+    return dia - timedelta(days=1)
+
+
 def conexion_postgres(database_url: str | None = None):
     import psycopg
 

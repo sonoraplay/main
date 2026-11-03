@@ -27,17 +27,17 @@ default_args = {
 
 def _f6(logical_date, **_):
     with t.conexion_postgres() as conexion:
-        return t.cargar_f6_diaria(logical_date.date(), conexion)
+        return t.cargar_f6_diaria(t.fecha_procesada(logical_date), conexion)
 
 
 def _referencia(logical_date, **_):
     with t.conexion_postgres() as conexion:
-        return t.refrescar_referencia(logical_date.date(), conexion)
+        return t.refrescar_referencia(t.fecha_procesada(logical_date), conexion)
 
 
 def _silver(logical_date, **_):
     try:
-        t.lanzar_silver(logical_date.date())
+        t.lanzar_silver(t.fecha_procesada(logical_date))
     except t.SilverNoConfigurado as exc:
         raise AirflowSkipException(str(exc)) from exc
 
