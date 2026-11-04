@@ -607,17 +607,23 @@ def test_verified_snapshot_requires_commit_marker_and_pins_run(spark, tmp_path):
     with pytest.raises(FileNotFoundError, match="Uncommitted"):
         read_verified_snapshot(spark, silver_root, quarantine_root, run_id)
     manifest = publish_verified_snapshot(
-        spark, silver_root, quarantine_root, run_id,
-        fecha=date(2026, 9, 20), source_version="fixture-v1",
+        spark,
+        silver_root,
+        quarantine_root,
+        run_id,
+        fecha=date(2026, 9, 20),
+        source_version="fixture-v1",
     )
-    silver, quarantine, saved = read_verified_snapshot(
-        spark, silver_root, quarantine_root, run_id
-    )
+    silver, quarantine, saved = read_verified_snapshot(spark, silver_root, quarantine_root, run_id)
     assert manifest == saved
     assert silver.count() == 1
     assert quarantine.count() == 0
     with pytest.raises(FileExistsError, match="Commit marker"):
         publish_verified_snapshot(
-            spark, silver_root, quarantine_root, run_id,
-            fecha=date(2026, 9, 20), source_version="fixture-v1",
+            spark,
+            silver_root,
+            quarantine_root,
+            run_id,
+            fecha=date(2026, 9, 20),
+            source_version="fixture-v1",
         )
