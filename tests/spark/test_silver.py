@@ -571,3 +571,53 @@ def test_historical_snapshot_refuses_existing_quarantine_without_writing_silver(
             source_version="fixture-v1",
         )
     assert not (tmp_path / "silver" / "runs" / run_id).exists()
+
+
+def test_verified_snapshot_requires_commit_marker_and_pins_run(spark, tmp_path):
+    """EG-34 must never consume an incomplete Silver/Quarantine pair."""
+    from datetime import date
+
+    from sonoraplay.spark.silver import (
+        publish_verified_snapshot,
+        read_verified_snapshot,
+        write_historical_snapshot,
+    )
+
+    bronze = tmp_path / "f2" / "fecha=2026-09-20"
+    bronze.mkdir(parents=True)
+    events = [r.asDict() for r in _events(spark, "duplicado_por_reintento").collect()]
+    (bronze / "lote.jsonl").write_text(
+        "".join(json.dumps(event) + "\n" for event in events), encoding="utf-8"
+    )
+    silver_root = str(tmp_path / "silver")
+    quarantine_root = str(tmp_path / "quarantine")
+    run_id = "verified-run"
+    with pytest.raises(FileNotFoundError, match="Uncommitted"):
+        read_verified_snapshot(spark, silver_root, quarantine_root, run_id)
+    write_historical_snapshot(
+        spark,
+        str(tmp_path / "f2"),
+        _catalog(spark),
+        silver_root,
+        quarantine_root,
+        fecha=date(2026, 9, 20),
+        run_id=run_id,
+        source_version="fixture-v1",
+    )
+    with pytest.raises(FileNotFoundError, match="Uncommitted"):
+        read_verified_snapshot(spark, silver_root, quarantine_root, run_id)
+    manifest = publish_verified_snapshot(
+        spark, silver_root, quarantine_root, run_id,
+        fecha=date(2026, 9, 20), source_version="fixture-v1",
+    )
+    silver, quarantine, saved = read_verified_snapshot(
+        spark, silver_root, quarantine_root, run_id
+    )
+    assert manifest == saved
+    assert silver.count() == 1
+    assert quarantine.count() == 0
+    with pytest.raises(FileExistsError, match="Commit marker"):
+        publish_verified_snapshot(
+            spark, silver_root, quarantine_root, run_id,
+            fecha=date(2026, 9, 20), source_version="fixture-v1",
+        )
