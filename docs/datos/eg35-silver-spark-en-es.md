@@ -282,3 +282,20 @@ ejecuciones concurrentes, control de ingesta incompleta, fallos parciales S3
 y selección consistente de versiones por consumidores. El CLI productivo
 sigue bloqueado. No consumir ejecuciones parciales ni confundir pruebas
 locales con evidencia de despliegue AWS.
+
+### Parquet content verification / Verificación del contenido Parquet
+
+**English:** The historical snapshot writer compares the full multiset of rows in
+both directions after reading Silver and quarantine Parquet, using Spark
+`exceptAll`. Row counts alone cannot prove content integrity. The affected
+playback-month set is checked against persisted data; comparing a month list
+with itself is not evidence of complete replay. These checks do **not** prove
+that Bronze ingestion is complete, nor provide atomic S3 publication.
+
+**Español:** El escritor histórico compara el multiconjunto completo de filas
+en ambos sentidos después de leer los Parquet de Silver y cuarentena, mediante
+`exceptAll` de Spark. Los conteos por sí solos no prueban la integridad del
+contenido. Los meses de reproducción afectados se contrastan con los datos
+persistidos; comparar una lista consigo misma no demuestra reprocesamiento
+completo. Estas comprobaciones **no** prueban que la ingesta Bronze esté
+completa ni ofrecen publicación atómica en S3.
