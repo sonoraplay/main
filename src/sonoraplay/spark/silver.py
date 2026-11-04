@@ -446,6 +446,99 @@ def write_historical_snapshot(
     return silver_path, quarantine_path
 
 
+
+
+def publish_verified_snapshot(
+    spark, silver_root, quarantine_root, run_id, *, fecha, source_version
+):
+    """Publish a commit marker LAST, after verifying both immutable Parquet datasets.
+
+    No mutable latest pointer is written. Readers must explicitly pin run_id.
+    The marker is created without overwrite; a failed writer cannot publish it.
+    """
+    import json
+    from datetime import date
+
+    if not isinstance(fecha, date):
+        raise ValueError("fecha must be a date")
+    if not source_version:
+        raise ValueError("source_version is required")
+    silver_path, quarantine_path = snapshot_paths(silver_root, quarantine_root, run_id)
+    hadoop = spark._jvm.org.apache.hadoop
+    conf = spark._jsc.hadoopConfiguration()
+    marker = hadoop.fs.Path(f"{silver_root.rstrip('/')}/commits/{run_id}.json")
+    fs = marker.getFileSystem(conf)
+    if fs.exists(marker):
+        raise FileExistsError(f"Commit marker already exists: {marker}")
+    for path in (silver_path, quarantine_path):
+        p = hadoop.fs.Path(path)
+        if not p.getFileSystem(conf).exists(p):
+            raise FileNotFoundError(f"Missing snapshot dataset: {path}")
+    silver = spark.read.parquet(silver_path)
+    quarantine = spark.read.parquet(quarantine_path)
+    months = affected_playback_months(silver, quarantine)
+    payload = {
+        "schema_version": "eg35-commit-v1",
+        "run_id": run_id,
+        "fecha": fecha.isoformat(),
+        "source_version": source_version,
+        "silver_path": silver_path,
+        "quarantine_path": quarantine_path,
+        "silver_rows": silver.count(),
+        "quarantine_rows": quarantine.count(),
+        "affected_playback_months": months,
+    }
+    fs.mkdirs(marker.getParent())
+    stream = fs.create(marker, False)
+    try:
+        stream.write(bytearray(json.dumps(payload, sort_keys=True).encode("utf-8")))
+        stream.hflush()
+    finally:
+        stream.close()
+    return payload
+
+
+def read_verified_snapshot(spark, silver_root, quarantine_root, run_id):
+    """Read only an explicitly committed run, checking both Parquet row counts."""
+    import json
+
+    silver_path, quarantine_path = snapshot_paths(silver_root, quarantine_root, run_id)
+    hadoop = spark._jvm.org.apache.hadoop
+    conf = spark._jsc.hadoopConfiguration()
+    marker = hadoop.fs.Path(f"{silver_root.rstrip('/')}/commits/{run_id}.json")
+    fs = marker.getFileSystem(conf)
+    if not fs.exists(marker):
+        raise FileNotFoundError(f"Uncommitted Silver run: {run_id}")
+    stream = fs.open(marker)
+    try:
+        reader = spark._jvm.java.io.BufferedReader(
+            spark._jvm.java.io.InputStreamReader(stream, "UTF-8")
+        )
+        contents = []
+        while True:
+            line = reader.readLine()
+            if line is None:
+                break
+            contents.append(line)
+        payload = json.loads("".join(contents))
+    finally:
+        stream.close()
+    if (
+        payload.get("schema_version") != "eg35-commit-v1"
+        or payload.get("run_id") != run_id
+        or payload.get("silver_path") != silver_path
+        or payload.get("quarantine_path") != quarantine_path
+    ):
+        raise ValueError("Invalid or mismatched Silver commit marker")
+    silver = spark.read.parquet(silver_path)
+    quarantine = spark.read.parquet(quarantine_path)
+    if silver.count() != payload["silver_rows"] or quarantine.count() != payload["quarantine_rows"]:
+        raise ValueError("Silver committed snapshot row count mismatch")
+    if affected_playback_months(silver, quarantine) != payload["affected_playback_months"]:
+        raise ValueError("Silver committed snapshot month coverage mismatch")
+    return silver, quarantine, payload
+
+
 def affected_playback_months(silver, quarantine):
     """Identify corrected UTC playback months touched by a Bronze batch.
 
