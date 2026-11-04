@@ -528,13 +528,21 @@ def test_historical_snapshot_parquet_roundtrip_and_no_overwrite(spark, tmp_path)
         source_version="fixture-v1",
     )
     silver_path, quarantine_path = write_historical_snapshot(
-        spark, str(bronze), _catalog(spark),
-        str(tmp_path / "silver"), str(tmp_path / "quarantine"), **args
+        spark,
+        str(bronze),
+        _catalog(spark),
+        str(tmp_path / "silver"),
+        str(tmp_path / "quarantine"),
+        **args,
     )
     assert spark.read.parquet(silver_path).count() == 1
     assert spark.read.parquet(quarantine_path).count() == 0
     with pytest.raises(FileExistsError, match="existing snapshot"):
         write_historical_snapshot(
-            spark, str(bronze), _catalog(spark),
-            str(tmp_path / "silver"), str(tmp_path / "quarantine"), **args
+            spark,
+            str(bronze),
+            _catalog(spark),
+            str(tmp_path / "silver"),
+            str(tmp_path / "quarantine"),
+            **args,
         )

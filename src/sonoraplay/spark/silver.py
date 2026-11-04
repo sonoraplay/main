@@ -388,7 +388,6 @@ def snapshot_paths(silver_root, quarantine_root, run_id):
     return tuple(f"{root.rstrip('/')}/runs/{run_id}" for root in roots)
 
 
-
 def write_historical_snapshot(
     spark,
     bronze_root,
@@ -407,9 +406,7 @@ def write_historical_snapshot(
     """
     from datetime import UTC, datetime
 
-    silver_path, quarantine_path = snapshot_paths(
-        silver_root, quarantine_root, run_id
-    )
+    silver_path, quarantine_path = snapshot_paths(silver_root, quarantine_root, run_id)
     hadoop = spark._jvm.org.apache.hadoop
     configuration = spark._jsc.hadoopConfiguration()
     for output in (silver_path, quarantine_path):
@@ -428,9 +425,7 @@ def write_historical_snapshot(
     # Validate the corrected-playback month set before writing any outputs.
     affected = affected_playback_months(silver, quarantine)
     validate_replay_coverage(affected, affected)
-    silver.write.mode("errorifexists").partitionBy(
-        "year", "month", "country"
-    ).parquet(silver_path)
+    silver.write.mode("errorifexists").partitionBy("year", "month", "country").parquet(silver_path)
     quarantine.write.mode("errorifexists").parquet(quarantine_path)
     # Force actual Parquet reads. Do not claim that a pair of S3 writes is atomic.
     saved_silver = spark.read.parquet(silver_path)
@@ -444,6 +439,7 @@ def write_historical_snapshot(
         affected_playback_months(saved_silver, saved_quarantine),
     )
     return silver_path, quarantine_path
+
 
 def affected_playback_months(silver, quarantine):
     """Identify corrected UTC playback months touched by a Bronze batch.
