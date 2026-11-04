@@ -140,3 +140,36 @@ variable "jwt_secret_version" {
   type        = number
   default     = 1
 }
+
+# --- EG-37 · Job de Spark (Silver/Gold) en ECS Fargate ---------------------------------------
+
+variable "spark_imagen_tag" {
+  description = <<-EOT
+    Etiqueta de la imagen `sonoraplay/spark` en ECR (SHA corto del commit). Vacía: no se crea la
+    definición de tarea. Publícala con `infra/scripts/publicar-imagen.sh spark`.
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "spark_cpu" {
+  description = "CPU de la tarea de Spark (unidades de Fargate). Provisional hasta la medición de la EG-39."
+  type        = number
+  default     = 2048
+}
+
+variable "spark_memoria" {
+  description = "Memoria de la tarea de Spark en MiB. Provisional hasta la medición de la EG-39."
+  type        = number
+  default     = 8192
+}
+
+variable "spark_catalogo_ruta" {
+  description = <<-EOT
+    Ruta S3A del Parquet del catálogo F1 (`track_id`, `titular_id`) que lee Gold, por ejemplo
+    "s3a://<bucket>/catalogo/catalogo_f1.parquet". Vacía: la tarea no define SONORAPLAY_CATALOG_PATH
+    y el comando debe pasar --catalogo. Quién sube el catálogo a S3 está pendiente.
+  EOT
+  type        = string
+  default     = ""
+}

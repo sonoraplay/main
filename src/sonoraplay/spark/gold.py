@@ -341,9 +341,128 @@ def cargar_rds(conexion, salida: SalidaGold) -> str:
 
 def escribir_gold(salida: SalidaGold, plays, destino: str) -> None:
     """Escribe en Gold las reproducciones liquidadas, particionadas por período, país y
-    liquidación. Cada ``liquidacion_id`` es una partición nueva: nunca se sobrescribe otra."""
+    liquidación. Cada ``liquidacion_id`` es una partición nueva: nunca se sobrescribe otra.
+
+    ``partitionOverwriteMode=dynamic`` es lo que lo garantiza: con el modo estático por defecto,
+    ``overwrite`` borraría **todas** las liquidaciones anteriores del destino. Repetir el mismo
+    ``run_id`` reemplaza solo sus propias particiones (mismo resultado, sin duplicar).
+    """
     (
         plays.write.mode("overwrite")
+        .option("partitionOverwriteMode", "dynamic")
         .partitionBy("periodo", "pais_facturacion", "liquidacion_id")
         .parquet(f"{destino}/plays_liquidados")
     )
+
+
+# --- Orquestación y punto de entrada ---------------------------------------------------------
+
+
+def ejecutar(
+    spark, silver, catalogo, conexion, periodo: date, run_id: str, destino_gold: str
+) -> dict:
+    """Carga los insumos de RDS, liquida, carga a RDS y escribe Gold. Devuelve un resumen.
+
+    Orden: primero RDS (``cargar_rds`` rechaza un ``run_id`` repetido con otro resultado antes de
+    que Gold se toque) y después Gold. Si Gold falla, se repite el mismo ``run_id``: RDS responde
+    ``ya_existia`` y Gold se reescribe completo en sus propias particiones.
+    """
+    from sonoraplay.spark import insumos
+
+    usuarios = insumos.cargar_usuarios(conexion, periodo)
+    if not usuarios.filas:
+        raise ValueError("F3 no devolvió usuarios con país y suscripción para el período")
+    condiciones = insumos.cargar_condiciones(conexion)
+    bolsas = insumos.cargar_bolsas(conexion, periodo)
+    usuarios_df = spark.createDataFrame(
+        usuarios.filas, "user_id string, pais_facturacion string, componente string"
+    )
+    salida, plays = liquidar(
+        spark, silver, usuarios_df, catalogo, condiciones, bolsas.bolsas, periodo, run_id
+    )
+    estado = cargar_rds(conexion, salida)
+    escribir_gold(salida, plays, destino_gold)
+    return {
+        "liquidacion_id": str(salida.liquidacion_id),
+        "periodo": periodo.isoformat(),
+        "run_id": run_id,
+        "rds": estado,
+        "reproducciones_liquidadas": salida.reproducciones_liquidadas,
+        "filas_reporte": len(salida.filas),
+        "incidentes": len(salida.incidentes),
+        "paises": [r.bolsa.pais for r in salida.resultados],
+        "usuarios_sin_pais": len(usuarios.sin_pais),
+        "usuarios_sin_suscripcion": len(usuarios.sin_suscripcion),
+        "pagos_aprobados_sin_pais": bolsas.pagos_sin_pais,
+    }
+
+
+def crear_sesion_spark():
+    """Sesión local con S3A. Las credenciales son las del rol de la tarea (cadena por defecto de
+    Hadoop: variables de entorno, endpoint de contenedor de ECS, perfil de instancia)."""
+    from pyspark.sql import SparkSession
+
+    return (
+        SparkSession.builder.appName("sonoraplay-gold")
+        .config("spark.sql.session.timeZone", "UTC")
+        .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+        .getOrCreate()
+    )
+
+
+def _conectar():
+    import psycopg
+
+    from sonoraplay.config import database_url
+
+    return psycopg.connect(database_url().replace("postgresql+psycopg://", "postgresql://"))
+
+
+def main(argv=None) -> int:
+    """``python -m sonoraplay.spark.gold --periodo 2026-09-01 --run-id <id> ...``.
+
+    Lee el Silver **verificado** (marcador de commit de la EG-35) del ``--silver-run-id`` dado;
+    sin `sonoraplay.spark.silver` (PR #38) no puede correr y lo dice.
+    """
+    import argparse
+    import json
+    import os
+
+    p = argparse.ArgumentParser(description="EG-37 · liquidación mensual (Gold)")
+    p.add_argument("--periodo", required=True, help="Primer día del mes, YYYY-MM-01")
+    p.add_argument("--run-id", default=os.getenv("SONORAPLAY_RUN_ID"))
+    p.add_argument("--silver", default=os.getenv("SONORAPLAY_SILVER_PATH"))
+    p.add_argument("--cuarentena", default=os.getenv("SONORAPLAY_QUARANTINE_PATH"))
+    p.add_argument("--silver-run-id", default=os.getenv("SONORAPLAY_SILVER_RUN_ID"))
+    p.add_argument("--catalogo", default=os.getenv("SONORAPLAY_CATALOG_PATH"))
+    p.add_argument("--gold", default=os.getenv("SONORAPLAY_GOLD_PATH"))
+    a = p.parse_args(argv)
+    faltan = [
+        n
+        for n in ("run_id", "silver", "cuarentena", "silver_run_id", "catalogo", "gold")
+        if not getattr(a, n)
+    ]
+    if faltan:
+        p.error("faltan: " + ", ".join("--" + n.replace("_", "-") for n in faltan))
+    try:
+        from sonoraplay.spark import silver as silver_mod
+    except ImportError as e:  # pragma: no cover - depende de fusionar #38
+        raise SystemExit(f"Falta sonoraplay.spark.silver (EG-35, PR #38): {e}") from e
+
+    periodo = date.fromisoformat(a.periodo)
+    spark = crear_sesion_spark()
+    try:
+        silver_df, _, _ = silver_mod.read_verified_snapshot(
+            spark, a.silver, a.cuarentena, a.silver_run_id
+        )
+        catalogo = spark.read.parquet(a.catalogo).select("track_id", "titular_id")
+        with _conectar() as conexion:
+            resumen = ejecutar(spark, silver_df, catalogo, conexion, periodo, a.run_id, a.gold)
+    finally:
+        spark.stop()
+    print(json.dumps(resumen, ensure_ascii=False, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

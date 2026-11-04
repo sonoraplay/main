@@ -65,3 +65,8 @@ output "api_titulares_task_definition" {
   description = "Revisión desplegada (family:N), criterio 2."
   value       = local.api_activa ? "${aws_ecs_task_definition.api_titulares[0].family}:${aws_ecs_task_definition.api_titulares[0].revision}" : ""
 }
+
+output "spark_task_definition" {
+  description = "Revisión de la tarea de Spark (family:N), vacía si no se pasó spark_imagen_tag."
+  value       = local.spark_activa ? "${aws_ecs_task_definition.spark[0].family}:${aws_ecs_task_definition.spark[0].revision}" : ""
+}
