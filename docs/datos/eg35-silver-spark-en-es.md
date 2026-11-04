@@ -236,3 +236,24 @@ limitada de llegada Bronze con un reproceso histórico completo. Las pruebas
 incluyen una reproducción offline tardía de un mes anterior. Estas funciones
 no publican atómicamente en S3: siguen pendientes la reconstrucción histórica
 completa, el staging, la publicación/reversión segura y Airflow.
+
+## Historical replay safety / Seguridad del reproceso histórico
+
+**English:** The reference `read_bronze_history` reader scans every existing
+`fecha=YYYY-MM-DD` Bronze arrival partition up to the closed processing day.
+Unlike a month-to-date arrival window, it can include offline events arriving
+months after playback and sessions split across arrival days. It requires the
+target day's partition and rejects malformed partition names. This is a
+correctness-oriented reader, **not** a proof that upstream Bronze ingestion is
+complete. `snapshot_paths` validates immutable run-specific output paths.
+Neither function enables the intentionally blocked production CLI; atomic
+multi-output publication, concurrency and reader pinning remain required.
+
+**Español:** El lector de referencia `read_bronze_history` recorre todas las
+particiones Bronze de llegada `fecha=YYYY-MM-DD` hasta el día UTC cerrado.
+Así incluye eventos offline que llegan meses después y sesiones divididas
+entre días de llegada. Exige la partición del día objetivo y rechaza nombres
+inválidos. Es un lector orientado a la corrección, **no** una prueba de que
+Bronze esté completo. `snapshot_paths` valida rutas inmutables por ejecución.
+Ninguna función habilita el CLI de producción: faltan publicación consistente
+de ambas salidas, control de concurrencia y lectores anclados a una versión.

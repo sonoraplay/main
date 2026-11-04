@@ -325,6 +325,69 @@ def read_bronze_window(spark, bronze_root, fecha):
     return events
 
 
+
+def read_bronze_history(spark, bronze_root, fecha):
+    """Read ALL available arrival partitions through the closed UTC day.
+
+    Offline events can arrive arbitrarily late. A month-to-date arrival slice
+    cannot establish complete sessions or a correct historical RN-02 ranking.
+    This deliberately expensive reference reader is safe for correctness tests,
+    but does not implement snapshot publication or upstream completeness proofs.
+    """
+    from datetime import date
+
+    from pyspark.sql import functions as F
+
+    if not isinstance(fecha, date):
+        raise TypeError("fecha must be a date")
+    root = bronze_root.rstrip("/")
+    hadoop = spark._jvm.org.apache.hadoop
+    configuration = spark._jsc.hadoopConfiguration()
+    uri = hadoop.fs.Path(root)
+    filesystem = uri.getFileSystem(configuration)
+    if not filesystem.exists(uri):
+        raise FileNotFoundError(f"Missing Bronze F2 root: {root}")
+
+    paths = []
+    target_found = False
+    for status in filesystem.listStatus(uri):
+        if not status.isDirectory():
+            continue
+        name = status.getPath().getName()
+        if not name.startswith("fecha="):
+            continue
+        label = name[len("fecha=") :]
+        try:
+            day = date.fromisoformat(label)
+            if day.isoformat() != label:
+                raise ValueError("Noncanonical partition date")
+        except ValueError as exc:
+            raise ValueError(f"Invalid Bronze arrival partition: {name}") from exc
+        if day <= fecha:
+            paths.append((day, status.getPath().toString()))
+            target_found |= day == fecha
+    if not target_found:
+        raise FileNotFoundError(f"Missing Bronze partition for processing date: {fecha}")
+    paths.sort()
+    events = spark.read.schema(event_schema()).json([path for _, path in paths])
+    if events.filter(F.col("server_ts").isNull()).limit(1).count():
+        raise ValueError("Bronze contains malformed or missing server_ts")
+    return events
+
+
+def snapshot_paths(silver_root, quarantine_root, run_id):
+    """Allocate immutable per-run outputs without pretending S3 writes are atomic."""
+    import re
+
+    if not isinstance(run_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", run_id):
+        raise ValueError("run_id must be a safe nonempty path component")
+    roots = (silver_root, quarantine_root)
+    if any(not isinstance(root, str) or not root.strip() for root in roots):
+        raise ValueError("Silver and quarantine roots must be nonempty")
+    if silver_root.rstrip("/") == quarantine_root.rstrip("/"):
+        raise ValueError("Silver and quarantine roots must be different")
+    return tuple(f"{root.rstrip('/')}/runs/{run_id}" for root in roots)
+
 def affected_playback_months(silver, quarantine):
     """Identify corrected UTC playback months touched by a Bronze batch.
 

@@ -460,3 +460,54 @@ def test_rn02_replay_of_complete_month_is_deterministic(spark):
         return sorted(tuple(row[name] for name in fields) for row in frame.collect())
 
     assert snapshot(first) == snapshot(second)
+
+
+def test_read_bronze_history_includes_late_arrival_month(spark, tmp_path):
+    """A late October arrival must not hide an earlier playback month."""
+    from datetime import date
+
+    from sonoraplay.spark.silver import read_bronze_history
+
+    root = tmp_path / "f2"
+    early = root / "fecha=2026-09-20"
+    late = root / "fecha=2026-10-20"
+    early.mkdir(parents=True)
+    late.mkdir(parents=True)
+    original = [row.asDict() for row in _events(spark, "duplicado_por_reintento").collect()]
+    (early / "lote-1.jsonl").write_text(
+        json.dumps(original[0]) + "\n", encoding="utf-8"
+    )
+    (late / "lote-2.jsonl").write_text(
+        json.dumps(original[1]) + "\n", encoding="utf-8"
+    )
+    events = read_bronze_history(spark, str(root), date(2026, 10, 20))
+    assert events.count() == 2
+
+
+def test_read_bronze_history_requires_target_partition(spark, tmp_path):
+    from datetime import date
+
+    from sonoraplay.spark.silver import read_bronze_history
+
+    root = tmp_path / "f2"
+    (root / "fecha=2026-09-20").mkdir(parents=True)
+    with pytest.raises(FileNotFoundError, match="processing date"):
+        read_bronze_history(spark, str(root), date(2026, 10, 20))
+
+
+@pytest.mark.parametrize("run_id", ["", "../escape", "a/b", "space here"])
+def test_snapshot_paths_reject_unsafe_run_ids(run_id):
+    from sonoraplay.spark.silver import snapshot_paths
+
+    with pytest.raises(ValueError, match="run_id"):
+        snapshot_paths("s3a://bucket/silver", "s3a://bucket/quarantine", run_id)
+
+
+def test_snapshot_paths_keep_versions_separate():
+    from sonoraplay.spark.silver import snapshot_paths
+
+    first = snapshot_paths("s3a://bucket/silver", "s3a://bucket/quarantine", "run-1")
+    second = snapshot_paths("s3a://bucket/silver", "s3a://bucket/quarantine", "run-2")
+    assert first != second
+    assert first[0].endswith("/runs/run-1")
+    assert first[1].endswith("/runs/run-1")
