@@ -422,18 +422,23 @@ def write_historical_snapshot(
         source_version=source_version,
         ingested_at_utc=datetime.now(UTC).isoformat(),
     )
-    # Validate the corrected-playback month set before writing any outputs.
+    # Record corrected playback months for comparison with persisted Parquet.
     affected = affected_playback_months(silver, quarantine)
-    validate_replay_coverage(affected, affected)
     silver.write.mode("errorifexists").partitionBy("year", "month", "country").parquet(silver_path)
     quarantine.write.mode("errorifexists").parquet(quarantine_path)
     # Force actual Parquet reads. Do not claim that a pair of S3 writes is atomic.
     saved_silver = spark.read.parquet(silver_path)
     saved_quarantine = spark.read.parquet(quarantine_path)
-    if saved_silver.count() != silver.count():
-        raise RuntimeError("Silver snapshot row-count mismatch")
-    if saved_quarantine.count() != quarantine.count():
-        raise RuntimeError("Quarantine snapshot row-count mismatch")
+    for name, expected, persisted in (
+        ("Silver", silver, saved_silver),
+        ("Quarantine", quarantine, saved_quarantine),
+    ):
+        actual = persisted.select(*expected.columns)
+        if (
+            expected.exceptAll(actual).limit(1).count()
+            or actual.exceptAll(expected).limit(1).count()
+        ):
+            raise RuntimeError(f"{name} snapshot content mismatch")
     validate_replay_coverage(
         affected,
         affected_playback_months(saved_silver, saved_quarantine),
