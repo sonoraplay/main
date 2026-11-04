@@ -269,6 +269,14 @@ data "aws_iam_policy_document" "airflow" {
     actions   = ["s3:PutObject"]
     resources = ["${local.arn_s3["bronze"]}/f6/*", "${local.arn_s3["bronze"]}/f7/*"]
   }
+
+  # EG-38 criterio 3: el DAG mensual avisa por SNS cuando una tarea agota sus reintentos.
+  # El tema es del stack persistente `presupuesto/` (se llama igual en todas las ventanas).
+  statement {
+    sid       = "AvisaFallos"
+    actions   = ["sns:Publish"]
+    resources = ["arn:${local.particion}:sns:${var.region}:${local.cuenta}:${var.proyecto}-presupuesto-alertas"]
+  }
 }
 
 resource "aws_iam_role_policy" "airflow" {
