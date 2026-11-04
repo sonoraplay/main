@@ -257,3 +257,28 @@ inválidos. Es un lector orientado a la corrección, **no** una prueba de que
 Bronze esté completo. `snapshot_paths` valida rutas inmutables por ejecución.
 Ninguna función habilita el CLI de producción: faltan publicación consistente
 de ambas salidas, control de concurrencia y lectores anclados a una versión.
+
+## Immutable historical snapshot verification / Verificación de snapshots históricos inmutables
+
+**English.** `write_historical_snapshot` now reads all available Bronze F2
+arrival partitions through the closed UTC date, applies the existing Silver
+business rules, writes Parquet to distinct `runs/<run_id>` prefixes, and reads
+both outputs back to verify row counts and playback-month coverage. A second
+attempt with the same run ID fails before writing. This is a testable reference
+path for complete-history replay, **not a transactional publisher**. Concurrent
+writers with the same ID, incomplete upstream ingestion, partial S3 failures,
+and downstream selection of a consistent run still need an orchestration
+protocol. The production CLI remains disabled. Never use a partially written
+run or treat a successful local test as evidence of AWS deployment.
+
+**Español.** `write_historical_snapshot` lee todas las particiones Bronze F2
+disponibles hasta el día UTC cerrado, aplica las reglas Silver existentes,
+escribe Parquet en prefijos separados `runs/<run_id>` y vuelve a leer ambas
+salidas para comprobar conteos y cobertura de meses de reproducción. Un segundo
+intento con el mismo identificador falla antes de escribir. Es una ruta de
+referencia verificable para reprocesamiento histórico completo, **no una
+publicación transaccional**. Aún faltan un protocolo de orquestación para
+ejecuciones concurrentes, control de ingesta incompleta, fallos parciales S3
+y selección consistente de versiones por consumidores. El CLI productivo
+sigue bloqueado. No consumir ejecuciones parciales ni confundir pruebas
+locales con evidencia de despliegue AWS.
