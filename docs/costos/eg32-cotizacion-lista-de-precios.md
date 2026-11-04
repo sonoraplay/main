@@ -97,7 +97,7 @@ AWS Budgets y SNS (persistentes, costo mínimo; SNS da gratis los primeros 1 000
 
 ## Cómo crear las dos estimaciones en la calculadora (y comprobar)
 
-1. Entra a <https://calculator.aws/#/> → **Create estimate**. Región **US East (N. Virginia)**, USD.
+1. Entra a [calculator.aws](https://calculator.aws/#/) → **Create estimate**. Región **US East (N. Virginia)**, USD.
 2. Agrega, con **el mismo inventario en las dos estimaciones**:
    - **Amazon EC2** × 3 (Linux, On-Demand): `t4g.micro` con 8 GB gp3 (NAT), `t4g.small` con 20 GB gp3 (RabbitMQ), `t4g.medium` con 30 GB gp3 (Airflow).
    - **Amazon RDS for PostgreSQL**: `db.t4g.micro`, Single-AZ, On-Demand, 20 GB gp3.
