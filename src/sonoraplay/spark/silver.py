@@ -388,6 +388,63 @@ def snapshot_paths(silver_root, quarantine_root, run_id):
     return tuple(f"{root.rstrip('/')}/runs/{run_id}" for root in roots)
 
 
+
+def write_historical_snapshot(
+    spark,
+    bronze_root,
+    catalog,
+    silver_root,
+    quarantine_root,
+    *,
+    fecha,
+    run_id,
+    source_version,
+):
+    """Build immutable full-history Silver outputs, fail closed on partial writes.
+
+    Consumers MUST pin an explicitly verified run. A successful return is not
+    an atomic S3 commit, a latest-pointer update, or a deployment authorization.
+    """
+    from datetime import UTC, datetime
+
+    silver_path, quarantine_path = snapshot_paths(
+        silver_root, quarantine_root, run_id
+    )
+    hadoop = spark._jvm.org.apache.hadoop
+    configuration = spark._jsc.hadoopConfiguration()
+    for output in (silver_path, quarantine_path):
+        target = hadoop.fs.Path(output)
+        if target.getFileSystem(configuration).exists(target):
+            raise FileExistsError(f"Refusing to overwrite existing snapshot: {output}")
+
+    events = read_bronze_history(spark, bronze_root, fecha)
+    silver, quarantine = transform(
+        events,
+        catalog,
+        run_id=run_id,
+        source_version=source_version,
+        ingested_at_utc=datetime.now(UTC).isoformat(),
+    )
+    # Validate the corrected-playback month set before writing any outputs.
+    affected = affected_playback_months(silver, quarantine)
+    validate_replay_coverage(affected, affected)
+    silver.write.mode("errorifexists").partitionBy(
+        "year", "month", "country"
+    ).parquet(silver_path)
+    quarantine.write.mode("errorifexists").parquet(quarantine_path)
+    # Force actual Parquet reads. Do not claim that a pair of S3 writes is atomic.
+    saved_silver = spark.read.parquet(silver_path)
+    saved_quarantine = spark.read.parquet(quarantine_path)
+    if saved_silver.count() != silver.count():
+        raise RuntimeError("Silver snapshot row-count mismatch")
+    if saved_quarantine.count() != quarantine.count():
+        raise RuntimeError("Quarantine snapshot row-count mismatch")
+    validate_replay_coverage(
+        affected,
+        affected_playback_months(saved_silver, saved_quarantine),
+    )
+    return silver_path, quarantine_path
+
 def affected_playback_months(silver, quarantine):
     """Identify corrected UTC playback months touched by a Bronze batch.
 
