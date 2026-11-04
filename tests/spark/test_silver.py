@@ -474,12 +474,8 @@ def test_read_bronze_history_includes_late_arrival_month(spark, tmp_path):
     early.mkdir(parents=True)
     late.mkdir(parents=True)
     original = [row.asDict() for row in _events(spark, "duplicado_por_reintento").collect()]
-    (early / "lote-1.jsonl").write_text(
-        json.dumps(original[0]) + "\n", encoding="utf-8"
-    )
-    (late / "lote-2.jsonl").write_text(
-        json.dumps(original[1]) + "\n", encoding="utf-8"
-    )
+    (early / "lote-1.jsonl").write_text(json.dumps(original[0]) + "\n", encoding="utf-8")
+    (late / "lote-2.jsonl").write_text(json.dumps(original[1]) + "\n", encoding="utf-8")
     events = read_bronze_history(spark, str(root), date(2026, 10, 20))
     assert events.count() == 2
 
