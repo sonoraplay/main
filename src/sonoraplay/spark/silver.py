@@ -530,10 +530,7 @@ def read_verified_snapshot(spark, silver_root, quarantine_root, run_id):
         raise ValueError("Invalid or mismatched Silver commit marker")
     silver = spark.read.parquet(silver_path)
     quarantine = spark.read.parquet(quarantine_path)
-    if (
-        silver.count() != payload["silver_rows"]
-        or quarantine.count() != payload["quarantine_rows"]
-    ):
+    if silver.count() != payload["silver_rows"] or quarantine.count() != payload["quarantine_rows"]:
         raise ValueError("Silver committed snapshot row count mismatch")
     if affected_playback_months(silver, quarantine) != payload["affected_playback_months"]:
         raise ValueError("Silver committed snapshot month coverage mismatch")
