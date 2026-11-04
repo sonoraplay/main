@@ -507,3 +507,34 @@ def test_snapshot_paths_keep_versions_separate():
     assert first != second
     assert first[0].endswith("/runs/run-1")
     assert first[1].endswith("/runs/run-1")
+
+
+def test_historical_snapshot_parquet_roundtrip_and_no_overwrite(spark, tmp_path):
+    """Complete-history snapshots must remain immutable on retries."""
+    from datetime import date
+
+    from sonoraplay.spark.silver import write_historical_snapshot
+
+    bronze = tmp_path / "f2"
+    partition = bronze / "fecha=2026-09-20"
+    partition.mkdir(parents=True)
+    events = [row.asDict() for row in _events(spark, "duplicado_por_reintento").collect()]
+    (partition / "lote.jsonl").write_text(
+        "".join(json.dumps(event) + "\n" for event in events), encoding="utf-8"
+    )
+    args = dict(
+        fecha=date(2026, 9, 20),
+        run_id="eg35-test-1",
+        source_version="fixture-v1",
+    )
+    silver_path, quarantine_path = write_historical_snapshot(
+        spark, str(bronze), _catalog(spark),
+        str(tmp_path / "silver"), str(tmp_path / "quarantine"), **args
+    )
+    assert spark.read.parquet(silver_path).count() == 1
+    assert spark.read.parquet(quarantine_path).count() == 0
+    with pytest.raises(FileExistsError, match="existing snapshot"):
+        write_historical_snapshot(
+            spark, str(bronze), _catalog(spark),
+            str(tmp_path / "silver"), str(tmp_path / "quarantine"), **args
+        )
