@@ -95,7 +95,7 @@ jobs:
           java-version: '17'
       - run: uv sync --locked
       - name: Pruebas de la liquidación en Spark (sin saltos)
-        run: uv run --with pyspark==4.0.1 pytest -q tests/spark/test_gold.py
+        run: uv run --with pyspark==4.0.1 pytest -q tests/spark/test_gold.py tests/spark/test_gold_insumos.py
 
   terraform:
     runs-on: ubuntu-latest

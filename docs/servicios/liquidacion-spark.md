@@ -43,9 +43,22 @@ Entradas: `silver` (salida de la EG-35: `play_id, user_id, track_id, country, in
 
 **Se salta mientras las tres ramas no estén fusionadas** (necesita `silver.py` del PR #38 y `bronze_s3.py` del PR #49). Se corrió una vez en una combinación local de las tres ramas: 2 pruebas pasan en 78 s. **No corre todavía en el CI.**
 
-### Lo que falta para ejecutar Gold en AWS
-- **No hay punto de entrada** (`python -m sonoraplay.spark.gold`): el DAG mensual ejecuta `LIQUIDACION_JOB_COMMAND` con `{periodo}` y hoy no hay nada que ejecutar.
-- **Nada carga los insumos desde AWS:** país y componente de cada usuario (F3), contratos (F4) y las bolsas (F3, F5, F6). Gold los recibe ya cargados.
-- **Imagen `spark` y tarea en ECS:** no existe `docker/spark.Dockerfile` ni una definición de tarea de Spark en Terraform, y ningún archivo configura el acceso de Spark a S3 (JAR de `hadoop-aws` y del SDK de AWS).
-- Al fusionar #38 y #50, **`.github/workflows/ci.yml` tendrá conflicto**: hay que conservar completos los dos jobs (`spark-silver` y `spark-gold`).
+## Punto de entrada, insumos e imagen (nuevo)
 
+```bash
+python -m sonoraplay.spark.gold --periodo 2026-09-01 --run-id <id> \
+  --silver s3a://… --cuarentena s3a://… --silver-run-id <run de Silver> \
+  --catalogo s3a://…/catalogo_f1.parquet --gold s3a://…   # o las variables SONORAPLAY_*
+```
+
+- **`ejecutar()`** carga los insumos de RDS, liquida, carga a RDS y escribe Gold. Orden: primero RDS (rechaza un `run_id` repetido con otro resultado antes de tocar Gold) y después Gold. Si Gold falla se repite el mismo `run_id`: RDS responde `ya_existia` y Gold se reescribe en sus propias particiones. Imprime un resumen JSON.
+- **`spark/insumos.py`** (sin Spark): usuarios F3 (país con RN-10 y componente), contratos F4 con exclusiones, y bolsas (suscripción neta F3 + publicidad F5 convertida con la tasa de cierre F6). Lo que no se puede asignar (usuario sin país o sin suscripción, pago sin país) **no se inventa**: se excluye y se cuenta en el resumen; Gold falla si una reproducción pagable queda sin país.
+- **Supuestos a revisar con el equipo:** el componente del usuario es el del plan vigente el último día del mes (un cambio de plan a mitad de mes no parte sus reproducciones); la suscripción neta cuenta pagos `aprobado` con `fecha_pago` dentro del mes.
+- **Corrección:** `escribir_gold` usa `partitionOverwriteMode=dynamic`; con el modo estático, `overwrite` habría borrado las liquidaciones anteriores.
+- **Imagen:** `docker/spark.Dockerfile` (Java 17, PySpark 4.0.1, JAR `hadoop-aws` 3.4.1 y SDK v2 2.24.6 con SHA-1 fijado). **Terraform:** `infra/terraform/spark.tf` define la tarea `${nombre}-spark` (ARM64, 2 vCPU / 8 GiB provisionales hasta la EG-39); solo se crea con `spark_imagen_tag`.
+
+### Lo que sigue pendiente
+- **Probado:** pruebas contra PostgreSQL local (`test_gold_insumos.py`) y, en una combinación local de #38 + #49 + esta rama, 58 pruebas pasan, incluida la integración Bronze→Silver→Gold. `main()` (lectura de Silver, S3A, conexión) **no** se ha ejecutado de punta a punta.
+- **No probado:** la imagen no se ha construido; `terraform validate` no se pudo correr localmente (registro bloqueado) y queda al CI; nada corre contra S3, RDS ni ECS reales.
+- **Falta decidir:** quién sube el catálogo F1 (`catalogo_f1.parquet`) a S3 y en qué ruta (`spark_catalogo_ruta`); el DAG mensual (`LIQUIDACION_JOB_COMMAND`) es de otro frente.
+- Al fusionar #38 y #50, **`ci.yml` tendrá conflicto**: conservar los dos jobs completos, `spark-silver` (sin Postgres) y `spark-gold` (con Postgres, que ahora corre `test_gold.py` y `test_gold_insumos.py`). Se resolvió así en una fusión de prueba.
