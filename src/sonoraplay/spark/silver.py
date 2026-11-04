@@ -325,7 +325,6 @@ def read_bronze_window(spark, bronze_root, fecha):
     return events
 
 
-
 def read_bronze_history(spark, bronze_root, fecha):
     """Read ALL available arrival partitions through the closed UTC day.
 
@@ -387,6 +386,7 @@ def snapshot_paths(silver_root, quarantine_root, run_id):
     if silver_root.rstrip("/") == quarantine_root.rstrip("/"):
         raise ValueError("Silver and quarantine roots must be different")
     return tuple(f"{root.rstrip('/')}/runs/{run_id}" for root in roots)
+
 
 def affected_playback_months(silver, quarantine):
     """Identify corrected UTC playback months touched by a Bronze batch.
