@@ -546,3 +546,28 @@ def test_historical_snapshot_parquet_roundtrip_and_no_overwrite(spark, tmp_path)
             str(tmp_path / "quarantine"),
             **args,
         )
+
+
+def test_historical_snapshot_refuses_existing_quarantine_without_writing_silver(spark, tmp_path):
+    """An existing quarantine version must block the paired Silver write."""
+    from datetime import date
+
+    from sonoraplay.spark.silver import write_historical_snapshot
+
+    run_id = "eg35-quarantine-conflict"
+    quarantine = tmp_path / "quarantine" / "runs" / run_id
+    quarantine.mkdir(parents=True)
+    bronze = tmp_path / "f2" / "fecha=2026-09-20"
+    bronze.mkdir(parents=True)
+    with pytest.raises(FileExistsError, match="existing snapshot"):
+        write_historical_snapshot(
+            spark,
+            str(tmp_path / "f2"),
+            _catalog(spark),
+            str(tmp_path / "silver"),
+            str(tmp_path / "quarantine"),
+            fecha=date(2026, 9, 20),
+            run_id=run_id,
+            source_version="fixture-v1",
+        )
+    assert not (tmp_path / "silver" / "runs" / run_id).exists()
