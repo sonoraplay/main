@@ -29,6 +29,7 @@
 | 0019 | Acceso de Power BI a RDS mediante túnel SSM | 35 | EG-44 | S6 | María Clara | RF-08, E-11 | ⚪ |
 | [0022](0022-excepcion-plan-gratuito-rds-nat.md) | Excepción del plan gratuito: backups de RDS de 1 día y NAT t4g.micro hasta la última semana | 17 | EG-26 | S3 | Julián (aprobó el 2026-10-20) | Criterio 5 de la EG-26, ADR-0010, ADR-0020 | 🟢 |
 | [0020](0020-ventanas-encendido-aws.md) | Entorno AWS apagado por defecto: ventanas de prueba en S3–S5 y encendido continuo solo en la última semana | 07 | EG-16 | S1 | María Clara (los tres) | ADR-0001, HU 17, 23, 38 | 🟢 |
+| [0023](0023-silver-runs-marcador-y-retencion.md) | Silver: corridas inmutables, marcador de commit y retención de `runs/` (45 días) | 34/35 | EG-34, EG-35 | S4 | Julián (revisa María Clara) | PR #38, #56, #45 | 🟡 |
 
 ## Resumen por historia
 
