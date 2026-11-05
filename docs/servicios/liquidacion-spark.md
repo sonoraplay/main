@@ -49,3 +49,15 @@ Entradas: `silver` (salida de la EG-35: `play_id, user_id, track_id, country, in
 - **Imagen `spark` y tarea en ECS:** no existe `docker/spark.Dockerfile` ni una definición de tarea de Spark en Terraform, y ningún archivo configura el acceso de Spark a S3 (JAR de `hadoop-aws` y del SDK de AWS).
 - Al fusionar #38 y #50, **`.github/workflows/ci.yml` tendrá conflicto**: hay que conservar completos los dos jobs (`spark-silver` y `spark-gold`).
 
+
+## CLI mensual y plan por fecha
+
+`python -m sonoraplay.spark.gold --periodo AAAA-MM --silver-run-id ID --run-id ID --silver RUTA --cuarentena RUTA --gold RUTA --catalogo RUTA_F1 [--database-url URL]` (las rutas y `DATABASE_URL` también se leen de `SONORAPLAY_*`). Es el comando que espera `LIQUIDACION_JOB_COMMAND`; el DAG mensual le pasa `{silver_run_id}`.
+
+- Lee **solo** un run de Silver con marcador de commit (`read_verified_snapshot`); sin marcador no corre.
+- Lee F1 (parquet), F3, F4, F5 y F6 con `sonoraplay.spark.gold_fuentes`. La bolsa de cada país sale de los pagos aprobados del mes (Q5), de los ingresos F5 convertidos con el cierre F6 del último día del mes y de las fracciones de Q8. Si falta F5 o el cierre F6 de un país, falla.
+- **El componente (suscripción o publicidad) se toma del plan vigente en la fecha UTC de cada reproducción** (`desde <= fecha < hasta`): un usuario que cambia de plan a mitad de mes no queda mal liquidado. La suscripción propia gana a la del titular de su familia (RN-10). Sin plan vigente la corrida falla.
+- Escribe Gold con `partitionOverwriteMode=dynamic`: solo se reemplaza la partición de esta liquidación; nunca se borran otras (ADR-0007).
+- Sale con 0 solo si Gold se escribió y la liquidación quedó publicada en RDS o ya existía idéntica para el mismo `--run-id`.
+
+**Qué no está probado:** el CLI completo de punta a punta (Silver real + RDS poblado + F1) no se ha corrido; están probadas por separado la liquidación con plan por fecha, las bolsas, la escritura append-only y la validación de argumentos. Tampoco existen aún la imagen Spark ni la tarea ECS.

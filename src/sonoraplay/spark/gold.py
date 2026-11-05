@@ -106,6 +106,7 @@ def liquidar(
     bolsas: Iterable[BolsaPais],
     periodo: date,
     run_id: str,
+    suscripciones=None,
 ):
     """Liquida ``periodo``. Devuelve ``(SalidaGold, plays_liquidados: DataFrame)``.
 
@@ -114,6 +115,10 @@ def liquidar(
     - ``usuarios``: ``user_id, pais_facturacion, componente`` (F3: Q6, RN-10, Q8).
     - ``catalogo``: ``track_id, titular_id`` (F1).
     - ``bolsas``: una ``BolsaPais`` por país a liquidar.
+    - ``suscripciones`` (opcional): ``user_id, componente, desde, hasta, prioridad`` con ``hasta``
+      **exclusivo**. Si se pasa, el componente de cada reproducción es el de la suscripción vigente
+      **en su fecha UTC** (un usuario que cambia de plan a mitad de mes no queda mal liquidado) y
+      se ignora ``usuarios.componente``. Sin suscripción vigente la corrida falla.
     """
     from pyspark.sql import functions as F
     from pyspark.sql.types import LongType, StringType, StructField, StructType
@@ -124,20 +129,27 @@ def liquidar(
     bolsas_por_pais = {b.pais: b for b in bolsas}
     indice = indexar_condiciones(condiciones)
 
-    base = (
-        silver.filter(F.col("pagable") & (F.col("mes_liquidacion") == periodo.isoformat()))
-        .join(usuarios.select("user_id", "pais_facturacion", "componente"), "user_id", "left")
-        .join(catalogo.select("track_id", "titular_id"), "track_id", "left")
-        .cache()
+    if suscripciones is None:
+        usuarios_cols = usuarios.select("user_id", "pais_facturacion", "componente")
+    else:
+        usuarios_cols = usuarios.select("user_id", "pais_facturacion")
+    base = silver.filter(F.col("pagable") & (F.col("mes_liquidacion") == periodo.isoformat())).join(
+        usuarios_cols, "user_id", "left"
     )
+    if suscripciones is not None:
+        base = _con_componente_por_fecha(base, suscripciones)
+    base = base.join(catalogo.select("track_id", "titular_id"), "track_id", "left").cache()
     huerfanas = base.filter(
-        F.col("pais_facturacion").isNull() | F.col("titular_id").isNull()
+        F.col("pais_facturacion").isNull()
+        | F.col("titular_id").isNull()
+        | F.col("componente").isNull()
     ).count()
     if huerfanas:
         base.unpersist()
         raise ValueError(
-            f"{huerfanas} reproducciones pagables sin país de facturación o sin titular: "
-            "no se inventa ninguno; se corrige en F3/F1 y se vuelve a correr"
+            f"{huerfanas} reproducciones pagables sin país de facturación, sin titular o sin "
+            "plan vigente en su fecha: no se inventa ninguno; se corrige en F3/F1 y se vuelve "
+            "a correr"
         )
     paises = {r[0] for r in base.select("pais_facturacion").distinct().collect()}
     sin_bolsa = sorted(paises - set(bolsas_por_pais))
@@ -244,6 +256,40 @@ def liquidar(
     return SalidaGold(liquidacion_id, periodo, run_id, tuple(resultados), total), plays
 
 
+def _con_componente_por_fecha(base, suscripciones):
+    """Une cada reproducción con la suscripción vigente en su fecha UTC (``desde <= f < hasta``).
+
+    Igual que ``plan_vigente`` del esqueleto: la propia del usuario gana (prioridad 0) sobre la
+    del titular de su familia (prioridad 1); a igual prioridad, la que empezó antes.
+    """
+    from pyspark.sql import Window
+    from pyspark.sql import functions as F
+
+    sus = suscripciones.select(
+        F.col("user_id").alias("s_user"),
+        F.col("componente"),
+        F.to_date("desde").alias("s_desde"),
+        F.to_date("hasta").alias("s_hasta"),
+        F.col("prioridad").alias("s_prio"),
+    )
+    fecha = F.to_date(F.substring(base["inicio_utc"], 1, 10))
+    unido = base.join(
+        sus,
+        (base["user_id"] == sus["s_user"])
+        & (fecha >= sus["s_desde"])
+        & (sus["s_hasta"].isNull() | (fecha < sus["s_hasta"])),
+        "left",
+    )
+    orden = Window.partitionBy("play_id").orderBy(
+        F.col("s_prio").asc_nulls_last(), F.col("s_desde").asc_nulls_last()
+    )
+    return (
+        unido.withColumn("_rn", F.row_number().over(orden))
+        .filter(F.col("_rn") == 1)
+        .drop("_rn", "s_user", "s_desde", "s_hasta", "s_prio")
+    )
+
+
 def _incidentes(con_pct) -> dict[str, list[Incidente]]:
     """Un incidente por reproducción afectada (como ``liquidar_pais``), por país de facturación."""
     por_pais: dict[str, list[Incidente]] = defaultdict(list)
@@ -343,7 +389,107 @@ def escribir_gold(salida: SalidaGold, plays, destino: str) -> None:
     """Escribe en Gold las reproducciones liquidadas, particionadas por período, país y
     liquidación. Cada ``liquidacion_id`` es una partición nueva: nunca se sobrescribe otra."""
     (
+        # dynamic: solo se reemplazan las particiones de ESTA liquidación (repetir el mismo
+        # run_id es idempotente); con el modo estático se borraría todo el árbol (ADR-0007).
         plays.write.mode("overwrite")
+        .option("partitionOverwriteMode", "dynamic")
         .partitionBy("periodo", "pais_facturacion", "liquidacion_id")
         .parquet(f"{destino}/plays_liquidados")
     )
+
+
+# --- CLI -------------------------------------------------------------------------------------
+
+
+def main(argv=None) -> int:
+    """Job mensual: lee un run de Silver **verificado**, liquida y carga en RDS (idempotente).
+
+    Código de salida 0 solo si Gold se escribió y la liquidación quedó publicada en RDS (o ya
+    existía idéntica para el mismo ``--run-id``). Cualquier fallo sale con código ≠ 0.
+    """
+    import argparse
+    import json
+    import os
+
+    parser = argparse.ArgumentParser(description="EG-37 liquidación mensual (Gold)")
+    parser.add_argument("--periodo", required=True, help="Mes a liquidar, AAAA-MM")
+    parser.add_argument("--silver-run-id", default=os.getenv("SONORAPLAY_SILVER_RUN_ID"))
+    parser.add_argument("--run-id", default=os.getenv("SONORAPLAY_RUN_ID"))
+    parser.add_argument("--silver", default=os.getenv("SONORAPLAY_SILVER_PATH"))
+    parser.add_argument("--cuarentena", default=os.getenv("SONORAPLAY_QUARANTINE_PATH"))
+    parser.add_argument("--gold", default=os.getenv("SONORAPLAY_GOLD_PATH"))
+    parser.add_argument("--catalogo", default=os.getenv("SONORAPLAY_CATALOG_PATH"))
+    parser.add_argument("--database-url", default=os.getenv("DATABASE_URL"))
+    args = parser.parse_args(argv)
+    try:
+        anio, mes = args.periodo.split("-")
+        periodo = date(int(anio), int(mes), 1)
+        if f"{periodo:%Y-%m}" != args.periodo:
+            raise ValueError("formato no canónico")
+    except ValueError:
+        parser.error("--periodo debe ser un mes válido AAAA-MM")
+    for nombre in ("silver_run_id", "run_id", "silver", "cuarentena", "gold", "catalogo"):
+        if not getattr(args, nombre):
+            parser.error(f"--{nombre.replace('_', '-')} o su variable de entorno es obligatorio")
+    if not args.database_url:
+        parser.error("--database-url o DATABASE_URL es obligatorio")
+
+    import psycopg
+    from pyspark.sql import SparkSession
+
+    from sonoraplay.spark.gold_fuentes import leer_entradas
+    from sonoraplay.spark.silver import read_verified_snapshot
+
+    url = args.database_url.replace("postgresql+psycopg://", "postgresql://", 1)
+    spark = (
+        SparkSession.builder.appName("sonoraplay-gold")
+        .config("spark.sql.session.timeZone", "UTC")
+        .getOrCreate()
+    )
+    silver, _cuarentena, marcador = read_verified_snapshot(
+        spark, args.silver, args.cuarentena, args.silver_run_id
+    )
+    with psycopg.connect(url) as conexion:
+        entradas = leer_entradas(conexion, periodo, args.catalogo)
+        usuarios = spark.createDataFrame(
+            entradas.usuarios, "user_id string, pais_facturacion string"
+        )
+        suscripciones = spark.createDataFrame(
+            [
+                (u, c, d.isoformat(), h.isoformat() if h else None, p)
+                for u, c, d, h, p in entradas.suscripciones
+            ],
+            "user_id string, componente string, desde string, hasta string, prioridad int",
+        )
+        catalogo = spark.createDataFrame(entradas.catalogo, "track_id string, titular_id string")
+        salida, plays = liquidar(
+            spark,
+            silver,
+            usuarios,
+            catalogo,
+            entradas.condiciones,
+            entradas.bolsas,
+            periodo,
+            args.run_id,
+            suscripciones=suscripciones,
+        )
+        escribir_gold(salida, plays, args.gold)
+        estado = cargar_rds(conexion, salida)
+    print(
+        json.dumps(
+            {
+                "estado": estado,
+                "liquidacion_id": str(salida.liquidacion_id),
+                "periodo": args.periodo,
+                "run_id": args.run_id,
+                "silver_run_id": marcador["run_id"],
+                "reproducciones_liquidadas": salida.reproducciones_liquidadas,
+            },
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
