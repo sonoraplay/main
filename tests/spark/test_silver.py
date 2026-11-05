@@ -265,31 +265,75 @@ def test_cli_rejects_invalid_date():
     assert exc.value.code != 0
 
 
-def test_cli_refuses_unsafe_daily_publication(tmp_path):
-    """Never report a successful Airflow run before idempotent publication exists."""
-    from sonoraplay.spark.silver import main
-
-    args = [
+def _cli_args(tmp_path, run_id="cli-run"):
+    return [
         "--fecha",
-        "2026-09-17",
+        "2026-09-20",
         "--bronze",
-        str(tmp_path / "bronze"),
+        str(tmp_path / "f2"),
         "--catalogo",
-        str(tmp_path / "catalog"),
+        str(tmp_path / "catalogo.csv"),
         "--silver",
         str(tmp_path / "silver"),
         "--cuarentena",
         str(tmp_path / "quarantine"),
         "--run-id",
-        "test-run",
+        run_id,
         "--source-version",
         "fixture-v1",
     ]
-    with pytest.raises(SystemExit) as exc:
+
+
+def _preparar_cli(spark, tmp_path):
+    bronze = tmp_path / "f2" / "fecha=2026-09-20"
+    bronze.mkdir(parents=True)
+    events = [r.asDict() for r in _events(spark, "duplicado_por_reintento").collect()]
+    (bronze / "lote.jsonl").write_text(
+        "".join(json.dumps(event) + "\n" for event in events), encoding="utf-8"
+    )
+    (tmp_path / "catalogo.csv").write_text(f"track_id\n{TRACK}\n", encoding="utf-8")
+
+
+def test_cli_publishes_snapshot_and_commit_marker_last(spark, tmp_path, capsys):
+    """Exit 0 only after the marker exists; the marker pins the run for EG-34."""
+    from sonoraplay.spark.silver import main, read_verified_snapshot
+
+    _preparar_cli(spark, tmp_path)
+    assert main(_cli_args(tmp_path)) == 0
+    marcador = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert marcador["schema_version"] == "eg35-commit-v1"
+    assert marcador["run_id"] == "cli-run" and marcador["fecha"] == "2026-09-20"
+    assert marcador["silver_rows"] == 1
+    assert (tmp_path / "silver" / "commits" / "cli-run.json").exists()
+    silver, _, guardado = read_verified_snapshot(
+        spark, str(tmp_path / "silver"), str(tmp_path / "quarantine"), "cli-run"
+    )
+    assert guardado == marcador and silver.count() == 1
+
+
+def test_cli_same_run_id_fails_closed_and_keeps_published_run(spark, tmp_path):
+    """A retry with the same run_id must fail without touching what is published."""
+    from sonoraplay.spark.silver import main
+
+    _preparar_cli(spark, tmp_path)
+    assert main(_cli_args(tmp_path)) == 0
+    antes = (tmp_path / "silver" / "commits" / "cli-run.json").read_bytes()
+    with pytest.raises(FileExistsError):
+        main(_cli_args(tmp_path))
+    assert (tmp_path / "silver" / "commits" / "cli-run.json").read_bytes() == antes
+    # Un intento nuevo con otro id publica y el primero sigue legible.
+    assert main(_cli_args(tmp_path, "cli-run.2")) == 0
+
+
+def test_cli_missing_bronze_day_fails_without_marker(spark, tmp_path):
+    from sonoraplay.spark.silver import main
+
+    _preparar_cli(spark, tmp_path)
+    args = _cli_args(tmp_path)
+    args[1] = "2026-09-21"  # no existe fecha=2026-09-21
+    with pytest.raises(FileNotFoundError):
         main(args)
-    assert exc.value.code != 0
-    assert not (tmp_path / "silver").exists()
-    assert not (tmp_path / "quarantine").exists()
+    assert not (tmp_path / "silver" / "commits").exists()
 
 
 def test_bronze_window_uses_month_to_date():

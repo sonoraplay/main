@@ -584,7 +584,7 @@ def validate_replay_coverage(affected_months, replayed_months):
 
 
 def main(argv=None):
-    """Validated CLI entry point; refuse unsafe daily publication until implemented."""
+    """CLI de Airflow: snapshot histórico inmutable + marcador de commit (sin sobrescribir)."""
     import argparse
     import os
     from datetime import date
@@ -609,13 +609,55 @@ def main(argv=None):
         if not getattr(args, name):
             parser.error(f"--{name.replace('_', '-')} or its environment variable is required")
 
-    # A daily job must not call run(): it uses errorifexists and has no safe
-    # full-month replay / atomic publication protocol. Fail rather than lose data.
-    parser.error(
-        "daily Silver publication is not enabled: safe month-to-date replay, "
-        "late-event detection and atomic publication are not implemented"
+    return ejecutar(args, parsed)
+
+
+def leer_catalogo(spark, ruta):
+    """Catálogo F1 (columna ``track_id``): CSV con encabezado si es ``.csv``; si no, Parquet."""
+    if ruta.lower().endswith(".csv"):
+        return spark.read.option("header", True).csv(ruta)
+    return spark.read.parquet(ruta)
+
+
+def ejecutar(args, fecha):
+    """Escribe el snapshot histórico inmutable y publica el marcador de commit al final.
+
+    Código de salida 0 solo si ``publish_verified_snapshot`` retornó (imprime el marcador en
+    JSON). Cualquier excepción —prefijo existente, conteos distintos, marcador existente—
+    termina con código distinto de 0 y NO publica nada: Airflow no marca el día. Un reintento
+    debe usar otro ``--run-id``; este job nunca sobrescribe un ``runs/<id>`` ni un marcador.
+    """
+    import json
+
+    from pyspark.sql import SparkSession
+
+    spark = (
+        SparkSession.builder.appName("sonoraplay-silver")
+        .config("spark.sql.session.timeZone", "UTC")
+        .getOrCreate()
     )
+    catalogo = leer_catalogo(spark, args.catalogo)
+    write_historical_snapshot(
+        spark,
+        args.bronze,
+        catalogo,
+        args.silver,
+        args.cuarentena,
+        fecha=fecha,
+        run_id=args.run_id,
+        source_version=args.source_version,
+    )
+    marcador = publish_verified_snapshot(
+        spark,
+        args.silver,
+        args.cuarentena,
+        args.run_id,
+        fecha=fecha,
+        source_version=args.source_version,
+    )
+    print(json.dumps(marcador, sort_keys=True))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
