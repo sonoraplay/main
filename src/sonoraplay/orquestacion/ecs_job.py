@@ -10,7 +10,8 @@ Ejemplo de ``SILVER_JOB_COMMAND``::
 
     python -m sonoraplay.orquestacion.ecs_job -- python -m sonoraplay.spark.silver \\
         --fecha {fecha} --run-id {run_id} --bronze s3a://<bronze>/f2 --catalogo s3a://<...> \\
-        --silver s3a://<silver> --cuarentena s3a://<silver>-quarantine --source-version <sha>
+        --silver s3a://<bucket-silver> --cuarentena s3a://<bucket-silver>/quarantine \\
+        --source-version <sha>
 
 Configuración por variables de entorno: ``ECS_CLUSTER``, ``ECS_SPARK_FAMILY``, ``ECS_SUBNETS``
 y ``ECS_SECURITY_GROUPS`` (listas separadas por comas), ``ECS_JOB_TIMEOUT_S`` (opcional).

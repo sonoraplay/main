@@ -175,3 +175,18 @@ variable "spark_memoria" {
     error_message = "Spark necesita al menos 2048 MiB."
   }
 }
+
+variable "silver_runs_retencion_dias" {
+  description = <<-EOT
+    Días que se conservan los `runs/<run_id>` de Silver y su cuarentena, publicados u huérfanos
+    (ADR-0023). Debe cubrir el mes de liquidación más el margen de RN-04 y un re-proceso, por eso
+    el mínimo es 35. Los marcadores `commits/` no caducan.
+  EOT
+  type        = number
+  default     = 45
+
+  validation {
+    condition     = var.silver_runs_retencion_dias >= 35
+    error_message = "Menos de 35 días puede borrar el run que necesita la liquidación mensual."
+  }
+}
