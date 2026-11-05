@@ -61,3 +61,11 @@ Entradas: `silver` (salida de la EG-35: `play_id, user_id, track_id, country, in
 - Sale con 0 solo si Gold se escribió y la liquidación quedó publicada en RDS o ya existía idéntica para el mismo `--run-id`.
 
 **Qué no está probado:** el CLI completo de punta a punta (Silver real + RDS poblado + F1) no se ha corrido; están probadas por separado la liquidación con plan por fecha, las bolsas, la escritura append-only y la validación de argumentos. Tampoco existen aún la imagen Spark ni la tarea ECS.
+
+## Imagen y tarea de ECS
+
+- **Imagen:** `docker/spark.Dockerfile` (Python 3.12, Java 17, PySpark 4.0.1 como en el CI, y los jars de S3A `hadoop-aws-3.4.1` y `bundle-2.24.6` con su SHA-256 verificado en el build). Se publica en `sonoraplay/spark` con `infra/scripts/publicar-imagen.sh spark` y debe construirse en arm64 (CodeBuild), igual que las demás.
+- **Tarea:** `infra/terraform/spark.tf` crea la definición `<proyecto>-<entorno>-spark` (Fargate ARM64, 4 vCPU y 16 GiB por defecto, raíz de solo lectura con `/tmp` escribible) solo si se pasa `spark_imagen_tag`. No hay servicio: existe mientras corre un job. Los permisos (rol `spark`, SSM de RDS, security group hacia RDS y el `RunTask` de Airflow) ya estaban en `iam.tf` y `security_groups.tf`. La conexión a RDS llega por `DB_*` desde SSM; el CLI de Gold las convierte en la URL.
+- **Lanzador:** `python -m sonoraplay.orquestacion.ecs_job -- <comando del job>` hace `RunTask` con ese comando, espera, y sale con 0 solo si el contenedor salió con 0 (si vence el plazo detiene la tarea). Es lo que debe contener `SILVER_JOB_COMMAND` y `LIQUIDACION_JOB_COMMAND`, con las rutas `s3a://` explícitas; requiere `ECS_CLUSTER`, `ECS_SPARK_FAMILY`, `ECS_SUBNETS` y `ECS_SECURITY_GROUPS` en Airflow.
+
+**Qué no está probado:** la imagen no se ha construido ni ejecutado (en el entorno de desarrollo no hay Docker daemon); `terraform validate` solo corre en el CI (el registro de providers no es accesible aquí); ninguna tarea se ha lanzado en AWS. Riesgos a revisar en la primera corrida real: escritura en S3 con el committer por defecto de S3A (lento y no atómico: por eso Silver publica un marcador al final), el consumo de memoria del driver con el volumen completo (EG-39) y que la raíz de solo lectura no bloquee a Spark.

@@ -401,6 +401,22 @@ def escribir_gold(salida: SalidaGold, plays, destino: str) -> None:
 # --- CLI -------------------------------------------------------------------------------------
 
 
+def url_desde_entorno(env) -> str | None:
+    """``DATABASE_URL`` o, en ECS, las variables ``DB_*`` que inyecta la tarea desde SSM."""
+    if env.get("DATABASE_URL"):
+        return env["DATABASE_URL"]
+    faltan = [k for k in ("DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD") if not env.get(k)]
+    if faltan:
+        return None
+    from urllib.parse import quote
+
+    return (
+        f"postgresql://{quote(env['DB_USER'], safe='')}:{quote(env['DB_PASSWORD'], safe='')}"
+        f"@{env['DB_HOST']}:{env.get('DB_PORT', '5432')}/{env['DB_NAME']}"
+        f"?sslmode={env.get('DB_SSLMODE', 'require')}"
+    )
+
+
 def main(argv=None) -> int:
     """Job mensual: lee un run de Silver **verificado**, liquida y carga en RDS (idempotente).
 
@@ -419,7 +435,7 @@ def main(argv=None) -> int:
     parser.add_argument("--cuarentena", default=os.getenv("SONORAPLAY_QUARANTINE_PATH"))
     parser.add_argument("--gold", default=os.getenv("SONORAPLAY_GOLD_PATH"))
     parser.add_argument("--catalogo", default=os.getenv("SONORAPLAY_CATALOG_PATH"))
-    parser.add_argument("--database-url", default=os.getenv("DATABASE_URL"))
+    parser.add_argument("--database-url", default=url_desde_entorno(os.environ))
     args = parser.parse_args(argv)
     try:
         anio, mes = args.periodo.split("-")

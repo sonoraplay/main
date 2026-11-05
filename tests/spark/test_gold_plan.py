@@ -160,3 +160,20 @@ def test_cli_rechaza_un_periodo_invalido(periodo):
     with pytest.raises(SystemExit) as exc:
         main(["--periodo", periodo])
     assert exc.value.code != 0
+
+
+def test_url_de_la_base_desde_las_variables_db_de_ecs():
+    from sonoraplay.spark.gold import url_desde_entorno
+
+    env = {
+        "DB_HOST": "rds.internal",
+        "DB_PORT": "5432",
+        "DB_NAME": "sonoraplay",
+        "DB_USER": "sonora",
+        "DB_PASSWORD": "p@ss/w:rd",
+    }
+    assert url_desde_entorno(env) == (
+        "postgresql://sonora:p%40ss%2Fw%3Ard@rds.internal:5432/sonoraplay?sslmode=require"
+    )
+    assert url_desde_entorno({**env, "DATABASE_URL": "postgresql://x"}) == "postgresql://x"
+    assert url_desde_entorno({}) is None
