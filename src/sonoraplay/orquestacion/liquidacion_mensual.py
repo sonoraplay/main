@@ -28,6 +28,10 @@ class LiquidacionNoConfigurada(Exception):
     """El job de liquidación en Spark (EG-37) todavía no está conectado a este DAG."""
 
 
+class SilverRunIdFaltante(Exception):
+    """No hay un run de Silver verificado para liquidar el periodo."""
+
+
 class VersionNoCreada(Exception):
     """El job terminó pero no dejó exactamente una liquidación nueva publicada."""
 
@@ -64,14 +68,26 @@ def ingesta_completa(conexion, periodo: date) -> bool:
     return not faltan
 
 
-def marcar_ingesta(conexion, fecha: date, run_id: str) -> None:
-    """Idempotente: repetir el día solo refresca ``completada_en``."""
+def marcar_ingesta(conexion, fecha: date, run_id: str, silver_run_id: str | None = None) -> None:
+    """Idempotente: repetir el día solo refresca ``completada_en`` y el ``silver_run_id``."""
     with conexion.transaction():
         conexion.execute(
-            """INSERT INTO ingesta_diaria_estado (fecha, run_id) VALUES (%s, %s)
-               ON CONFLICT (fecha) DO UPDATE SET completada_en = now(), run_id = EXCLUDED.run_id""",
-            (fecha, run_id),
+            """INSERT INTO ingesta_diaria_estado (fecha, run_id, silver_run_id)
+               VALUES (%s, %s, %s)
+               ON CONFLICT (fecha) DO UPDATE
+               SET completada_en = now(), run_id = EXCLUDED.run_id,
+                   silver_run_id = EXCLUDED.silver_run_id""",
+            (fecha, run_id, silver_run_id),
         )
+
+
+def silver_run_id_del_periodo(conexion, periodo: date) -> str | None:
+    """Run de Silver verificado del último día requerido (el que contiene todo el mes + gracia)."""
+    ultimo = fechas_requeridas(periodo)[-1]
+    fila = conexion.execute(
+        "SELECT silver_run_id FROM ingesta_diaria_estado WHERE fecha = %s", (ultimo,)
+    ).fetchone()
+    return fila[0] if fila else None
 
 
 def _versiones(conexion, periodo: date) -> set:
@@ -91,6 +107,7 @@ def liquidar(
     run_id: str,
     entorno: dict[str, str] | None = None,
     reloj=time.monotonic,
+    silver_run_id: str | None = None,
 ) -> dict:
     """Corre el job de ``periodo``, verifica la versión nueva y registra la duración."""
     env = os.environ if entorno is None else entorno
@@ -101,7 +118,15 @@ def liquidar(
             "todavía no está conectado."
         )
     mes = f"{periodo.year:04d}-{periodo.month:02d}"
-    comando = [p.replace("{periodo}", mes) for p in shlex.split(plantilla)]
+    if "{silver_run_id}" in plantilla and not silver_run_id:
+        raise SilverRunIdFaltante(
+            f"{mes}: el comando pide {{silver_run_id}} pero el último día requerido "
+            "no tiene un run de Silver verificado en ingesta_diaria_estado."
+        )
+    comando = [
+        p.replace("{periodo}", mes).replace("{silver_run_id}", silver_run_id or "")
+        for p in shlex.split(plantilla)
+    ]
     antes = _versiones(conexion, periodo)
     inicio = datetime.now(UTC)
     t0 = reloj()

@@ -9,6 +9,10 @@ CREATE TABLE IF NOT EXISTS ingesta_diaria_estado (
     run_id       text NOT NULL
 );
 
+-- Run de Silver (EG-35) verificado para ese día: el "puntero" vive aquí, no en S3. La liquidación
+-- mensual lee el del último día requerido y lo pasa a Gold como --silver-run-id.
+ALTER TABLE ingesta_diaria_estado ADD COLUMN IF NOT EXISTS silver_run_id text;
+
 -- Una fila por intento de liquidación mensual, para vigilar la meta de < 1 h (RNF-01).
 CREATE TABLE IF NOT EXISTS corridas_liquidacion (
     corrida_id     bigserial PRIMARY KEY,

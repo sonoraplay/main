@@ -159,3 +159,17 @@ def test_sin_tema_sns_solo_registra(caplog):
     with caplog.at_level("ERROR"):
         liq.notificar_fallo({"exception": "x"}, entorno={}, cliente=sns)
     assert sns.enviados == [] and "Falló" in caplog.text
+
+
+def test_marcar_guarda_el_run_de_silver_y_la_mensual_lo_lee(conexion):
+    ultimo = liq.fechas_requeridas(OCT)[-1]
+    liq.marcar_ingesta(conexion, ultimo, "airflow-1", "airflow-1.1")
+    assert liq.silver_run_id_del_periodo(conexion, OCT) == "airflow-1.1"
+    liq.marcar_ingesta(conexion, ultimo, "airflow-2", "airflow-2.2")  # re-proceso: actualiza
+    assert liq.silver_run_id_del_periodo(conexion, OCT) == "airflow-2.2"
+
+
+def test_liquidar_exige_silver_run_id_si_el_comando_lo_pide(conexion):
+    env = {liq.VARIABLE_COMANDO: "echo {periodo} {silver_run_id}"}
+    with pytest.raises(liq.SilverRunIdFaltante):
+        liq.liquidar(OCT, conexion, "r", entorno=env)

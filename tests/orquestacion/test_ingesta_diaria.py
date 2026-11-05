@@ -132,3 +132,63 @@ def test_silver_recibe_tambien_el_run_id_para_el_linaje(tmp_path):
         "2026-09-15", entorno={t.VARIABLE_COMANDO_SILVER: comando}, run_id="scheduled__2026-09-16"
     )
     assert marca.read_text() == "--fecha 2026-09-15 --run-id scheduled__2026-09-16"
+
+
+def _marca(**cambios):
+    base = {
+        "schema_version": "eg35-commit-v1",
+        "run_id": "r.1",
+        "fecha": "2026-09-15",
+        "silver_rows": 10,
+    }
+    return {**base, **cambios}
+
+
+ENV_COMMITS = {t.VARIABLE_COMMITS_SILVER: "s3://b/silver/commits"}
+
+
+def test_run_id_de_intento_es_valido_y_cambia_con_cada_intento():
+    import re
+
+    a = t.run_id_silver("scheduled__2026-09-16T02:00:00+00:00", 1)
+    b = t.run_id_silver("scheduled__2026-09-16T02:00:00+00:00", 2)
+    assert a != b
+    for x in (a, b, t.run_id_silver("x" * 300, 3), t.run_id_silver(":::", 1)):
+        assert re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", x), x
+
+
+def test_verificacion_acepta_un_marcador_valido():
+    marca = t.verificar_silver_publicado(
+        "2026-09-15", "r.1", ENV_COMMITS, leer=lambda uri, rid: _marca()
+    )
+    assert marca["silver_rows"] == 10
+
+
+@pytest.mark.parametrize(
+    "cambio",
+    [
+        {"schema_version": "otro"},
+        {"run_id": "otro"},
+        {"fecha": "2026-09-14"},
+        {"silver_rows": 0},
+        {"silver_rows": None},
+    ],
+)
+def test_verificacion_falla_cerrado_con_marcador_invalido(cambio):
+    with pytest.raises(t.SilverNoPublicado):
+        t.verificar_silver_publicado(
+            "2026-09-15", "r.1", ENV_COMMITS, leer=lambda uri, rid: _marca(**cambio)
+        )
+
+
+def test_verificacion_sin_marcador_no_marca_el_dia():
+    def sin_marcador(uri, rid):
+        raise FileNotFoundError(rid)
+
+    with pytest.raises(t.SilverNoPublicado, match="Sin marcador"):
+        t.verificar_silver_publicado("2026-09-15", "r.1", ENV_COMMITS, leer=sin_marcador)
+
+
+def test_verificacion_sin_uri_configurada():
+    with pytest.raises(t.SilverNoConfigurado):
+        t.verificar_silver_publicado("2026-09-15", "r.1", {}, leer=lambda u, r: _marca())

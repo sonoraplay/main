@@ -33,6 +33,7 @@ def test_dag_diario_orquesta_f6_referencia_silver(dagbag):
         "cargar_tasas_f6",
         "refrescar_referencia",
         "spark_bronze_a_silver",
+        "verificar_silver_publicado",
         "marcar_ingesta_completa",
     ]
 

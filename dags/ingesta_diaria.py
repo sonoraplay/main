@@ -36,16 +36,26 @@ def _referencia(logical_date, **_):
         return t.refrescar_referencia(t.fecha_procesada(logical_date), conexion)
 
 
-def _silver(logical_date, run_id, **_):
+def _silver(logical_date, run_id, ti, **_):
+    # Un intento nuevo, un prefijo nuevo: el run de Silver nunca se reutiliza tras un fallo.
+    silver_run = t.run_id_silver(run_id, ti.try_number)
     try:
-        t.lanzar_silver(t.fecha_procesada(logical_date), run_id=run_id)
+        t.lanzar_silver(t.fecha_procesada(logical_date), run_id=silver_run)
     except t.SilverNoConfigurado as exc:
         raise AirflowSkipException(str(exc)) from exc
+    return silver_run  # XCom: lo lee la verificación
 
 
-def _marcar(logical_date, run_id, **_):
+def _verificar(logical_date, ti, **_):
+    silver_run = ti.xcom_pull(task_ids="spark_bronze_a_silver")
+    t.verificar_silver_publicado(t.fecha_procesada(logical_date), silver_run)
+    return silver_run
+
+
+def _marcar(logical_date, run_id, ti, **_):
+    silver_run = ti.xcom_pull(task_ids="verificar_silver_publicado")
     with t.conexion_postgres() as conexion:
-        liq.marcar_ingesta(conexion, t.fecha_procesada(logical_date), run_id)
+        liq.marcar_ingesta(conexion, t.fecha_procesada(logical_date), run_id, silver_run)
 
 
 with DAG(
@@ -62,7 +72,9 @@ with DAG(
     refrescar = PythonOperator(task_id="refrescar_referencia", python_callable=_referencia)
     silver = PythonOperator(task_id="spark_bronze_a_silver", python_callable=_silver)
 
+    verificar = PythonOperator(task_id="verificar_silver_publicado", python_callable=_verificar)
+
     # Solo corre si Silver terminó: un día omitido (EG-35 sin conectar) no cuenta como ingerido.
     marcar = PythonOperator(task_id="marcar_ingesta_completa", python_callable=_marcar)
 
-    cargar_f6 >> refrescar >> silver >> marcar
+    cargar_f6 >> refrescar >> silver >> verificar >> marcar

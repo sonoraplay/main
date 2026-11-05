@@ -35,7 +35,13 @@ def _ingesta_lista(logical_date, **_):
 def _liquidar(logical_date, run_id, **_):
     with ing.conexion_postgres() as conexion:
         try:
-            return liq.liquidar(liq.periodo_a_liquidar(logical_date), conexion, run_id)
+            periodo = liq.periodo_a_liquidar(logical_date)
+            return liq.liquidar(
+                periodo,
+                conexion,
+                run_id,
+                silver_run_id=liq.silver_run_id_del_periodo(conexion, periodo),
+            )
         except liq.LiquidacionNoConfigurada as exc:
             raise AirflowSkipException(str(exc)) from exc
 

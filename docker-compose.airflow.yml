@@ -16,6 +16,7 @@ x-airflow-env: &airflow-env
   # Las tareas hablan con el postgres de la plataforma, no con el de metadatos de Airflow.
   DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-sonora}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sonoraplay}
   SILVER_JOB_COMMAND: ${SILVER_JOB_COMMAND:-}
+  SILVER_COMMITS_URI: ${SILVER_COMMITS_URI:-}
   LIQUIDACION_JOB_COMMAND: ${LIQUIDACION_JOB_COMMAND:-}
   ALERTA_SNS_TOPIC_ARN: ${ALERTA_SNS_TOPIC_ARN:-}
 
