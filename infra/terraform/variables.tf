@@ -140,3 +140,38 @@ variable "jwt_secret_version" {
   type        = number
   default     = 1
 }
+
+# --- EG-37 · Jobs de Spark en ECS Fargate (los lanza Airflow con RunTask, flujo ⑦) --------------
+
+variable "spark_imagen_tag" {
+  description = <<-EOT
+    Etiqueta de la imagen de Spark en ECR = SHA corto del commit. Vacía: no se crea la
+    definición de tarea `<proyecto>-<entorno>-spark` y Airflow no puede lanzar Silver ni Gold.
+    No hay servicio ni ALB: la tarea solo existe mientras corre un job. Publica la imagen con
+    infra/scripts/publicar-imagen.sh spark.
+  EOT
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.spark_imagen_tag == "" || can(regex("^[0-9a-f]{7,40}$", var.spark_imagen_tag))
+    error_message = "La etiqueta debe ser el SHA del commit (7 a 40 caracteres hexadecimales)."
+  }
+}
+
+variable "spark_cpu" {
+  description = "CPU de la tarea de Spark en unidades de Fargate (4096 = 4 vCPU)."
+  type        = number
+  default     = 4096
+}
+
+variable "spark_memoria" {
+  description = "Memoria de la tarea de Spark en MiB. El driver recibe el 75 % (SPARK_DRIVER_MEMORY)."
+  type        = number
+  default     = 16384
+
+  validation {
+    condition     = var.spark_memoria >= 2048
+    error_message = "Spark necesita al menos 2048 MiB."
+  }
+}
