@@ -270,6 +270,14 @@ data "aws_iam_policy_document" "airflow" {
     resources = ["${local.arn_s3["bronze"]}/f6/*", "${local.arn_s3["bronze"]}/f7/*"]
   }
 
+  # EG-34: `verificar_silver_publicado` lee el marcador `commits/<run_id>.json` de Silver (solo ese
+  # prefijo, solo lectura) antes de marcar el día como ingerido.
+  statement {
+    sid       = "LeeMarcadorSilver"
+    actions   = ["s3:GetObject"]
+    resources = ["${local.arn_s3["silver"]}/commits/*"]
+  }
+
   # EG-38 criterio 3: el DAG mensual avisa por SNS cuando una tarea agota sus reintentos.
   # El tema es del stack persistente `presupuesto/` (se llama igual en todas las ventanas).
   statement {
