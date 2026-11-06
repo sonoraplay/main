@@ -23,6 +23,10 @@ class StreamingConfig:
     cola_dlq: str = "eventos.f2.dlq"
     prefetch: int = 50
     destino_bronze: Path = Path("data/bronze/f2/eventos_f2.jsonl")
+    # EG-33: si hay bucket, Bronze va a S3 en lotes; si no, al archivo local de la EG-29.
+    bronze_s3_bucket: str = ""
+    bronze_s3_prefijo: str = "f2"
+    bronze_lote: int = 500
 
     @classmethod
     def desde_entorno(cls) -> "StreamingConfig":
@@ -34,4 +38,7 @@ class StreamingConfig:
             cola_dlq=os.environ.get("RABBITMQ_COLA_DLQ", base.cola_dlq),
             prefetch=int(os.environ.get("RABBITMQ_PREFETCH", base.prefetch)),
             destino_bronze=Path(os.environ.get("BRONZE_F2", str(base.destino_bronze))),
+            bronze_s3_bucket=os.environ.get("BRONZE_S3_BUCKET", base.bronze_s3_bucket),
+            bronze_s3_prefijo=os.environ.get("BRONZE_S3_PREFIX", base.bronze_s3_prefijo),
+            bronze_lote=int(os.environ.get("BRONZE_LOTE", base.bronze_lote)),
         )
