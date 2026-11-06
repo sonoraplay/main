@@ -4,7 +4,7 @@ title: "EG-32 · Cotización con la lista de precios oficial de AWS"
 
 # EG-32 · Cotización de los dos escenarios con la lista de precios oficial de AWS
 
-> **Estado: cálculo hecho; las dos estimaciones de la AWS Pricing Calculator NO están creadas.** `calculator.aws` no es accesible desde el entorno donde se calculó, así que **no hay enlaces compartibles**. Lo que sí hay son los totales calculados con la misma fuente de precios que usa la calculadora (la API pública de precios de AWS), con cada precio unitario a la vista, y el paso a paso para crear las dos estimaciones y comprobar que los totales coinciden. El criterio 1 de la EG-32 (enlace a la calculadora) sigue pendiente hasta que alguien con acceso a la calculadora pegue los dos enlaces.
+> **Estado (2026-11-06): hay estimaciones guardadas en la AWS Pricing Calculator, con enlaces públicos** (sección «Estimaciones guardadas en la calculadora»). La A (24/7) y la de EKS a 730 h coinciden con el cálculo de esta página (126,16 contra 126,21 y 86,86 contra 86,86). La B (ventanas) y la de EKS a 24 h **no coinciden**, porque la calculadora no permite expresar horas parciales de varios servicios; la diferencia está conciliada línea por línea más abajo. Los totales de esta página siguen siendo del cálculo con la lista de precios. Los enlaces los reportó quien creó las estimaciones y **no se han abierto desde el entorno de desarrollo** (`calculator.aws` está bloqueado): ábrelos en una ventana privada para confirmar que son públicos.
 
 ## Resultado
 
@@ -31,6 +31,38 @@ La primera estimación guardada en la calculadora sumó **248,63 USD/mes (2.983,
 | ECR, IPv4 públicas | no aparecen | 0,20 / 10,95 | 0,20 / 0,36 | Faltan |
 
 Las seis filas suman exactamente 248,63 (× 12 = 2.983,56): la aritmética es correcta; las **entradas** no. Las estimaciones corregidas deben dar **126,21 USD/mes (1.514,52 USD/año)** en A y **5,61 USD/mes (67,32 USD/año)** en B, con EKS aparte. **Los totales corregidos de la calculadora siguen pendientes de que alguien rehaga las estimaciones y pegue los enlaces:** las cifras de esta página son del cálculo con la lista de precios, no de la calculadora.
+
+## Estimaciones guardadas en la calculadora (2026-11-06)
+
+Región US East (N. Virginia), USD, mismo inventario que el detalle por servicio.
+
+| Estimación | Enlace | Calculadora (USD/mes) | Esta página (USD/mes) | Diferencia |
+|---|---|---:|---:|---:|
+| **A · 24/7** | [calculator.aws](https://calculator.aws/#/estimate?id=957680211e8208e9adcfc4c47024dbe9c30b58cd) | 126,16 | 126,21 | −0,05 |
+| **B · ventanas (24 h)** | [calculator.aws](https://calculator.aws/#/estimate?id=121c0155b311cecc97744b85cd2adba4ddd3411e) | 40,96 | 5,61 | +35,35 |
+| **EKS · 730 h** | [calculator.aws](https://calculator.aws/#/estimate?id=82cdd28958e2a58e7f0874d3389e43cf8c34d504) | 86,86 | 86,86 | 0,00 |
+| **EKS · 24 h** | [calculator.aws](https://calculator.aws/#/estimate?id=85eba026a307dbb5ff35ba73f5e64f9246a9c0e1) | 73,45 | 2,86 | +70,59 |
+
+**A (24/7): coincide.** La diferencia de 0,05 USD está en CloudWatch (1,11 contra 1,16): la calculadora no deja ingresar los GB de logs almacenados y deriva el almacenamiento de un supuesto de compresión. Los demás servicios coinciden al centavo con la tabla de arriba.
+
+**B (ventanas) y EKS a 24 h: no coinciden, y no se ajustaron para que coincidan.** La calculadora no ofrece horas ni utilización para varios servicios, así que los cobra el mes completo. La conciliación de B:
+
+| Concepto | Calculadora | Esta página (24 h) | Diferencia |
+|---|---:|---:|---:|
+| Elastic Load Balancing (ALB y LCU) | 22,27 | 0,73 | +21,54 |
+| IPv4 públicas (3) | 10,95 | 0,36 | +10,59 |
+| RDS (cómputo 24 h más almacenamiento) | 2,68 | 0,46 | +2,22 |
+| CloudWatch (alarma, ingesta y almacenamiento) | 1,11 | 0,09 | +1,02 |
+| Resto (EC2 y EBS, Fargate, Spark, S3, ECR) | 4,0 | 4,0 | ≈ 0 |
+| **Total** | **40,96** | **5,61** | **+35,35** |
+
+- El ALB y las IPv4 no tienen campo de horas.
+- El almacenamiento de RDS (2,30 USD) se cobra el mes completo; la calculadora no lo prorratea, y 2,68 es exactamente 0,38 de cómputo más 2,30 de disco. Este desglose lo inferí de los montos, no lo leí en la calculadora.
+- Los logs y la alarma de CloudWatch tampoco se prorratean.
+- Las sumas cierran con ≈ 0,02 USD de redondeo.
+- En EKS a 24 h el plano de control (73,00 USD) se cobra el mes completo: la calculadora solo acepta un número entero de clústeres y rechazó 0,0329 clústeres. Con eso, 73,45 − (73,00 − 2,40) = 2,86.
+
+**Qué significa para el criterio 1.** Hay enlaces públicos de las dos estimaciones y de EKS. La de ventanas, tal como la calcula la calculadora, **sobreestima** el costo de unas ventanas de 24 h porque cobra ALB, IPv4, disco de RDS, logs y el clúster de EKS el mes completo. El valor de 5,61 USD/mes sale de la lista de precios con horas reales y es el que debe usarse para comparar contra Cost Explorer; el de 40,96 sirve solo como cota superior de «todo el mes encendido salvo lo que sí permite horas».
 
 ## Detalle por servicio
 
