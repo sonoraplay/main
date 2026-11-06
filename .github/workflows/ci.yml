@@ -58,9 +58,9 @@ jobs:
           import os
           from pathlib import Path
           import psycopg
-          ddl = Path('db/ddl/004_fuentes_f5_f6_f7.sql').read_text(encoding='utf-8')
           with psycopg.connect(os.environ['EG30_DATABASE_URL']) as conn:
-              conn.execute(ddl)
+              for nombre in ('004_fuentes_f5_f6_f7.sql', '005_orquestacion.sql'):
+                  conn.execute(Path('db/ddl', nombre).read_text(encoding='utf-8'))
           PY
       - run: uv run pytest --cov=sonoraplay --cov-report=term-missing
         env:

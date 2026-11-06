@@ -6,7 +6,9 @@ reescribe las mismas filas (``ON CONFLICT DO UPDATE``) y nunca las duplica.
 
 from __future__ import annotations
 
+import json
 import os
+import re
 import shlex
 import subprocess
 from collections.abc import Callable
@@ -24,12 +26,18 @@ from sonoraplay.fuentes.persistencia import guardar_fuentes
 VENTANA_F6_DIAS = 6
 VARIABLE_COMANDO_SILVER = "SILVER_JOB_COMMAND"
 SEMILLA_F5 = 2026
+VARIABLE_COMMITS_SILVER = "SILVER_COMMITS_URI"  # p. ej. s3://bucket/silver/commits
+ESQUEMA_COMMIT_SILVER = "eg35-commit-v1"
 
 Obtener = Callable[[str], object]
 
 
 class SilverNoConfigurado(Exception):
     """El job Bronze → Silver (EG-35) todavía no está conectado a este DAG."""
+
+
+class SilverNoPublicado(Exception):
+    """Silver terminó pero no hay un marcador de commit válido para este intento."""
 
 
 def a_fecha(valor: str | date) -> date:
@@ -123,3 +131,55 @@ def lanzar_silver(
         for parte in shlex.split(plantilla)
     ]
     return subprocess.run(comando, check=True).returncode
+
+
+def run_id_silver(run_id_airflow: str, intento: int) -> str:
+    """ID de intento para Silver: ``<run_id de Airflow saneado>.<nº de intento>``.
+
+    Un intento nuevo usa siempre un prefijo nuevo (``runs/<id>`` es inmutable y no se
+    sobrescribe); cumple ``[A-Za-z0-9][A-Za-z0-9_.-]{0,127}``.
+    """
+    base = re.sub(r"[^A-Za-z0-9_.-]", "-", run_id_airflow).lstrip("._-") or "run"
+    sufijo = f".{int(intento)}"
+    return base[: 128 - len(sufijo)] + sufijo
+
+
+def leer_marcador_s3(uri_commits: str, run_id: str) -> dict:
+    import boto3
+
+    bucket, _, prefijo = uri_commits.removeprefix("s3://").partition("/")
+    clave = f"{prefijo.rstrip('/')}/{run_id}.json"
+    cuerpo = boto3.client("s3").get_object(Bucket=bucket, Key=clave)["Body"].read()
+    return json.loads(cuerpo)
+
+
+def verificar_silver_publicado(
+    fecha: str | date,
+    run_id: str,
+    entorno: dict[str, str] | None = None,
+    leer: Callable[[str, str], dict] = leer_marcador_s3,
+) -> dict:
+    """Exige el marcador ``commits/<run_id>.json`` de EG-35 antes de dar el día por ingerido.
+
+    Sin marcador, con otro ``run_id``/``fecha`` o sin filas, falla cerrado: el día no se marca.
+    """
+    env = os.environ if entorno is None else entorno
+    uri = env.get(VARIABLE_COMMITS_SILVER, "").strip()
+    if not uri:
+        raise SilverNoConfigurado(f"{VARIABLE_COMMITS_SILVER} sin definir: no se puede verificar.")
+    try:
+        marca = leer(uri, run_id)
+    except Exception as exc:
+        raise SilverNoPublicado(f"Sin marcador de commit para {run_id}: {exc}") from exc
+    esperado = {
+        "schema_version": ESQUEMA_COMMIT_SILVER,
+        "run_id": run_id,
+        "fecha": a_fecha(fecha).isoformat(),
+    }
+    for campo, valor in esperado.items():
+        if marca.get(campo) != valor:
+            raise SilverNoPublicado(f"Marcador inválido: {campo}={marca.get(campo)!r} ≠ {valor!r}")
+    filas = marca.get("silver_rows")
+    if not isinstance(filas, int) or filas <= 0:
+        raise SilverNoPublicado(f"Marcador inválido: silver_rows={filas!r}")
+    return marca
