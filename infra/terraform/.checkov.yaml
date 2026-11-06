@@ -47,3 +47,8 @@ skip-check:
 
   # --- EG-32 · presupuesto y alarma ---
   - CKV_AWS_26   # Cifrado del tema SNS: AWS Budgets no puede publicar en un tema con la clave aws/sns; una CMK cuesta 1 USD/mes
+
+  # --- EG-41 · EKS efímero (ADR-0018) ---
+  - CKV_AWS_39   # Endpoint público de EKS: se necesita para kubectl desde CloudShell/PC; limitado a la IP del equipo (acceso_api_cidrs, que rechaza 0.0.0.0/0)
+  - CKV_AWS_38   # Falso positivo: acceso_api_cidrs no tiene valor por defecto y su validación impide 0.0.0.0/0
+  - CKV2_AWS_64  # Política de la clave KMS de EKS: la predeterminada ya da la administración a IAM de la cuenta; una explícita con kms:* la repetiría

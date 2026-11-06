@@ -342,7 +342,6 @@ def liquidar_pais(
     if periodo.day != 1:
         raise ValueError("periodo debe ser el primer día del mes")
     conteos: dict[tuple[Componente, uuid.UUID, Decimal], int] = defaultdict(int)
-    totales: dict[Componente, int] = defaultdict(int)
     incidentes: list[Incidente] = []
     vistos: set[str] = set()
     for rep in reproducciones:
@@ -355,8 +354,25 @@ def liquidar_pais(
         if inc is not None:
             incidentes.append(inc)
         conteos[(rep.componente, rep.titular_id, pct)] += 1
-        totales[rep.componente] += 1
 
+    return repartir_bolsa(periodo, bolsa, conteos, incidentes)
+
+
+def repartir_bolsa(
+    periodo: date,
+    bolsa: BolsaPais,
+    conteos: Mapping[tuple[Componente, uuid.UUID, Decimal], int],
+    incidentes: Sequence[Incidente] = (),
+) -> ResultadoLiquidacion:
+    """Reparte la bolsa de un país a partir de los **conteos** por (componente, titular, %).
+
+    Es la segunda mitad de `liquidar_pais`, separada para que el job de Spark (EG-37) cuente las
+    reproducciones de forma distribuida y reparta con exactamente esta misma aritmética (mismo
+    redondeo al centavo, RNF-02). El denominador de cada componente es la suma de sus conteos.
+    """
+    totales: dict[Componente, int] = defaultdict(int)
+    for (componente, _, _), n in conteos.items():
+        totales[componente] += n
     filas: list[FilaReporte] = []
     for componente in Componente:
         claves = sorted(

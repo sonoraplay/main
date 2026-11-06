@@ -1,0 +1,14 @@
+# Pruebas locales de Airflow (EG-34 y EG-38) con Silver y la liquidación SIMULADOS.
+# Uso (desde la raíz del repo):
+#   docker compose -f docker-compose.yml -f docker-compose.airflow.yml \
+#     -f pruebas/airflow-local/docker-compose.pruebas.yml up -d --build ...
+# El directorio .pruebas-silver se comparte entre los 2 workers: el marcador que escribe uno lo lee el otro.
+services:
+  airflow-worker:
+    volumes:
+      - ./pruebas/airflow-local:/opt/pruebas:ro
+      - ./.pruebas-silver:/opt/silver-simulado
+    environment:
+      SILVER_JOB_COMMAND: python /opt/pruebas/silver_simulado.py --fecha {fecha} --run-id {run_id}
+      SILVER_COMMITS_URI: /opt/silver-simulado/commits
+      LIQUIDACION_JOB_COMMAND: python /opt/pruebas/liquidacion_simulada.py --periodo {periodo} --silver-run-id {silver_run_id}
