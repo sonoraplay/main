@@ -72,7 +72,7 @@ Estos costos suponen un mes de 400 000 reproducciones y escala lineal dentro del
 | 2 · Impacto individual de cada ajuste | ✅ a esta escala; falta repetirlo con más volumen |
 | 3 · Liquidación completa < 1 h en 2 vCPU / 8 GB de Fargate Spot | 🟡 42 min con 400 000 reproducciones en `local[2]` (≈ 570 000/h); **no** medido en Fargate |
 | 4 · Salida idéntica a la línea base | ✅ Verificado por huella en las 7 variantes |
-| 5 · Informe con Spark UI y costo por corrida; ADR-0016 | 🟡 Esta tabla y el ADR-0016 (*Propuesto*). Los registros de Spark UI (13 MB) se guardaron en la máquina de la medición y **no** están en el repositorio. El **costo por corrida queda pendiente**: faltan los precios verificados de Fargate; el informe no inventa cifras |
+| 5 · Informe con Spark UI y costo por corrida; ADR-0016 | 🟡 Esta tabla y el ADR-0016 (*Propuesto*). Los registros de Spark UI (13 MB) se guardaron en la máquina de la medición y **no** están en el repositorio. El costo por corrida está calculado arriba con precios oficiales de Fargate (cota superior bajo demanda; Spot no está en la lista) |
 
 Además, la etapa de liquidación es un *proxy* y Silver (EG-35, PR #38) sigue en borrador y cambiará su forma de escribir (reconstruir el mes hasta la fecha), lo que modificará lo que hay que medir.
 
