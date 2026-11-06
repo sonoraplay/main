@@ -192,3 +192,17 @@ def test_verificacion_sin_marcador_no_marca_el_dia():
 def test_verificacion_sin_uri_configurada():
     with pytest.raises(t.SilverNoConfigurado):
         t.verificar_silver_publicado("2026-09-15", "r.1", {}, leer=lambda u, r: _marca())
+
+
+def test_el_marcador_tambien_se_lee_de_un_directorio_local(tmp_path):
+    import json
+
+    (tmp_path / "r.1.json").write_text(json.dumps(_marca()), encoding="utf-8")
+    marca = t.verificar_silver_publicado(
+        "2026-09-15", "r.1", {t.VARIABLE_COMMITS_SILVER: str(tmp_path)}
+    )
+    assert marca["silver_rows"] == 10
+    with pytest.raises(t.SilverNoPublicado, match="Sin marcador"):
+        t.verificar_silver_publicado(
+            "2026-09-15", "otro", {t.VARIABLE_COMMITS_SILVER: str(tmp_path)}
+        )

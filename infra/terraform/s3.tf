@@ -85,4 +85,26 @@ resource "aws_s3_bucket_lifecycle_configuration" "capa" {
       days_after_initiation = 7
     }
   }
+
+  # ADR-0023: cada corrida de Silver deja un prefijo inmutable `runs/<run_id>` (y su cuarentena en
+  # `quarantine/runs/<run_id>`); los intentos huérfanos —sin marcador— quedan en el mismo sitio.
+  # Se borran por edad. `commits/` (los marcadores, de pocos bytes) NO se toca nunca: sin
+  # marcador un run no se puede leer, y con marcador y sin datos la lectura falla con un
+  # error claro en vez de leer un run a medias.
+  dynamic "rule" {
+    for_each = each.key == "silver" ? ["runs/", "quarantine/runs/"] : []
+
+    content {
+      id     = "expirar-${replace(trimsuffix(rule.value, "/"), "/", "-")}"
+      status = "Enabled"
+
+      filter {
+        prefix = rule.value
+      }
+
+      expiration {
+        days = var.silver_runs_retencion_dias
+      }
+    }
+  }
 }
