@@ -7,7 +7,7 @@ title: "EG-32 · Presupuesto y alarma / Budget and alarm"
 
 ## Español
 
-**Estado: desplegado en AWS; prueba de transporte SNS superada el 2026-10-23.** Esta página explica cómo desplegar y probar el presupuesto con aviso por correo (criterio 3 de EG-32) y las etiquetas `Project` y `Owner` (criterio 4). Falta la notificación originada por AWS Budgets y la activación de etiquetas en Billing (ver «Evidencia de la prueba»). 
+**Estado: desplegado en AWS; prueba de transporte SNS y alerta real de Budgets recibidas el 2026-10-23.** Esta página explica cómo desplegar y probar el presupuesto con aviso por correo (criterio 3 de EG-32) y las etiquetas `Project` y `Owner` (criterio 4). Alerta real de AWS Budgets recibida el 2026-10-23; etiquetas activas en Billing y atribución comprobada en Cost Explorer el 2026-10-30 con los recursos persistentes (ver «Evidencia de la prueba»). 
 
 ### Qué se agrega
 
@@ -76,17 +76,39 @@ En un despliegue inicial, el plan debe crear 4 recursos: el tema, su política, 
 
 **Prueba de transporte.** Desde un CloudShell, Julián ejecutó `aws sns publish` con el asunto «Prueba EG-32»; SNS devolvió el `MessageId` `828ee581-a2c4-511d-8f19-86d42339f2a4`, y el correo **llegó a la bandeja principal** (no a spam) en el momento. Los comandos de comprobación previa devolvieron lo esperado. Esta prueba demuestra que SNS entrega el correo; **no** demuestra que AWS Budgets dispare la alerta.
 
-**Sigue sin evidencia:** una notificación originada por AWS Budgets (solo ocurre al cruzar un umbral; si no se logra, documentar la limitación); la activación de `Project` y `Owner` como etiquetas de asignación de costos en Billing y su atribución en Cost Explorer; el efecto exacto de `include_credit = false`.
+**Alerta real de AWS Budgets (recibida el 2026-10-23, 19:29, hora local del buzón).** Llegó un correo del remitente `AWS Notifications` (`no-reply@sns.amazonaws.com`) con el asunto «AWS Budgets: sonoraplay-mensual has exceeded your alert threshold». Su cuerpo dice: presupuesto `sonoraplay-mensual`, tipo Cost, monto presupuestado 50,00 USD, tipo de alerta ACTUAL, umbral > 25,00 USD, **monto ACTUAL 25,50 USD**. Es decir, AWS Budgets cruzó el umbral del 50 % del gasto real y publicó en el tema SNS, que entregó el correo a la suscripción confirmada: **recorrido Budgets → SNS → correo demostrado**. Captura revisada por Julián el 2026-10-26; no se guarda en el repositorio porque muestra el número de cuenta.
+
+**Efecto de `include_credit = false`.** El mismo día, Cost Explorer con créditos incluidos daba un costo neto cercano a 0, y sin créditos ni reembolsos 28,18 USD acumulados del 1 al 26 de octubre. Budgets avisó con 25,50 USD: es coherente con que el presupuesto mide el gasto bruto y no descuenta créditos (el comportamiento esperado de la configuración). No se compararon las dos cifras al centavo porque corresponden a fechas distintas.
+
+**Activación de etiquetas (2026-10-26).** Julián activó `Owner` como etiqueta de asignación de costos en Billing (según su informe; no se guardó captura). La atribución en Cost Explorer solo cubre el gasto posterior a la activación y puede tardar hasta unas 24 horas.
+
+**Verificaciones del 2026-10-30** (CloudShell, `us-east-1`, solo lectura; Julián y Andrea; sin número de cuenta ni correo en la salida).
+
+| Comprobación | Resultado |
+|---|---|
+| Etiquetas del tema SNS | `Project=sonoraplay` y `Owner=sonoraplay-equipo` |
+| Activación en Billing | `Owner` y `Project` en estado `Active` (`Owner` actualizada el 2026-10-26 12:09 UTC; `Project` el 2026-10-23 14:25 UTC) |
+| Atribución en Cost Explorer (rango 2026-10-27 a 2026-10-30, agrupado por etiqueta) | `Owner$sonoraplay-equipo` y `Project$sonoraplay` aparecen con 3 días de datos, entre 0,00053 y 0,00058 USD por día |
+| Presupuesto `sonoraplay-mensual` | 50 USD, `IncludeCredit = false`; notificaciones ACTUAL > 50 y > 80 y FORECASTED > 100 (la salida no muestra el tipo de umbral; coincide con el 50 %, 80 % y 100 % del diseño) |
+| Suscripción de correo | 1 suscripción confirmada |
+
+**Atribución.** Cost Explorer ya separa el gasto por `Project` y `Owner`, pero solo con los recursos persistentes (ECR, bucket de estado y SNS), de costo mínimo. Junto a cada grupo etiquetado aparece un grupo sin etiqueta (`Owner$`, `Project$`) con importes negativos casi iguales, así que el neto es cercano a cero. Es coherente con los créditos de la cuenta, que no llevan etiqueta; esa explicación no se confirmó con un desglose por tipo de cargo.
+
+**Etiquetas de ECR y del bucket de estado (2026-10-30, segunda ronda, mismo método):** los 5 repositorios de ECR (`simulador`, `api-titulares`, `api-contratos`, `consumidor` y `spark`) y el bucket de estado tienen `Project=sonoraplay` y `Owner=sonoraplay-equipo`.
+
+**Correo real de Budgets (2026-10-30):** Julián confirmó que el correo de `sonoraplay-mensual` sigue en la bandeja principal (no en spam): presupuesto de 50 USD, alerta ACTUAL > 25 USD, monto actual 25,50 USD. La fecha dentro del cuerpo del correo es el 2026-10-24 (UTC); llegó el 2026-10-23 a las 19:29, hora de Colombia. No se guarda captura en el repositorio porque muestra el número de cuenta y el correo de alertas.
+
+**Sigue sin evidencia:** la atribución de los recursos del stack principal (ECS, RDS, ALB y otros), hoy destruido. Se confirma en la próxima ventana de despliegue: Cost Explorer → Group by → Tag → `Owner` (y `Project`), rango que cubra la ventana, sin datos de cuenta. Cerrar el criterio 4 con esta evidencia o esperar a esa ventana es decisión de Julián.
 
 ### Lo que no está probado
 
 - El código pasó `terraform fmt`, `validate` en los tres stacks y Checkov (299 aprobados, 0 fallidos), y el stack está desplegado (ver arriba); lo que sigue sin probarse es lo listado como «Sigue sin evidencia».
-- No se sabe aún si `include_credit = false` produce exactamente el gasto bruto esperado en esta cuenta: confirmarlo en la consola de Budgets tras el primer día.
+- `include_credit = false`: la alerta de 25,50 USD es coherente con gasto bruto, pero no se comparó al centavo contra Cost Explorer.
 - El correo de alertas, el valor de `Owner` y el límite son decisiones del equipo; los valores del código son una propuesta.
 
 ## English
 
-**Status: deployed in AWS; SNS transport test passed on 2026-10-23.** This page explains how to deploy and test the budget with email alerts (EG-32 criterion 3) and the `Project` and `Owner` tags (criterion 4). The AWS Budgets-originated notification and the Billing tag activation are still missing (see "Evidence of the test").
+**Status: deployed in AWS; SNS transport test and real Budgets alert received on 2026-10-23.** This page explains how to deploy and test the budget with email alerts (EG-32 criterion 3) and the `Project` and `Owner` tags (criterion 4). The real Budgets alert was received on 2026-10-23; the tags are active in Billing and attribution was shown in Cost Explorer on 2026-10-30 using the persistent resources (see "Evidence of the test").
 
 ### What is added
 
@@ -128,10 +150,32 @@ The state bucket already exists and `infra/terraform/backend.hcl` is built as in
 
 **Transport test.** From a CloudShell, Julián ran `aws sns publish` with the subject "Prueba EG-32"; SNS returned `MessageId` `828ee581-a2c4-511d-8f19-86d42339f2a4`, and the email **arrived in the primary inbox** (not spam) right away. The pre-checks returned what was expected. This test shows that SNS delivers the email; it does **not** show that AWS Budgets fires the alert.
 
-**Still without evidence:** a notification originated by AWS Budgets (it only happens when a threshold is crossed; if it cannot be obtained, document the limitation); activation of `Project` and `Owner` as cost allocation tags in Billing and their attribution in Cost Explorer; the exact effect of `include_credit = false`.
+**Real AWS Budgets alert (received 2026-10-23, 19:29 mailbox local time).** An email from `AWS Notifications` (`no-reply@sns.amazonaws.com`) arrived with the subject "AWS Budgets: sonoraplay-mensual has exceeded your alert threshold". Its body states: budget `sonoraplay-mensual`, type Cost, budgeted amount USD 50.00, alert type ACTUAL, threshold > USD 25.00, **ACTUAL amount USD 25.50**. So AWS Budgets crossed the 50% actual-spend threshold and published to the SNS topic, which delivered the email to the confirmed subscription: **Budgets → SNS → email path demonstrated**. Julián reviewed the screenshot on 2026-10-26; it is not stored in the repository because it shows the account number.
+
+**Effect of `include_credit = false`.** On the same day, Cost Explorer with credits included showed a net cost near zero, and excluding credits and refunds it showed USD 28.18 accumulated from 1 to 26 October. Budgets alerted at USD 25.50: this is consistent with the budget measuring gross spend and not deducting credits (the expected behavior of the setting). The two figures were not compared to the cent because they refer to different dates.
+
+**Tag activation (2026-10-26).** Julián activated `Owner` as a cost allocation tag in Billing (as reported by him; no screenshot kept). Cost Explorer attribution only covers spend after activation and can take up to about 24 hours.
+
+**Checks of 2026-10-30** (CloudShell, `us-east-1`, read-only; Julián and Andrea; no account number or email in the output).
+
+| Check | Result |
+|---|---|
+| SNS topic tags | `Project=sonoraplay` and `Owner=sonoraplay-equipo` |
+| Billing activation | `Owner` and `Project` are `Active` (`Owner` updated 2026-10-26 12:09 UTC; `Project` 2026-10-23 14:25 UTC) |
+| Cost Explorer attribution (range 2026-10-27 to 2026-10-30, grouped by tag) | `Owner$sonoraplay-equipo` and `Project$sonoraplay` appear with 3 days of data, between USD 0.00053 and 0.00058 per day |
+| Budget `sonoraplay-mensual` | USD 50, `IncludeCredit = false`; notifications ACTUAL > 50 and > 80 and FORECASTED > 100 (the output does not show the threshold type; it matches the designed 50 %, 80 % and 100 %) |
+| Email subscription | 1 confirmed subscription |
+
+**Attribution.** Cost Explorer now splits spend by `Project` and `Owner`, but only with the persistent resources (ECR, state bucket and SNS), at minimal cost. Next to each tagged group there is an untagged group (`Owner$`, `Project$`) with almost equal negative amounts, so the net is close to zero. This is consistent with account credits, which carry no tag; that explanation was not confirmed with a charge-type breakdown.
+
+**ECR and state bucket tags (2026-10-30, second round, same method):** the 5 ECR repositories (`simulador`, `api-titulares`, `api-contratos`, `consumidor` and `spark`) and the state bucket carry `Project=sonoraplay` and `Owner=sonoraplay-equipo`.
+
+**Real Budgets email (2026-10-30):** Julián confirmed that the `sonoraplay-mensual` email is still in the main inbox (not spam): USD 50 budget, ACTUAL > USD 25 alert, actual amount USD 25.50. The date inside the email body is 2026-10-24 (UTC); it arrived on 2026-10-23 at 19:29 Colombia time. No screenshot is kept in the repository because it shows the account number and the alert email address.
+
+**Still without evidence:** attribution of the main stack resources (ECS, RDS, ALB and others), currently destroyed. It is confirmed in the next deployment window: Cost Explorer → Group by → Tag → `Owner` (and `Project`), date range covering the window, no account data. Whether to close criterion 4 with this evidence or wait for that window is Julián's decision.
 
 ### Not tested
 
 - The code passed `terraform fmt`, `validate` on the three stacks and Checkov (299 passed, 0 failed), and the stack is deployed (see above); what is still untested is what is listed under "Still without evidence".
-- It is not yet known whether `include_credit = false` produces exactly the expected gross spend in this account: confirm it in the Budgets console after the first day.
+- `include_credit = false`: the USD 25.50 alert is consistent with gross spend, but it was not compared to the cent against Cost Explorer.
 - The alert email, the `Owner` value and the limit are team decisions; the values in the code are a proposal.
