@@ -36,13 +36,41 @@ La fila `poda` sale de una corrida aparte (`--hasta 2026-09-10`, solo `base` y `
 5. **`sal` empeora (+5 %)**: con 200 artistas y exponente 3,0 el sesgo no basta para que repartir la clave compense el costo de multiplicar el catálogo por 16. No se descarta con datos reales más sesgados.
 6. **Rendimiento observado:** la base procesó 40 000 reproducciones en 324 s (≈ 123 reproducciones/s de extremo a extremo en `local[2]`). No se extrapola al mes completo: el volumen real no está definido en el repositorio, y el comportamiento no tiene por qué ser lineal.
 
+
+## Medición a 400 000 reproducciones (línea base)
+
+Segunda medición, **10 veces mayor**: un mes sintético de **400 000 reproducciones** (≈ 800 000 eventos, 40 000 usuarios, mismo generador y semilla 42), variante `base`, **1 repetición**, `local[2]` con 6 GB, PySpark 4.0.1, en una máquina de 4 vCPU. Resultado: `res_base.json`.
+
+| Etapa | Segundos |
+|---|---:|
+| Silver | 1 893,4 |
+| Liquidación (proxy) | 623,9 |
+| **Total** | **2 517,3 (≈ 42 min)** |
+
+- **Escala mejor que lineal:** 10 veces más datos costaron 7,8 veces más tiempo (324 s con 40 000). Rendimiento de extremo a extremo: ≈ 159 reproducciones/s (antes 123).
+- **Capacidad en este tamaño de tarea:** a ese ritmo, 2 núcleos procesan ≈ **570 000 reproducciones por hora**. Un mes de hasta ese volumen cabría en la meta de < 1 h (RNF-01); uno mayor no, salvo con los ajustes de arriba (AQE o menos particiones, ≈ −18 %), que **no** se volvieron a medir a esta escala.
+- **No se midieron más variantes a esta escala.** La corrida de `aqe` falló al arrancar por un error de uso mío (el arnés exige incluir `base` en `--variantes`) y no se repitió. Es una sola repetición: sin varianza.
+
+### Costo por corrida (cota superior, Fargate bajo demanda)
+
+Precios de la lista oficial de AWS (us-east-1, ARM): **0,03238 USD por vCPU-hora y 0,00356 USD por GB-hora**. Una tarea de 2 vCPU y 8 GB cuesta **0,0932 USD/hora**. Fargate Spot no aparece en la lista de precios, así que esto es una cota superior: Spot sería menor.
+
+| Concepto | Cálculo | USD |
+|---|---|---:|
+| Una corrida completa del mes (Silver + liquidación) | 0,699 h × 0,0932 | **0,065** |
+| Silver diario durante un mes (30 corridas, cada una reconstruye el mes hasta la fecha, volumen medio = mitad del mes) | 30 × 0,5 × 0,526 h × 0,0932 | ≈ 0,74 |
+| Liquidación mensual (1 corrida) | 0,173 h × 0,0932 | ≈ 0,016 |
+| **Total aproximado del mes** | | **≈ 0,75** |
+
+Estos costos suponen un mes de 400 000 reproducciones y escala lineal dentro del mes; el volumen real del proyecto no está definido en el repositorio. Es un orden de magnitud, no un presupuesto.
+
 ## Lo que NO está hecho (criterios de la EG-39)
 
 | Criterio | Estado |
 |---|---|
-| 1 · Línea base con el volumen completo del mes | ⛔ Solo 40 000 reproducciones |
+| 1 · Línea base con el volumen completo del mes | 🟡 400 000 reproducciones (42 min en `local[2]`); el volumen "completo" real no está definido en el repositorio |
 | 2 · Impacto individual de cada ajuste | ✅ a esta escala; falta repetirlo con más volumen |
-| 3 · Liquidación completa < 1 h en 2 vCPU / 8 GB de Fargate Spot | ⛔ No medido; `local[2]` solo aproxima, y la meta no puede evaluarse sin el volumen completo |
+| 3 · Liquidación completa < 1 h en 2 vCPU / 8 GB de Fargate Spot | 🟡 42 min con 400 000 reproducciones en `local[2]` (≈ 570 000/h); **no** medido en Fargate |
 | 4 · Salida idéntica a la línea base | ✅ Verificado por huella en las 7 variantes |
 | 5 · Informe con Spark UI y costo por corrida; ADR-0016 | 🟡 Esta tabla y el ADR-0016 (*Propuesto*). Los registros de Spark UI (13 MB) se guardaron en la máquina de la medición y **no** están en el repositorio. El **costo por corrida queda pendiente**: faltan los precios verificados de Fargate; el informe no inventa cifras |
 

@@ -1,0 +1,43 @@
+{
+  "entorno": {
+    "pyspark": "4.0.1",
+    "python": "3.12.3",
+    "so": "Linux-6.18.44-fc-v242-x86_64-with-glibc2.39",
+    "nucleos_spark": 2,
+    "memoria_driver": "6g",
+    "nota": "local[N] aproxima, no reproduce, una tarea de Fargate del mismo tama\u00f1o"
+  },
+  "datos": "/var/tmp/eg39d/datos",
+  "hasta": null,
+  "orden": [
+    "base"
+  ],
+  "resultados": [
+    {
+      "variante": "base",
+      "descripcion": "L\u00ednea base: sin AQE, sin difusi\u00f3n, 200 particiones, sin poda",
+      "segundos": {
+        "silver": [
+          1893.351
+        ],
+        "liquidacion": [
+          623.94
+        ]
+      },
+      "mediana": {
+        "silver": 1893.351,
+        "liquidacion": 623.94
+      },
+      "huella_silver": {
+        "filas": 398058,
+        "hash": 199289364577348
+      },
+      "huella_liquidacion": {
+        "filas": 300,
+        "hash": 151567918337
+      },
+      "spark_ui": "http://192.0.2.2:4040"
+    }
+  ],
+  "problemas": []
+}
