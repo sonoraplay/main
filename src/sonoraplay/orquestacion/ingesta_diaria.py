@@ -153,11 +153,20 @@ def leer_marcador_s3(uri_commits: str, run_id: str) -> dict:
     return json.loads(cuerpo)
 
 
+def leer_marcador(ubicacion: str, run_id: str) -> dict:
+    """Lee ``commits/<run_id>.json`` de S3 (``s3://...``) o de un directorio local (pruebas)."""
+    if ubicacion.startswith("s3://"):
+        return leer_marcador_s3(ubicacion, run_id)
+    from pathlib import Path
+
+    return json.loads((Path(ubicacion) / f"{run_id}.json").read_text(encoding="utf-8"))
+
+
 def verificar_silver_publicado(
     fecha: str | date,
     run_id: str,
     entorno: dict[str, str] | None = None,
-    leer: Callable[[str, str], dict] = leer_marcador_s3,
+    leer: Callable[[str, str], dict] = leer_marcador,
 ) -> dict:
     """Exige el marcador ``commits/<run_id>.json`` de EG-35 antes de dar el día por ingerido.
 
