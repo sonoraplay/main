@@ -68,6 +68,28 @@ jobs:
           # El contexto job solo existe dentro de los pasos, no en el env del job.
           RABBITMQ_REINICIO: docker restart ${{ job.services.rabbitmq.id }}
 
+  # EG-34 criterio 5: importa todos los DAG; falla si alguno tiene errores. Airflow va aparte
+  # porque sus dependencias se fijan con las restricciones oficiales, no con uv.lock.
+  dags:
+    runs-on: ubuntu-latest
+    env:
+      AIRFLOW_VERSION: 3.1.3
+      AIRFLOW_HOME: ${{ github.workspace }}/.airflow-ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv venv --python 3.12 .venv-airflow
+      - name: Instalar Airflow con restricciones oficiales
+        run: |
+          uv pip install --python .venv-airflow/bin/python \
+            --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-3.12.txt" \
+            "apache-airflow==${AIRFLOW_VERSION}" apache-airflow-providers-celery \
+            "psycopg[binary]" pytest
+      - name: Prueba de DagBag
+        env:
+          PYTHONPATH: src
+        run: .venv-airflow/bin/python -m pytest tests/orquestacion/test_dags.py --noconftest -q
+
   terraform:
     runs-on: ubuntu-latest
     steps:

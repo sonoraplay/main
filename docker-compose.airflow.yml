@@ -1,0 +1,98 @@
+# EG-34 · Airflow con CeleryExecutor: 2 workers en contenedores y RabbitMQ como broker.
+# Se usa JUNTO al compose principal (comparte postgres y rabbitmq):
+#   docker compose -f docker-compose.yml -f docker-compose.airflow.yml up -d --build
+# Interfaz: http://localhost:${AIRFLOW_PORT:-8080}  (usuario/clave de AIRFLOW_ADMIN_* en .env)
+
+x-airflow-env: &airflow-env
+  AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+  AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:?Define AIRFLOW_FERNET_KEY en .env}
+  AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET:?Define AIRFLOW_JWT_SECRET en .env}
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_DB_PASSWORD:?Define AIRFLOW_DB_PASSWORD en .env}@airflow-db:5432/airflow
+  # Broker: el mismo RabbitMQ de la mensajería F2, en su propio vhost para no mezclar colas.
+  AIRFLOW__CELERY__BROKER_URL: amqp://${RABBITMQ_USER:-sonora}:${RABBITMQ_PASSWORD:?Define RABBITMQ_PASSWORD en .env}@rabbitmq:5672/airflow
+  AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:${AIRFLOW_DB_PASSWORD}@airflow-db:5432/airflow
+  # Las tareas hablan con el postgres de la plataforma, no con el de metadatos de Airflow.
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-sonora}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sonoraplay}
+  SILVER_JOB_COMMAND: ${SILVER_JOB_COMMAND:-}
+
+x-airflow: &airflow
+  build:
+    context: .
+    dockerfile: docker/airflow/Dockerfile
+  image: sonoraplay-airflow:local
+  environment: *airflow-env
+  volumes:
+    - ./dags:/opt/airflow/dags:ro
+  depends_on:
+    airflow-db: {condition: service_healthy}
+    rabbitmq: {condition: service_healthy}
+    airflow-init: {condition: service_completed_successfully}
+
+services:
+  airflow-db:
+    image: postgres:16.15-bookworm
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:?Define AIRFLOW_DB_PASSWORD en .env}
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow-db-datos:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Crea el vhost "airflow" en RabbitMQ y migra la base de metadatos. Una sola ejecución.
+  airflow-rabbit-vhost:
+    image: curlimages/curl:8.11.1
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        U='${RABBITMQ_USER:-sonora}:${RABBITMQ_PASSWORD}' &&
+        until curl -fsS -u "$$U" -X PUT http://rabbitmq:15672/api/vhosts/airflow; do sleep 3; done &&
+        curl -fsS -u "$$U" -X PUT -H 'content-type: application/json'
+        -d '{"configure":".*","write":".*","read":".*"}'
+        "http://rabbitmq:15672/api/permissions/airflow/${RABBITMQ_USER:-sonora}"
+    depends_on:
+      rabbitmq: {condition: service_healthy}
+    restart: "no"
+
+  airflow-init:
+    <<: *airflow
+    depends_on:
+      airflow-db: {condition: service_healthy}
+      airflow-rabbit-vhost: {condition: service_completed_successfully}
+    command: ["bash", "-c", "airflow db migrate"]
+    restart: "no"
+
+  airflow-apiserver:
+    <<: *airflow
+    command: ["api-server"]
+    ports:
+      - "${AIRFLOW_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/version"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  airflow-scheduler:
+    <<: *airflow
+    command: ["scheduler"]
+
+  airflow-dag-processor:
+    <<: *airflow
+    command: ["dag-processor"]
+
+  # Criterio 2: al menos 2 workers Celery en contenedores.
+  airflow-worker:
+    <<: *airflow
+    command: ["celery", "worker"]
+    deploy:
+      replicas: 2
+
+volumes:
+  airflow-db-datos:
