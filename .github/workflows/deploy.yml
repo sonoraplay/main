@@ -1,0 +1,112 @@
+name: Deploy
+# EG-40: al hacer merge a main se construyen las imágenes arm64, se publican en ECR con el SHA del
+# commit y se actualizan los servicios de ECS. GitHub entra a AWS por OIDC (ADR-0017): no hay
+# llaves guardadas. Si el deploy falla, el circuit breaker del servicio (ecs.tf) revierte a la
+# versión anterior y la API sigue arriba.
+#
+# Requiere la variable de repositorio AWS_DEPLOY_ROLE_ARN (salida `rol_arn` de infra/terraform/cicd).
+# Sin ella, los jobs se omiten: el merge no falla en un repositorio sin AWS configurado.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  PREFIJO: sonoraplay
+  CLUSTER: sonoraplay-dev
+
+jobs:
+  imagenes:
+    if: ${{ vars.AWS_DEPLOY_ROLE_ARN != '' }}
+    # Runner arm64 nativo: no hace falta QEMU y la imagen sale en la misma arquitectura que Fargate.
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      id-token: write   # solicita el token OIDC
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        servicio: [api-titulares, api-contratos, simulador, consumidor]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Calcular la etiqueta (SHA corto del commit)
+        id: tag
+        run: echo "sha=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+      - name: ¿Ya existe la imagen? (las etiquetas de ECR son inmutables)
+        id: existe
+        run: |
+          if aws ecr describe-images --repository-name "${PREFIJO}/${{ matrix.servicio }}" \
+               --image-ids imageTag="${{ steps.tag.outputs.sha }}" >/dev/null 2>&1; then
+            echo "existe=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "existe=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: docker/setup-buildx-action@v3
+        if: steps.existe.outputs.existe == 'false'
+      - uses: docker/build-push-action@v6
+        if: steps.existe.outputs.existe == 'false'
+        with:
+          context: .
+          file: docker/${{ matrix.servicio }}.Dockerfile
+          platforms: linux/arm64
+          provenance: false
+          push: true
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.PREFIJO }}/${{ matrix.servicio }}:${{ steps.tag.outputs.sha }}
+
+  desplegar-api-titulares:
+    needs: imagenes
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Actualizar el servicio si existe
+        run: |
+          SHA="$(git rev-parse --short=7 HEAD)"
+          SERVICIO=api-titulares
+          ESTADO="$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICIO" \
+                      --query 'services[0].status' --output text 2>/dev/null || echo NONE)"
+          if [[ "$ESTADO" != "ACTIVE" ]]; then
+            echo "::notice::El servicio $SERVICIO no está activo (el entorno está apagado, ADR-0020): se publicó la imagen y no hay nada que actualizar."
+            exit 0
+          fi
+          ACTUAL="$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICIO" \
+                      --query 'services[0].taskDefinition' --output text)"
+          CUENTA="$(aws sts get-caller-identity --query Account --output text)"
+          IMAGEN="${CUENTA}.dkr.ecr.${AWS_REGION}.amazonaws.com/${PREFIJO}/${SERVICIO}:${SHA}"
+          # Misma definición de tarea con la imagen nueva; el resto lo sigue manejando Terraform.
+          aws ecs describe-task-definition --task-definition "$ACTUAL" --query taskDefinition \
+            | jq --arg img "$IMAGEN" '
+                .containerDefinitions |= map(if .name == "api-titulares" then .image = $img else . end)
+                | del(.taskDefinitionArn, .revision, .status, .requiresAttributes,
+                      .compatibilities, .registeredAt, .registeredBy)' > nueva-tarea.json
+          NUEVA="$(aws ecs register-task-definition --cli-input-json file://nueva-tarea.json \
+                     --query taskDefinition.taskDefinitionArn --output text)"
+          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICIO" --task-definition "$NUEVA" >/dev/null
+          # Espera a que el despliegue termine. Si el circuit breaker lo revierte, el servicio
+          # queda estable en la versión anterior y este paso falla para que se note.
+          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICIO"
+          ESTADO_DESPLIEGUE="$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICIO" \
+                     --query 'services[0].deployments[?status==`PRIMARY`]|[0].rolloutState' --output text)"
+          echo "rolloutState=$ESTADO_DESPLIEGUE"
+          [[ "$ESTADO_DESPLIEGUE" == "COMPLETED" ]] || { echo "::error::El despliegue no se completó (¿rollback?)"; exit 1; }

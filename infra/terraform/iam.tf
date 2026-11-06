@@ -137,6 +137,20 @@ data "aws_iam_policy_document" "consumidor" {
     actions   = ["s3:PutObject"]
     resources = ["${local.arn_s3["bronze"]}/*"]
   }
+
+  # EG-33 criterio 5: profundidad de la cola y errores en CloudWatch. PutMetricData no admite
+  # recursos, así que se acota por espacio de nombres.
+  statement {
+    sid       = "PublicaMetricas"
+    actions   = ["cloudwatch:PutMetricData"]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "cloudwatch:namespace"
+      values   = ["SonoraPlay/Mensajeria"]
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "consumidor" {
@@ -268,6 +282,22 @@ data "aws_iam_policy_document" "airflow" {
     sid       = "EscribeF6F7"
     actions   = ["s3:PutObject"]
     resources = ["${local.arn_s3["bronze"]}/f6/*", "${local.arn_s3["bronze"]}/f7/*"]
+  }
+
+  # EG-34: `verificar_silver_publicado` lee el marcador `commits/<run_id>.json` de Silver (solo ese
+  # prefijo, solo lectura) antes de marcar el día como ingerido.
+  statement {
+    sid       = "LeeMarcadorSilver"
+    actions   = ["s3:GetObject"]
+    resources = ["${local.arn_s3["silver"]}/commits/*"]
+  }
+
+  # EG-38 criterio 3: el DAG mensual avisa por SNS cuando una tarea agota sus reintentos.
+  # El tema es del stack persistente `presupuesto/` (se llama igual en todas las ventanas).
+  statement {
+    sid       = "AvisaFallos"
+    actions   = ["sns:Publish"]
+    resources = ["arn:${local.particion}:sns:${var.region}:${local.cuenta}:${var.proyecto}-presupuesto-alertas"]
   }
 }
 

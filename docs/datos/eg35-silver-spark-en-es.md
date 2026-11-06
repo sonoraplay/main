@@ -12,8 +12,8 @@ start-less sessions, applies RN-01 and the RN-02 daily cap per user, track and U
 Silver Parquet partitioned by corrected UTC `year/month` and playback country.
 
 **Local validation:** install compatible PySpark and run
-`uv run --with pyspark pytest tests/spark/test_silver.py`.
-The tests reuse F2 defect fixtures. The dedicated `spark-silver` CI job now installs PySpark 3.5.7 and executes
+`uv run --with pyspark==4.0.1 pytest -q tests/spark/test_silver.py`.
+The tests reuse F2 defect fixtures. The dedicated `spark-silver` CI job now installs PySpark 4.0.1 and executes
 the suite without `importorskip`. Its result must be verified before acceptance. Run a real Parquet write/read and record command, environment,
 timestamp, input/output counts and paths before checking CA6.
 
@@ -24,7 +24,7 @@ timestamp, input/output counts and paths before checking CA6.
 - Validate malformed JSON, duplicate IDs with conflicting payloads, and
   incomplete sessions; the existing reconstruction currently counts open
   segments as zero but does not emit a dedicated `sin_fin` quality flag.
-- Add lineage fields (`run_id`, UTC ingestion time and source version), verify
+- Verify the newly added lineage fields (`run_id`, UTC ingestion time and source version) in CI and downstream Parquet; verify
   S3 encryption/IAM, choose compaction and retention, and record a real
   Parquet round trip.
 - Confirm `applyInPandas` grouped-session memory behavior and performance at
@@ -47,15 +47,15 @@ el tope RN-02 por usuario, pista y día UTC, y escribe Parquet particionado por 
 corregido y país de reproducción.
 
 **Validación local:** instalar PySpark compatible y ejecutar
-`uv run --with pyspark pytest tests/spark/test_silver.py`.
-Las pruebas usan fixtures F2 existentes. Se agregó un job de CI que instala PySpark 3.5.7 y ejecuta las pruebas sin saltarlas.
+`uv run --with pyspark==4.0.1 pytest -q tests/spark/test_silver.py`.
+Las pruebas usan fixtures F2 existentes. Se agregó un job de CI que instala PySpark 4.0.1 y ejecuta las pruebas sin saltarlas.
 Es necesario comprobar su resultado antes de aceptar el criterio.
 Antes de aceptar CA6 hay que probar lectura y escritura reales de Parquet. Se añadió la prueba de round trip,
 pero falta verificar su ejecución y registrar comando, entorno, fecha, conteos y rutas.
 
 **Pendientes:** `run()` utiliza `errorifexists`: no sobrescribe rutas existentes, pero aún
 falta una estrategia idempotente para reprocesar datos tardíos en S3. Faltan control de JSON inválido, marcas
-de calidad `sin_fin`, metadatos de linaje, cifrado/IAM, compactación,
+de calidad `sin_fin`, pruebas del linaje, cifrado/IAM, compactación,
 retención, pruebas de volumen y cobertura completa de EG-17/EG-22 (29/30 s,
 reproducción 11 y corte offline). La prueba de Gold y conciliación es EG-37.
 
@@ -75,3 +75,227 @@ que Spark funcione. Hay que revisar el job `spark-silver` y guardar el enlace de
 la ejecución y sus resultados. El round trip local de Parquet no demuestra
 cifrado en S3, permisos IAM, compactación, reproceso seguro de eventos tardíos
 ni conciliación Gold del ADR-0014. EG-31 y EG-35 siguen pendientes de evidencia.
+
+## Lineage contract / Contrato de linaje
+
+**English:** `run()` now requires keyword arguments `run_id` and `source_version`.
+It captures one UTC ingestion timestamp for the run and writes all three fields
+on both Silver and quarantine rows. The caller is responsible for supplying the
+real upstream version and a unique run ID. The transformation accepts these
+three fields together for deterministic tests. This is **not** a guarantee of
+atomic writes or safe late-arrival replay. CI evidence for this change is pending.
+
+**Español:** `run()` ahora exige `run_id` y `source_version` como argumentos
+nombrados. Registra un instante UTC por ejecución y guarda los tres campos en
+Silver y cuarentena. Quien ejecuta el proceso debe indicar la versión real del
+origen y un identificador único. La transformación permite suministrar los tres
+campos para pruebas reproducibles. Esto **no** garantiza escrituras atómicas ni
+reprocesamiento seguro de datos tardíos. Falta comprobar este cambio en CI.
+
+
+## Daily orchestration decision / Decisión de orquestación diaria
+
+**English — decision for the next implementation, not yet delivered:** Keep
+ADR-0014's `year/month/country` Silver partitions. Do not introduce a daily
+partition. Rebuild each **complete affected playback month to date**, including
+events required to finish sessions crossing UTC midnight, and reevaluate RN-02
+on the full UTC day. Offline events that arrive after the initial window may
+affect an older playback month; they must be detected and their entire affected
+month recalculated rather than dropped. Around the RN-04 cutoff, account for
+both playback and settlement months without confusing their partition keys.
+
+A daily batch that overwrites a month partition with only one day's plays is
+**forbidden**: it would erase prior days. Dynamic partition overwrite is safe
+from that specific data-loss bug *only* when the incoming data covers every
+record in every partition being replaced. It is still not an atomic S3
+transaction. The design therefore needs staged output and a safe publication
+protocol before production use, plus integration tests for retries, cross-day
+sessions, late events, and an empty or missing source day. Until that work is
+proven, `run()` remains non-idempotent and must not be connected to Airflow
+as if it met EG-34's idempotency acceptance criterion.
+
+**Español — decisión para la siguiente implementación, todavía pendiente:**
+Conservamos las particiones `year/month/country` del ADR-0014. No agregaremos
+partición por día. Reconstruiremos cada **mes de reproducción afectado completo
+hasta la fecha procesada**, incluyendo los eventos necesarios para cerrar
+sesiones que cruzan medianoche UTC, y volveremos a calcular RN-02 con todos los
+datos del día UTC. Los eventos offline que lleguen más tarde pueden modificar
+un mes de reproducción anterior: habrá que detectar ese mes y recalcularlo
+completo, no ignorar la llegada tardía. El mes de liquidación RN-04 es distinto
+del mes usado para particionar las reproducciones.
+
+**No** se puede sobrescribir una partición mensual con datos de un solo día,
+porque se borrarían reproducciones anteriores. `dynamic overwrite` solo evita
+ese problema concreto si se reconstruye **toda** la información de cada
+partición afectada; no convierte la escritura en una transacción atómica de S3.
+Antes de usarlo en AWS necesitamos escritura temporal, publicación segura y
+pruebas de reintentos, cruces de medianoche, eventos tardíos y ausencia de datos
+Bronze del día solicitado. Hasta comprobarlo, `run()` sigue sin ser
+idempotente y no debe conectarse al DAG como si cumpliera EG-34.
+
+
+## F2 validation / Validación F2
+
+**English:** Spark's explicit JSON `StructType` does not enforce non-null
+values during ingestion. The transform now fails closed on null or blank
+mandatory F2 fields. A session with conflicting playback countries or schema
+versions goes to quarantine with an explicit reason instead of inheriting an
+arbitrary value. Duplicate or null catalog keys are rejected before the join.
+These checks require a passing Spark CI run before being considered verified.
+
+**Español:** Declarar `StructType` no garantiza que Spark rechace campos nulos
+al leer JSON. La transformación ahora rechaza los campos F2 obligatorios nulos
+o vacíos. Si una sesión contiene países de reproducción o versiones de esquema
+contradictorios, pasa a cuarentena con un motivo explícito. También se rechazan
+claves duplicadas o nulas en el catálogo F1 antes del `join`. Falta confirmar
+estas pruebas en el CI de Spark.
+
+
+## Airflow CLI guard / Protección del CLI para Airflow
+
+**English:** The module now exposes `python -m sonoraplay.spark.silver
+--fecha YYYY-MM-DD` and accepts `--bronze`, `--catalogo`, `--silver`,
+`--cuarentena`, `--run-id` and `--source-version`. Paths and lineage
+arguments can also be supplied through `SONORAPLAY_BRONZE_PATH`,
+`SONORAPLAY_CATALOG_PATH`, `SONORAPLAY_SILVER_PATH`,
+`SONORAPLAY_QUARANTINE_PATH`, `SONORAPLAY_RUN_ID` and
+`SONORAPLAY_SOURCE_VERSION`. It validates the UTC date and required
+arguments, then **exits nonzero without writing**. This is intentional:
+the existing `run()` cannot safely replay a date or publish an entire
+affected month atomically. Do **not** activate `SILVER_JOB_COMMAND` yet.
+
+**Español:** El módulo ya reconoce el comando `python -m
+sonoraplay.spark.silver --fecha AAAA-MM-DD` y los argumentos de rutas y
+linaje indicados arriba. Valida la fecha UTC y los parámetros obligatorios,
+pero **termina con error sin escribir datos**. Es una protección deliberada:
+`run()` todavía no garantiza reejecuciones idempotentes ni publicación
+atómica de los meses afectados. **No** habilitar todavía
+`SILVER_JOB_COMMAND` en Airflow.
+
+
+## Bronze read-window planner / Planificación de lectura Bronze
+
+**English:** `bronze_window(fecha)` now returns all UTC server-arrival days
+from the first of the month through the closed processing day. For processing
+days 1–3, it starts at the first of the previous month, to include the RN-04
+grace period. `bronze_partition_paths(root, fecha)` produces paths matching
+EG-33's `f2/fecha=YYYY-MM-DD` layout. These are **planning helpers**, not a
+complete incremental processing implementation. Because Bronze is partitioned
+by `server_ts`, a late offline playback can belong to an older playback month
+than this arrival window. A correct production job must inspect affected
+playback months and rebuild all affected partitions, including older months
+when needed. The helpers do not publish or overwrite Silver.
+
+**Español:** `bronze_window(fecha)` calcula los días de llegada UTC desde el
+primero del mes hasta la fecha cerrada. En los días 1–3 incluye el mes anterior
+por el margen de RN-04. `bronze_partition_paths(root, fecha)` genera rutas
+compatibles con `f2/fecha=AAAA-MM-DD` de EG-33. Son **funciones de
+planificación**, no una solución completa de reproceso. Bronze se particiona
+por `server_ts`; una reproducción offline tardía puede pertenecer a un mes
+de reproducción mucho más antiguo. Antes de publicar, hay que detectar y
+reconstruir todos los meses afectados. Estas funciones no sobrescriben Silver.
+
+
+## Real Bronze reader / Lector real de Bronze
+
+**English:** `read_bronze_window(spark, bronze_root, fecha)` uses Spark's
+explicit F2 schema to read EG-33 JSONL files from existing
+`fecha=YYYY-MM-DD` arrival partitions. It tolerates missing historical
+dates but raises `FileNotFoundError` when the requested closed day has
+no partition. Tests cover the actual directory layout and missing-day
+failure. This is a read-only integration helper. It does not solve
+arbitrarily late offline events, full affected-month rebuilding,
+idempotent publication or S3 atomicity. The Airflow CLI remains disabled.
+
+**Español:** `read_bronze_window(spark, bronze_root, fecha)` lee los JSONL
+de EG-33 con el esquema F2 explícito desde las particiones de llegada
+`fecha=AAAA-MM-DD` existentes. Permite días históricos sin partición,
+pero genera `FileNotFoundError` cuando falta la fecha cerrada solicitada.
+Las pruebas cubren la estructura real y el error por día faltante.
+Es una función de solo lectura: no resuelve eventos offline arbitrariamente
+tardíos, reconstrucción de meses afectados, publicación idempotente ni
+atomicidad en S3. El CLI de Airflow sigue bloqueado.
+
+
+## Late-arrival replay planning / Planificación de reproceso tardío
+
+**English:** `affected_playback_months(silver, quarantine)` derives the distinct
+corrected UTC playback months from both accepted and quarantined plays.
+`validate_replay_coverage(affected_months, replayed_months)` refuses a
+publication plan that omits an affected month. This prevents treating the
+bounded Bronze arrival window as sufficient proof of full-month coverage.
+Tests include a late offline playback from an older month. These helpers
+are not an atomic S3 publisher: full historical replay, safe staging,
+publication/rollback and Airflow integration remain open acceptance gates.
+
+**Español:** `affected_playback_months(silver, quarantine)` identifica los
+meses UTC de reproducción corregida en las reproducciones aceptadas y en
+cuarentena. `validate_replay_coverage(affected_months, replayed_months)`
+rechaza planes que omitan un mes afectado. Así no confundimos la ventana
+limitada de llegada Bronze con un reproceso histórico completo. Las pruebas
+incluyen una reproducción offline tardía de un mes anterior. Estas funciones
+no publican atómicamente en S3: siguen pendientes la reconstrucción histórica
+completa, el staging, la publicación/reversión segura y Airflow.
+
+## Historical replay safety / Seguridad del reproceso histórico
+
+**English:** The reference `read_bronze_history` reader scans every existing
+`fecha=YYYY-MM-DD` Bronze arrival partition up to the closed processing day.
+Unlike a month-to-date arrival window, it can include offline events arriving
+months after playback and sessions split across arrival days. It requires the
+target day's partition and rejects malformed partition names. This is a
+correctness-oriented reader, **not** a proof that upstream Bronze ingestion is
+complete. `snapshot_paths` validates immutable run-specific output paths.
+Neither function enables the intentionally blocked production CLI; atomic
+multi-output publication, concurrency and reader pinning remain required.
+
+**Español:** El lector de referencia `read_bronze_history` recorre todas las
+particiones Bronze de llegada `fecha=YYYY-MM-DD` hasta el día UTC cerrado.
+Así incluye eventos offline que llegan meses después y sesiones divididas
+entre días de llegada. Exige la partición del día objetivo y rechaza nombres
+inválidos. Es un lector orientado a la corrección, **no** una prueba de que
+Bronze esté completo. `snapshot_paths` valida rutas inmutables por ejecución.
+Ninguna función habilita el CLI de producción: faltan publicación consistente
+de ambas salidas, control de concurrencia y lectores anclados a una versión.
+
+## Immutable historical snapshot verification / Verificación de snapshots históricos inmutables
+
+**English.** `write_historical_snapshot` now reads all available Bronze F2
+arrival partitions through the closed UTC date, applies the existing Silver
+business rules, writes Parquet to distinct `runs/<run_id>` prefixes, and reads
+both outputs back to verify row counts and playback-month coverage. A second
+attempt with the same run ID fails before writing. This is a testable reference
+path for complete-history replay, **not a transactional publisher**. Concurrent
+writers with the same ID, incomplete upstream ingestion, partial S3 failures,
+and downstream selection of a consistent run still need an orchestration
+protocol. The production CLI remains disabled. Never use a partially written
+run or treat a successful local test as evidence of AWS deployment.
+
+**Español.** `write_historical_snapshot` lee todas las particiones Bronze F2
+disponibles hasta el día UTC cerrado, aplica las reglas Silver existentes,
+escribe Parquet en prefijos separados `runs/<run_id>` y vuelve a leer ambas
+salidas para comprobar conteos y cobertura de meses de reproducción. Un segundo
+intento con el mismo identificador falla antes de escribir. Es una ruta de
+referencia verificable para reprocesamiento histórico completo, **no una
+publicación transaccional**. Aún faltan un protocolo de orquestación para
+ejecuciones concurrentes, control de ingesta incompleta, fallos parciales S3
+y selección consistente de versiones por consumidores. El CLI productivo
+sigue bloqueado. No consumir ejecuciones parciales ni confundir pruebas
+locales con evidencia de despliegue AWS.
+
+### Parquet content verification / Verificación del contenido Parquet
+
+**English:** The historical snapshot writer compares the full multiset of rows in
+both directions after reading Silver and quarantine Parquet, using Spark
+`exceptAll`. Row counts alone cannot prove content integrity. The affected
+playback-month set is checked against persisted data; comparing a month list
+with itself is not evidence of complete replay. These checks do **not** prove
+that Bronze ingestion is complete, nor provide atomic S3 publication.
+
+**Español:** El escritor histórico compara el multiconjunto completo de filas
+en ambos sentidos después de leer los Parquet de Silver y cuarentena, mediante
+`exceptAll` de Spark. Los conteos por sí solos no prueban la integridad del
+contenido. Los meses de reproducción afectados se contrastan con los datos
+persistidos; comparar una lista consigo misma no demuestra reprocesamiento
+completo. Estas comprobaciones **no** prueban que la ingesta Bronze esté
+completa ni ofrecen publicación atómica en S3.

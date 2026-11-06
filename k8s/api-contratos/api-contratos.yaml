@@ -1,0 +1,57 @@
+# EG-41 · api-contratos (API F4) en EKS: Deployment + Service.
+# La imagen es la MISMA que usa ECS (sonoraplay/api-contratos en ECR, arm64).
+# Antes de aplicar:
+#   1. Sustituye __IMAGEN__ por <cuenta>.dkr.ecr.us-east-1.amazonaws.com/sonoraplay/api-contratos:<sha>
+#   2. Crea el Secret con la conexión (NO se versiona; sale de SSM):
+#      kubectl create secret generic api-contratos --from-literal=DATABASE_URL='postgresql+psycopg://…'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-contratos
+  labels: {app: api-contratos}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: api-contratos}
+  template:
+    metadata:
+      labels: {app: api-contratos}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: api
+          image: __IMAGEN__
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef: {name: api-contratos}
+          readinessProbe:
+            httpGet: {path: /health, port: 8000}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /health, port: 8000}
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-contratos
+  labels: {app: api-contratos}
+spec:
+  type: ClusterIP   # sin balanceador: un ELB extra costaría; se prueba con port-forward
+  selector: {app: api-contratos}
+  ports:
+    - port: 80
+      targetPort: 8000

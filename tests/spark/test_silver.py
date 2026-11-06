@@ -169,12 +169,12 @@ def test_rn02_eleventh_play_exceeds_daily_cap(spark):
 )
 def test_rn04_offline_cutoff(spark, sync_day, expected_month, expected_type):
     """An offline September play stays in September until the UTC cutoff."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import UTC, datetime, timedelta
 
     original = [row.asDict() for row in _events(spark, "duplicado_por_reintento").collect()]
     start = next(e.copy() for e in original if e["event_type"] == "start")
     end = next(e.copy() for e in original if e["event_type"] == "end")
-    playback = datetime(2026, 9, 28, 12, tzinfo=timezone.utc)
+    playback = datetime(2026, 9, 28, 12, tzinfo=UTC)
     start["event_id"] = "offline-start"
     end["event_id"] = "offline-end"
     start["is_offline"] = end["is_offline"] = True
@@ -192,3 +192,482 @@ def test_rn04_offline_cutoff(spark, sync_day, expected_month, expected_type):
     assert row["mes_reproduccion"] == "2026-09-01"
     assert row["mes_liquidacion"] == expected_month
     assert row["tipo_atribucion"] == expected_type
+
+
+def test_lineage_is_preserved_in_silver_and_quarantine(spark):
+    """One caller-supplied lineage tuple is preserved for all output rows."""
+    events = _events(spark, "track_desconocido")
+    silver, quarantine = transform(
+        events,
+        _catalog(spark),
+        run_id="eg35-test-run",
+        source_version="fixture-track-desconocido-v1",
+        ingested_at_utc="2026-11-03T12:00:00+00:00",
+    )
+    assert silver.count() == 0
+    row = quarantine.first()
+    assert row["run_id"] == "eg35-test-run"
+    assert row["source_version"] == "fixture-track-desconocido-v1"
+    assert row["ingested_at_utc"] == "2026-11-03T12:00:00Z"
+
+
+def test_lineage_requires_complete_metadata(spark):
+    """Do not silently publish partial lineage metadata."""
+    with pytest.raises(ValueError, match="must be provided together"):
+        transform(
+            _events(spark, "duplicado_por_reintento"),
+            _catalog(spark),
+            run_id="incomplete",
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid_value"),
+    [("event_id", None), ("session_id", ""), ("country_playback", None)],
+)
+def test_reject_missing_required_bronze_values(spark, field, invalid_value):
+    """A declared StructType does not validate non-null JSON at runtime."""
+    rows = [row.asDict() for row in _events(spark, "duplicado_por_reintento").collect()]
+    rows[0][field] = invalid_value
+    from pyspark.sql.types import StructField, StructType
+
+    schema = StructType(
+        [StructField(item.name, item.dataType, True) for item in event_schema().fields]
+    )
+    with pytest.raises(ValueError, match="mandatory F2 fields"):
+        transform(spark.createDataFrame(rows, schema=schema), _catalog(spark))
+
+
+def test_quarantine_conflicting_playback_countries(spark):
+    """A session must not silently inherit an arbitrary playback country."""
+    rows = [row.asDict() for row in _events(spark, "duplicado_por_reintento").collect()]
+    next(row for row in rows if row["event_type"] == "end")["country_playback"] = "ZZ"
+    silver, quarantine = transform(
+        spark.createDataFrame(rows, schema=event_schema()), _catalog(spark)
+    )
+    assert silver.count() == 0
+    assert quarantine.first()["motivo_cuarentena"] == "pais_reproduccion_inconsistente"
+
+
+def test_reject_duplicate_catalog_track(spark):
+    """A duplicated F1 key could multiply Silver rows during the join."""
+    catalog = spark.createDataFrame([(TRACK,), (TRACK,)], ["track_id"])
+    with pytest.raises(ValueError, match="exactly one row"):
+        transform(_events(spark, "duplicado_por_reintento"), catalog)
+
+
+def test_cli_rejects_invalid_date():
+    """Airflow must not silently accept a malformed processing day."""
+    from sonoraplay.spark.silver import main
+
+    with pytest.raises(SystemExit) as exc:
+        main(["--fecha", "2026-02-30"])
+    assert exc.value.code != 0
+
+
+def _cli_args(tmp_path, run_id="cli-run"):
+    return [
+        "--fecha",
+        "2026-09-20",
+        "--bronze",
+        str(tmp_path / "f2"),
+        "--catalogo",
+        str(tmp_path / "catalogo.csv"),
+        "--silver",
+        str(tmp_path / "silver"),
+        "--cuarentena",
+        str(tmp_path / "quarantine"),
+        "--run-id",
+        run_id,
+        "--source-version",
+        "fixture-v1",
+    ]
+
+
+def _preparar_cli(spark, tmp_path):
+    bronze = tmp_path / "f2" / "fecha=2026-09-20"
+    bronze.mkdir(parents=True)
+    events = [r.asDict() for r in _events(spark, "duplicado_por_reintento").collect()]
+    (bronze / "lote.jsonl").write_text(
+        "".join(json.dumps(event) + "\n" for event in events), encoding="utf-8"
+    )
+    (tmp_path / "catalogo.csv").write_text(f"track_id\n{TRACK}\n", encoding="utf-8")
+
+
+def test_cli_publishes_snapshot_and_commit_marker_last(spark, tmp_path, capsys):
+    """Exit 0 only after the marker exists; the marker pins the run for EG-34."""
+    from sonoraplay.spark.silver import main, read_verified_snapshot
+
+    _preparar_cli(spark, tmp_path)
+    assert main(_cli_args(tmp_path)) == 0
+    marcador = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert marcador["schema_version"] == "eg35-commit-v1"
+    assert marcador["run_id"] == "cli-run" and marcador["fecha"] == "2026-09-20"
+    assert marcador["silver_rows"] == 1
+    assert (tmp_path / "silver" / "commits" / "cli-run.json").exists()
+    silver, _, guardado = read_verified_snapshot(
+        spark, str(tmp_path / "silver"), str(tmp_path / "quarantine"), "cli-run"
+    )
+    assert guardado == marcador and silver.count() == 1
+
+
+def test_cli_same_run_id_fails_closed_and_keeps_published_run(spark, tmp_path):
+    """A retry with the same run_id must fail without touching what is published."""
+    from sonoraplay.spark.silver import main
+
+    _preparar_cli(spark, tmp_path)
+    assert main(_cli_args(tmp_path)) == 0
+    antes = (tmp_path / "silver" / "commits" / "cli-run.json").read_bytes()
+    with pytest.raises(FileExistsError):
+        main(_cli_args(tmp_path))
+    assert (tmp_path / "silver" / "commits" / "cli-run.json").read_bytes() == antes
+    # Un intento nuevo con otro id publica y el primero sigue legible.
+    assert main(_cli_args(tmp_path, "cli-run.2")) == 0
+
+
+def test_cli_missing_bronze_day_fails_without_marker(spark, tmp_path):
+    from sonoraplay.spark.silver import main
+
+    _preparar_cli(spark, tmp_path)
+    args = _cli_args(tmp_path)
+    args[1] = "2026-09-21"  # no existe fecha=2026-09-21
+    with pytest.raises(FileNotFoundError):
+        main(args)
+    assert not (tmp_path / "silver" / "commits").exists()
+
+
+def test_bronze_window_uses_month_to_date():
+    """RN-02 must be computed with earlier days in the same UTC month."""
+    from datetime import date
+
+    from sonoraplay.spark.silver import bronze_window
+
+    assert bronze_window(date(2026, 9, 17))[0] == date(2026, 9, 1)
+    assert bronze_window(date(2026, 9, 17))[-1] == date(2026, 9, 17)
+    assert len(bronze_window(date(2026, 9, 17))) == 17
+
+
+def test_bronze_window_includes_previous_month_during_rn04_grace():
+    """The first three days must also inspect the prior month's arrivals."""
+    from datetime import date
+
+    from sonoraplay.spark.silver import bronze_window
+
+    assert bronze_window(date(2026, 10, 2))[0] == date(2026, 9, 1)
+    assert bronze_window(date(2026, 10, 2))[-1] == date(2026, 10, 2)
+    assert bronze_window(date(2026, 10, 4))[0] == date(2026, 10, 1)
+
+
+def test_bronze_paths_match_eg33_layout():
+    """No accidental day partitioning of Silver or wrong Bronze prefix."""
+    from datetime import date
+
+    from sonoraplay.spark.silver import bronze_partition_paths
+
+    paths = bronze_partition_paths("s3a://bronze/f2/", date(2026, 9, 2))
+    assert paths[0] == "s3a://bronze/f2/fecha=2026-08-01"
+    assert paths[-2:] == [
+        "s3a://bronze/f2/fecha=2026-09-01",
+        "s3a://bronze/f2/fecha=2026-09-02",
+    ]
+    assert len(paths) == 33
+
+
+def test_read_bronze_window_reads_eg33_jsonl(spark, tmp_path):
+    """Read the actual day-partition layout with an explicit F2 schema."""
+    from datetime import date
+
+    from sonoraplay.spark.silver import read_bronze_window
+
+    root = tmp_path / "f2"
+    for day in ("2026-09-01", "2026-09-02"):
+        partition = root / f"fecha={day}"
+        partition.mkdir(parents=True)
+        rows = [row.asDict() for row in _events(spark, "duplicado_por_reintento").collect()]
+        (partition / "lote-0001.jsonl").write_text(
+            "\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8"
+        )
+    events = read_bronze_window(spark, str(root), date(2026, 9, 2))
+    assert events.count() == 2 * len(rows)
+    assert events.schema.fieldNames() == event_schema().fieldNames()
+
+
+def test_read_bronze_window_requires_target_day(spark, tmp_path):
+    """Airflow must fail rather than silently publish an empty day."""
+    from datetime import date
+
+    from sonoraplay.spark.silver import read_bronze_window
+
+    partition = tmp_path / "f2" / "fecha=2026-09-01"
+    partition.mkdir(parents=True)
+    (partition / "lote-0001.jsonl").write_text("{}\n", encoding="utf-8")
+    with pytest.raises(FileNotFoundError, match="2026-09-02"):
+        read_bronze_window(spark, str(tmp_path / "f2"), date(2026, 9, 2))
+
+
+def test_affected_months_include_late_offline_playback(spark):
+    """The playback month, not the Bronze arrival month, drives replay."""
+    from sonoraplay.spark.silver import affected_playback_months
+
+    silver = spark.createDataFrame(
+        [("2026-08-31T23:59:00+00:00",), ("2026-09-01T00:01:00+00:00",)],
+        ["inicio_utc"],
+    )
+    quarantine = spark.createDataFrame(
+        [("2026-07-15T10:00:00+00:00",)],
+        ["inicio_utc"],
+    )
+    assert affected_playback_months(silver, quarantine) == [
+        "2026-07",
+        "2026-08",
+        "2026-09",
+    ]
+
+
+def test_replay_coverage_rejects_missing_older_month():
+    """Never publish if an offline event affects an unrebuilt month."""
+    from sonoraplay.spark.silver import validate_replay_coverage
+
+    with pytest.raises(ValueError, match="2026-07"):
+        validate_replay_coverage(["2026-07", "2026-09"], ["2026-09"])
+    assert validate_replay_coverage(["2026-07", "2026-09"], ["2026-07", "2026-09"])
+
+
+def test_replay_coverage_rejects_invalid_month():
+    from sonoraplay.spark.silver import validate_replay_coverage
+
+    with pytest.raises(ValueError, match="Invalid playback month"):
+        validate_replay_coverage(["2026-13"], ["2026-13"])
+
+
+def _synthetic_plays(spark, durations_ms):
+    """Build complete F2 sessions without changing the production business rules."""
+    from datetime import UTC, datetime, timedelta
+
+    template = json.loads((FIXTURES / "duplicado_por_reintento.json").read_text(encoding="utf-8"))[
+        "eventos"
+    ]
+    start_template = next(event for event in template if event["event_type"] == "start")
+    end_template = next(event for event in template if event["event_type"] == "end")
+    base = datetime(2026, 9, 19, 0, 0, tzinfo=UTC)
+    events = []
+    for index, duration in enumerate(durations_ms):
+        start_time = base + timedelta(minutes=index * 10)
+        end_time = start_time + timedelta(milliseconds=duration)
+        session = f"session-{index:03d}"
+        for kind, source, moment, position in (
+            ("start", start_template, start_time, 0),
+            ("end", end_template, end_time, duration),
+        ):
+            event = source.copy()
+            event.update(
+                event_id=f"{session}-{kind}",
+                session_id=session,
+                device_ts=moment.isoformat().replace("+00:00", "Z"),
+                server_ts=(moment + timedelta(milliseconds=200)).isoformat().replace("+00:00", "Z"),
+                position_ms=position,
+            )
+            events.append(event)
+    return spark.createDataFrame(events, schema=event_schema())
+
+
+def test_rn01_29_seconds_synthetic_fixture_is_not_payable(spark):
+    """RN-01: below 30 seconds must not earn royalties."""
+    silver, quarantine = transform(_synthetic_plays(spark, [29_000]), _catalog(spark))
+    row = silver.first()
+    assert quarantine.count() == 0
+    assert row["ms_continuos_max"] == 29_000
+    assert row["valida_rn01"] is False
+    assert row["pagable"] is False
+    assert row["motivo_validez"] == "duracion_insuficiente"
+
+
+def test_rn02_eleventh_valid_play_is_not_payable(spark):
+    """RN-02: the cap is 10 valid plays per user, track and UTC day."""
+    silver, quarantine = transform(_synthetic_plays(spark, [30_000] * 11), _catalog(spark))
+    assert quarantine.count() == 0
+    rows = {row["play_id"]: row for row in silver.collect()}
+    assert len(rows) == 11
+    assert sum(row["pagable"] for row in rows.values()) == 10
+    assert rows["session-010"]["pagable"] is False
+    assert rows["session-010"]["motivo_validez"] == "tope_diario"
+
+
+def test_rn02_replay_of_complete_month_is_deterministic(spark):
+    """Replaying identical full-month events does not change logical plays."""
+    events = _synthetic_plays(spark, [30_000] * 11)
+    first, _ = transform(events, _catalog(spark))
+    second, _ = transform(events, _catalog(spark))
+    fields = ("play_id", "pagable", "motivo_validez", "inicio_utc")
+
+    def snapshot(frame):
+        return sorted(tuple(row[name] for name in fields) for row in frame.collect())
+
+    assert snapshot(first) == snapshot(second)
+
+
+def test_read_bronze_history_includes_late_arrival_month(spark, tmp_path):
+    """A late October arrival must not hide an earlier playback month."""
+    from datetime import date
+
+    from sonoraplay.spark.silver import read_bronze_history
+
+    root = tmp_path / "f2"
+    early = root / "fecha=2026-09-20"
+    late = root / "fecha=2026-10-20"
+    early.mkdir(parents=True)
+    late.mkdir(parents=True)
+    original = [row.asDict() for row in _events(spark, "duplicado_por_reintento").collect()]
+    (early / "lote-1.jsonl").write_text(json.dumps(original[0]) + "\n", encoding="utf-8")
+    (late / "lote-2.jsonl").write_text(json.dumps(original[1]) + "\n", encoding="utf-8")
+    events = read_bronze_history(spark, str(root), date(2026, 10, 20))
+    assert events.count() == 2
+
+
+def test_read_bronze_history_requires_target_partition(spark, tmp_path):
+    from datetime import date
+
+    from sonoraplay.spark.silver import read_bronze_history
+
+    root = tmp_path / "f2"
+    (root / "fecha=2026-09-20").mkdir(parents=True)
+    with pytest.raises(FileNotFoundError, match="processing date"):
+        read_bronze_history(spark, str(root), date(2026, 10, 20))
+
+
+@pytest.mark.parametrize("run_id", ["", "../escape", "a/b", "space here"])
+def test_snapshot_paths_reject_unsafe_run_ids(run_id):
+    from sonoraplay.spark.silver import snapshot_paths
+
+    with pytest.raises(ValueError, match="run_id"):
+        snapshot_paths("s3a://bucket/silver", "s3a://bucket/quarantine", run_id)
+
+
+def test_snapshot_paths_keep_versions_separate():
+    from sonoraplay.spark.silver import snapshot_paths
+
+    first = snapshot_paths("s3a://bucket/silver", "s3a://bucket/quarantine", "run-1")
+    second = snapshot_paths("s3a://bucket/silver", "s3a://bucket/quarantine", "run-2")
+    assert first != second
+    assert first[0].endswith("/runs/run-1")
+    assert first[1].endswith("/runs/run-1")
+
+
+def test_historical_snapshot_parquet_roundtrip_and_no_overwrite(spark, tmp_path):
+    """Complete-history snapshots must remain immutable on retries."""
+    from datetime import date
+
+    from sonoraplay.spark.silver import write_historical_snapshot
+
+    bronze = tmp_path / "f2"
+    partition = bronze / "fecha=2026-09-20"
+    partition.mkdir(parents=True)
+    events = [row.asDict() for row in _events(spark, "duplicado_por_reintento").collect()]
+    (partition / "lote.jsonl").write_text(
+        "".join(json.dumps(event) + "\n" for event in events), encoding="utf-8"
+    )
+    args = dict(
+        fecha=date(2026, 9, 20),
+        run_id="eg35-test-1",
+        source_version="fixture-v1",
+    )
+    silver_path, quarantine_path = write_historical_snapshot(
+        spark,
+        str(bronze),
+        _catalog(spark),
+        str(tmp_path / "silver"),
+        str(tmp_path / "quarantine"),
+        **args,
+    )
+    assert spark.read.parquet(silver_path).count() == 1
+    assert spark.read.parquet(quarantine_path).count() == 0
+    with pytest.raises(FileExistsError, match="existing snapshot"):
+        write_historical_snapshot(
+            spark,
+            str(bronze),
+            _catalog(spark),
+            str(tmp_path / "silver"),
+            str(tmp_path / "quarantine"),
+            **args,
+        )
+
+
+def test_historical_snapshot_refuses_existing_quarantine_without_writing_silver(spark, tmp_path):
+    """An existing quarantine version must block the paired Silver write."""
+    from datetime import date
+
+    from sonoraplay.spark.silver import write_historical_snapshot
+
+    run_id = "eg35-quarantine-conflict"
+    quarantine = tmp_path / "quarantine" / "runs" / run_id
+    quarantine.mkdir(parents=True)
+    bronze = tmp_path / "f2" / "fecha=2026-09-20"
+    bronze.mkdir(parents=True)
+    with pytest.raises(FileExistsError, match="existing snapshot"):
+        write_historical_snapshot(
+            spark,
+            str(tmp_path / "f2"),
+            _catalog(spark),
+            str(tmp_path / "silver"),
+            str(tmp_path / "quarantine"),
+            fecha=date(2026, 9, 20),
+            run_id=run_id,
+            source_version="fixture-v1",
+        )
+    assert not (tmp_path / "silver" / "runs" / run_id).exists()
+
+
+def test_verified_snapshot_requires_commit_marker_and_pins_run(spark, tmp_path):
+    """EG-34 must never consume an incomplete Silver/Quarantine pair."""
+    from datetime import date
+
+    from sonoraplay.spark.silver import (
+        publish_verified_snapshot,
+        read_verified_snapshot,
+        write_historical_snapshot,
+    )
+
+    bronze = tmp_path / "f2" / "fecha=2026-09-20"
+    bronze.mkdir(parents=True)
+    events = [r.asDict() for r in _events(spark, "duplicado_por_reintento").collect()]
+    (bronze / "lote.jsonl").write_text(
+        "".join(json.dumps(event) + "\n" for event in events), encoding="utf-8"
+    )
+    silver_root = str(tmp_path / "silver")
+    quarantine_root = str(tmp_path / "quarantine")
+    run_id = "verified-run"
+    with pytest.raises(FileNotFoundError, match="Uncommitted"):
+        read_verified_snapshot(spark, silver_root, quarantine_root, run_id)
+    write_historical_snapshot(
+        spark,
+        str(tmp_path / "f2"),
+        _catalog(spark),
+        silver_root,
+        quarantine_root,
+        fecha=date(2026, 9, 20),
+        run_id=run_id,
+        source_version="fixture-v1",
+    )
+    with pytest.raises(FileNotFoundError, match="Uncommitted"):
+        read_verified_snapshot(spark, silver_root, quarantine_root, run_id)
+    manifest = publish_verified_snapshot(
+        spark,
+        silver_root,
+        quarantine_root,
+        run_id,
+        fecha=date(2026, 9, 20),
+        source_version="fixture-v1",
+    )
+    silver, quarantine, saved = read_verified_snapshot(spark, silver_root, quarantine_root, run_id)
+    assert manifest == saved
+    assert silver.count() == 1
+    assert quarantine.count() == 0
+    with pytest.raises(FileExistsError, match="Commit marker"):
+        publish_verified_snapshot(
+            spark,
+            silver_root,
+            quarantine_root,
+            run_id,
+            fecha=date(2026, 9, 20),
+            source_version="fixture-v1",
+        )
