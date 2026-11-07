@@ -4,7 +4,7 @@ title: "EG-41 · Un componente en EKS y comparación con ECS"
 
 # EG-41 · `api-contratos` en EKS y comparación con ECS
 
-**Estado: preparado, sin desplegar.** El stack Terraform pasa `fmt` y Checkov; `validate` lo corre el CI (no se pudo ejecutar localmente por falta de acceso al registro de Terraform). **No se ha creado ningún clúster**: el análisis de costos pide aprobación del gasto antes (ver [ADR-0018](../adr/0018-ecs-frente-a-eks.md)).
+**Estado (2026-11-07): cerrado como comparación documentada; EKS NO se desplegó por decisión de Julián (ver [ADR-0018 §7](../adr/0018-ecs-frente-a-eks.md)). Preparado, sin desplegar.** El stack Terraform pasa `fmt` y Checkov; `validate` lo corre el CI (no se pudo ejecutar localmente por falta de acceso al registro de Terraform). **No se ha creado ningún clúster**: el análisis de costos pide aprobación del gasto antes (ver [ADR-0018](../adr/0018-ecs-frente-a-eks.md)).
 
 ## Qué se agrega
 
@@ -44,7 +44,7 @@ Guarda la salida de cada paso y el costo real de Cost Explorer como evidencia.
 
 | # | Criterio | Estado |
 |---|---|---|
-| 1 | Un componente en EKS con Deployment y Service que responde | Manifiestos listos; **sin probar** |
-| 2 | Misma imagen que ECS, desde ECR | Por diseño (mismo repositorio y etiqueta); **sin probar** |
-| 3 | Creado y destruido con Terraform, solo en la ventana | Stack y script listos; **sin ejecutar** |
-| 4 | Comparación de costo, complejidad y encaje + ADR-0018 | ADR escrito (Propuesto). Precio del plano de control de EKS verificado en la fuente oficial (0,10 USD por clúster-hora); faltan los precios de Fargate y del nodo, y el costo real de la ventana |
+| 1 | Un componente en EKS con Deployment y Service que responde | **No cumplido** (no se desplegó); manifiestos listos |
+| 2 | Misma imagen que ECS, desde ECR | **No demostrado**; por diseño (mismo repositorio y etiqueta) |
+| 3 | Creado y destruido con Terraform, solo en la ventana | **No cumplido** (no se ejecutó); stack y script listos y validados por el CI |
+| 4 | Comparación de costo, complejidad y encaje + ADR-0018 | **Cumplido**: ADR-0018 aceptado con la comparación de costo de la lista oficial de precios (86,86 USD/mes a 730 h; 2,86 USD a 24 h) |
