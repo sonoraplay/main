@@ -3,6 +3,7 @@
 import uuid
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 
@@ -177,3 +178,27 @@ def test_url_de_la_base_desde_las_variables_db_de_ecs():
     )
     assert url_desde_entorno({**env, "DATABASE_URL": "postgresql://x"}) == "postgresql://x"
     assert url_desde_entorno({}) is None
+
+
+def test_el_catalogo_f1_tambien_se_lee_de_s3(tmp_path):
+    import pandas as pd
+
+    from sonoraplay.spark.gold_fuentes import leer_catalogo_f1
+
+    parquet = tmp_path / "origen.parquet"
+    pd.DataFrame({"track_id": ["t0", "t1"], "titular_id": ["a", "b"]}).to_parquet(parquet)
+
+    class S3Falso:
+        llamadas = []
+
+        def download_file(self, bucket, clave, destino):
+            self.llamadas.append((bucket, clave))
+            Path(destino).write_bytes(parquet.read_bytes())
+
+    s3 = S3Falso()
+    assert leer_catalogo_f1("s3://bucket-bronze/catalogo", s3) == [("t0", "a"), ("t1", "b")]
+    assert leer_catalogo_f1("s3://bucket-bronze/catalogo/catalogo_f1.parquet", s3)
+    assert s3.llamadas == [
+        ("bucket-bronze", "catalogo/catalogo_f1.parquet"),
+        ("bucket-bronze", "catalogo/catalogo_f1.parquet"),
+    ]

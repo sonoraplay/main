@@ -95,9 +95,28 @@ def bolsas_del_periodo(
     return bolsas
 
 
-def leer_catalogo_f1(ruta: str | Path) -> list[tuple[str, str]]:
+def _descargar_s3(ubicacion: str, cliente=None) -> Path:
+    """``s3://bucket/prefijo`` (o ``.../catalogo_f1.parquet``) a un archivo temporal local."""
+    import tempfile
+
+    bucket, _, clave = ubicacion.removeprefix("s3://").partition("/")
+    if not clave.endswith(".parquet"):
+        clave = f"{clave.rstrip('/')}/catalogo_f1.parquet".lstrip("/")
+    if cliente is None:
+        import boto3
+
+        cliente = boto3.client("s3")
+    destino = Path(tempfile.mkdtemp(prefix="f1_")) / "catalogo_f1.parquet"
+    cliente.download_file(bucket, clave, str(destino))
+    return destino
+
+
+def leer_catalogo_f1(ruta: str | Path, cliente_s3=None) -> list[tuple[str, str]]:
+    """Catálogo F1 (``track_id``, ``titular_id``) desde un directorio, un parquet o ``s3://``."""
     import pandas as pd
 
+    if str(ruta).startswith("s3://"):
+        ruta = _descargar_s3(str(ruta), cliente_s3)
     ruta = Path(ruta)
     if ruta.is_dir():
         ruta = ruta / "catalogo_f1.parquet"
