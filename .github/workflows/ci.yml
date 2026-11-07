@@ -80,7 +80,7 @@ jobs:
       - run: uv sync --locked
       # Spark 4 supports Python 3.12; Spark 3.5 fails on removed distutils.
       - name: Run EG-35 Spark acceptance tests (no skips)
-        run: uv run --with pyspark==4.0.1 pytest -q tests/spark/test_silver.py
+        run: uv run --with pyspark==4.0.1 pytest -q tests/spark/test_silver.py tests/spark/test_medicion.py
 
   # EG-37: la liquidación en Spark debe dar lo mismo que las funciones puras de la EG-23 y
   # cargarse sin duplicar en PostgreSQL. Spark 4 necesita Java 17.
