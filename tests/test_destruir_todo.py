@@ -1,4 +1,4 @@
-"""EG-47 · `destruir-todo.sh` con `aws` y `terraform` simulados: orden, comprobaciones y códigos de salida.
+"""EG-47 · `destruir-todo.sh` con `aws` y `terraform` simulados: orden y códigos de salida.
 
 No toca AWS. Los ejecutables falsos dejan un registro de lo que se les pidió y devuelven lo que
 cada prueba configura por variables de entorno.
