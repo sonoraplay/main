@@ -108,5 +108,5 @@ El bucket de `infra/terraform/bootstrap` es persistente. Solo después de entreg
 ## 10 · Pendiente de comprobar (EG-47)
 
 - [ ] Que otra persona levante y destruya todo siguiendo solo este documento (criterio 5).
-- [ ] Ejecutar `destruir-todo.sh` de verdad en una ventana y guardar su salida y la comprobación de Tag Editor / Cost Explorer (criterio 2). Hoy solo se probó el modo `--dry-run` y la sintaxis.
+- [ ] Ejecutar `destruir-todo.sh` de verdad en una ventana y guardar su salida y la comprobación de Tag Editor / Cost Explorer (criterio 2). Hoy se probó el modo `--dry-run`, la sintaxis y, con `aws` y `terraform` simulados (`tests/test_destruir_todo.py`, 18 pruebas), el orden, las comprobaciones de recursos facturables y los códigos de salida; contra AWS real, no.
 - [ ] Añadir EC2 de RabbitMQ y Airflow a Terraform (HU 20 y 25) y EKS (EG-41), y actualizar §0–§2.

@@ -46,4 +46,11 @@ Mientras falte `SILVER_JOB_COMMAND`, el sensor mensual no se cumple: es el compo
 ## Qué está probado y qué no
 
 - Probado en CI/local: importación de todos los DAG (DagBag), reintentos ≥ 2, idempotencia de F6 y referencia contra PostgreSQL, espera de ingesta, versión nueva por corrida, registro de duración, aviso de fallo (SNS simulado).
-- **No probado todavía:** el stack de Docker (`docker-compose.airflow.yml`) corriendo con los 2 workers, ni una corrida en la EC2. Requieren la ventana de pruebas de AWS.
+- **Probado con Airflow 3.1.3 real (2026-11-07, ejecutor local, sin Celery ni RabbitMQ; Silver y la liquidación simulados con `pruebas/airflow-local/`)**, ejecutando los DAG verdaderos con `dag.test()` contra PostgreSQL (`pruebas/airflow-local/dags_local.py`):
+  - **Diario, ejecución normal:** las 5 tareas en `success`; `silver_run_id` = `<run_id de Airflow saneado>.<intento>` y una fila en `ingesta_diaria_estado`.
+  - **Diario, misma fecha otra vez:** sigue habiendo una sola fila por fecha; su `silver_run_id` se actualiza.
+  - **Diario, Silver sale con 0 pero no deja marcador:** `verificar_silver_publicado` falla, reintenta con la espera real (3 intentos en total, ≈ 20 min con retroceso exponencial) y termina en `failed`; `marcar_ingesta_completa` queda en `upstream_failed` y **no** se crea la fila del día.
+  - **Mensual, con los 33 días de octubre cargados:** el sensor pasa, `liquidar_mes` recibe `{silver_run_id}` del **último día requerido** (2 de noviembre) y registra `ok` y su duración en `corridas_liquidacion`; repetirlo crea una **segunda** liquidación publicada y deja intacta la primera.
+  - **Mensual, el job termina sin crear versión:** la corrida queda con `estado = error` y `VersionNoCreada` en el detalle, y la tarea pasa a `up_for_retry`.
+  - **Mensual sin los días del mes (noviembre):** el sensor queda en `up_for_reschedule` y no se liquida nada.
+- **No probado todavía:** el stack de Docker (`docker-compose.airflow.yml`) con los 2 workers de Celery y RabbitMQ, ni una corrida en la EC2 (Airflow en EC2 aún no está en Terraform). La guía para hacerlo en Docker está en `pruebas/airflow-local/README.md`.
