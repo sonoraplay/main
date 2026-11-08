@@ -67,6 +67,8 @@ jobs:
           # La prueba de reinicio del broker reinicia el contenedor de servicio del job.
           # El contexto job solo existe dentro de los pasos, no en el env del job.
           RABBITMQ_REINICIO: docker restart ${{ job.services.rabbitmq.id }}
+      - name: EG-51 CA-10 labelled metrics (10,000 accounts)
+        run: uv run pytest -q -s tests/simulador/test_f2_avanzado.py::test_ca10_detecta_al_menos_95_por_ciento_de_granjas_con_menos_de_2_de_falsos_positivos
 
   spark-silver:
     runs-on: ubuntu-latest
