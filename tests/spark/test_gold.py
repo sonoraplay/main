@@ -143,16 +143,16 @@ def test_spark_da_lo_mismo_que_las_funciones_puras(spark):
     silver, usr, cat = a_dataframes(spark, usuarios, plays, titular_de_pista)
 
     salida, _ = liquidar(
-                    spark,
-                    silver,
-                    usr,
-                    cat,
-                    conds,
-                    bolsas(),
-                    SEPT,
-                    "run-1",
-                    fraude_verificado=False,
-                )
+        spark,
+        silver,
+        usr,
+        cat,
+        conds,
+        bolsas(),
+        SEPT,
+        "run-1",
+        fraude_verificado=False,
+    )
     puro = esperado(usuarios, plays, titular_de_pista, conds, bolsas())
 
     spark_filas = {clave(f): f for f in salida.filas}
@@ -173,16 +173,16 @@ def test_la_suma_por_pais_no_supera_la_bolsa_rnf02(spark):
     conds = [c for c in condiciones() if titular_de_pista[c.track_id] == c.titular_id]
     silver, usr, cat = a_dataframes(spark, usuarios, plays, titular_de_pista)
     salida, _ = liquidar(
-                    spark,
-                    silver,
-                    usr,
-                    cat,
-                    conds,
-                    bolsas(),
-                    SEPT,
-                    "run-rnf02",
-                    fraude_verificado=False,
-                )
+        spark,
+        silver,
+        usr,
+        cat,
+        conds,
+        bolsas(),
+        SEPT,
+        "run-rnf02",
+        fraude_verificado=False,
+    )
     for r in salida.resultados:
         for comp in Componente:
             assert r.total_usd(comp) <= r.bolsa.de(comp) + Decimal("0.01"), (r.bolsa.pais, comp)
@@ -197,16 +197,16 @@ def test_cada_reproduccion_liquidada_lleva_su_liquidacion_id(spark):
     conds = [c for c in condiciones() if titular_de_pista[c.track_id] == c.titular_id]
     silver, usr, cat = a_dataframes(spark, usuarios, plays, titular_de_pista)
     salida, trazas = liquidar(
-                         spark,
-                         silver,
-                         usr,
-                         cat,
-                         conds,
-                         bolsas(),
-                         SEPT,
-                         "run-traza",
-                         fraude_verificado=False,
-                     )
+        spark,
+        silver,
+        usr,
+        cat,
+        conds,
+        bolsas(),
+        SEPT,
+        "run-traza",
+        fraude_verificado=False,
+    )
     filas = trazas.collect()
     assert len(filas) == len(plays) == salida.reproducciones_liquidadas
     assert {r["liquidacion_id"] for r in filas} == {str(salida.liquidacion_id)}
