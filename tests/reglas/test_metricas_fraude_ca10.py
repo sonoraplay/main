@@ -1,4 +1,5 @@
 """CA-10: strict labelled detection acceptance tests."""
+
 import pytest
 
 from sonoraplay.reglas.metricas_fraude import medir_ca10
