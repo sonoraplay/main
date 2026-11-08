@@ -74,17 +74,17 @@ def test_el_plan_se_toma_en_la_fecha_de_cada_reproduccion(spark):
     silver, usr, cat, conds, s = _entradas(spark, plays, sus)
     bolsa = [BolsaPais("CO", Decimal(1000), Decimal(1000))]
     _, salida = liquidar(
-                    spark,
-                    silver,
-                    usr,
-                    cat,
-                    conds,
-                    bolsa,
-                    SEPT,
-                    "r1",
-                    suscripciones=s,
-                    fraude_verificado=False,
-                )
+        spark,
+        silver,
+        usr,
+        cat,
+        conds,
+        bolsa,
+        SEPT,
+        "r1",
+        suscripciones=s,
+        fraude_verificado=False,
+    )
     assert _componentes(salida) == {
         "a14": "publicidad",
         "a15": "suscripcion",
@@ -128,29 +128,29 @@ def test_gold_nunca_borra_otras_liquidaciones_y_repetir_es_idempotente(spark, tm
     bolsa = [BolsaPais("CO", Decimal(10), Decimal(10))]
     destino = str(tmp_path / "gold")
     r1, p1 = liquidar(
-                 spark,
-                 silver,
-                 usr,
-                 cat,
-                 conds,
-                 bolsa,
-                 SEPT,
-                 "run-1",
-                 suscripciones=s,
-                 fraude_verificado=False,
-             )
+        spark,
+        silver,
+        usr,
+        cat,
+        conds,
+        bolsa,
+        SEPT,
+        "run-1",
+        suscripciones=s,
+        fraude_verificado=False,
+    )
     r2, p2 = liquidar(
-                 spark,
-                 silver,
-                 usr,
-                 cat,
-                 conds,
-                 bolsa,
-                 SEPT,
-                 "run-2",
-                 suscripciones=s,
-                 fraude_verificado=False,
-             )
+        spark,
+        silver,
+        usr,
+        cat,
+        conds,
+        bolsa,
+        SEPT,
+        "run-2",
+        suscripciones=s,
+        fraude_verificado=False,
+    )
     escribir_gold(r1, p1, destino)
     escribir_gold(r2, p2, destino)
     escribir_gold(r1, p1, destino)  # repetir run-1
@@ -244,17 +244,17 @@ def _gold_y_silver(spark):
     )
     bolsa = [BolsaPais("CO", Decimal(10), Decimal(10))]
     _, plays = liquidar(
-                   spark,
-                   silver,
-                   usr,
-                   cat,
-                   conds,
-                   bolsa,
-                   SEPT,
-                   "r",
-                   suscripciones=s,
-                   fraude_verificado=False,
-               )
+        spark,
+        silver,
+        usr,
+        cat,
+        conds,
+        bolsa,
+        SEPT,
+        "r",
+        suscripciones=s,
+        fraude_verificado=False,
+    )
     return silver, plays
 
 
