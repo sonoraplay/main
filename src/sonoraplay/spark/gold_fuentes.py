@@ -129,7 +129,6 @@ def leer_catalogo_f1(ruta: str | Path, cliente_s3=None) -> list[tuple[str, str]]
     return [(str(t), str(h)) for t, h in cat.itertuples(index=False)]
 
 
-
 def leer_artistas_f1(ruta: str | Path, cliente_s3=None) -> list[tuple[str, str]]:
     """EG-36: F1 main-artist mapping, separate from royalty ownership.
 
