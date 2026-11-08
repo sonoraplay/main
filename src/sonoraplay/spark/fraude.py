@@ -47,8 +47,10 @@ def evaluar_fraude(silver, artistas, cfg=None):
     ])
 
     def rolling(pdf):
-        import pandas as pd
         from datetime import datetime
+
+        import pandas as pd
+
         from sonoraplay.reglas.fraude import Reproduccion, senal_horas_24h
 
         reps = [
