@@ -107,6 +107,7 @@ def liquidar(
     periodo: date,
     run_id: str,
     suscripciones=None,
+    fraude_verificado=True,
 ):
     """Liquida ``periodo``. Devuelve ``(SalidaGold, plays_liquidados: DataFrame)``.
 
@@ -133,9 +134,17 @@ def liquidar(
         usuarios_cols = usuarios.select("user_id", "pais_facturacion", "componente")
     else:
         usuarios_cols = usuarios.select("user_id", "pais_facturacion")
-    base = silver.filter(F.col("pagable") & (F.col("mes_liquidacion") == periodo.isoformat())).join(
-        usuarios_cols, "user_id", "left"
-    )
+    if fraude_verificado or "pagable_gold" in silver.columns or "estado_fraude" in silver.columns:
+        from sonoraplay.spark.fraude import preparar_gold
+
+        silver_pagable = preparar_gold(silver, periodo)
+    else:
+        # Backwards compatibility for EG-37 unit tests only.
+        # Production CLI always requires the fraud gate.
+        silver_pagable = silver.filter(
+            F.col("pagable") & (F.col("mes_liquidacion") == periodo.isoformat())
+        )
+    base = silver_pagable.join(usuarios_cols, "user_id", "left")
     if suscripciones is not None:
         base = _con_componente_por_fecha(base, suscripciones)
     base = base.join(catalogo.select("track_id", "titular_id"), "track_id", "left").cache()
@@ -265,11 +274,15 @@ def conciliar(silver, plays, periodo: date) -> dict:
     """
     from pyspark.sql import functions as F
 
-    en_silver = (
-        silver.filter(F.col("pagable") & (F.col("mes_liquidacion") == periodo.isoformat()))
-        .select("play_id")
-        .distinct()
-    )
+    if "pagable_gold" in silver.columns or "estado_fraude" in silver.columns:
+        from sonoraplay.spark.fraude import preparar_gold
+
+        eligible = preparar_gold(silver, periodo)
+    else:
+        eligible = silver.filter(
+            F.col("pagable") & (F.col("mes_liquidacion") == periodo.isoformat())
+        )
+    en_silver = eligible.select("play_id").distinct()
     en_gold = plays.select("play_id")
     n_silver, n_gold_filas = en_silver.count(), en_gold.count()
     n_gold = en_gold.distinct().count()
@@ -483,7 +496,8 @@ def main(argv=None) -> int:
     import psycopg
     from pyspark.sql import SparkSession
 
-    from sonoraplay.spark.gold_fuentes import leer_entradas
+    from sonoraplay.spark.fraude import evaluar_fraude
+    from sonoraplay.spark.gold_fuentes import leer_artistas_f1, leer_entradas
     from sonoraplay.spark.silver import read_verified_snapshot
 
     url = args.database_url.replace("postgresql+psycopg://", "postgresql://", 1)
@@ -508,9 +522,14 @@ def main(argv=None) -> int:
             "user_id string, componente string, desde string, hasta string, prioridad int",
         )
         catalogo = spark.createDataFrame(entradas.catalogo, "track_id string, titular_id string")
+        artistas = spark.createDataFrame(
+            leer_artistas_f1(args.catalogo), "track_id string, artista_principal string"
+        )
+        # RN-03 runs before any Gold allocation; fail closed on incomplete F1/Silver.
+        silver_fraude, senales_fraude = evaluar_fraude(silver, artistas)
         salida, plays = liquidar(
             spark,
-            silver,
+            silver_fraude,
             usuarios,
             catalogo,
             entradas.condiciones,
@@ -518,8 +537,9 @@ def main(argv=None) -> int:
             periodo,
             args.run_id,
             suscripciones=suscripciones,
+            fraude_verificado=True,
         )
-        conciliacion = conciliar(silver, plays, periodo)
+        conciliacion = conciliar(silver_fraude, plays, periodo)
         escribir_gold(salida, plays, args.gold)
         estado = cargar_rds(conexion, salida)
     print(
