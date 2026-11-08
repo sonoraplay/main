@@ -71,7 +71,7 @@ resource "aws_instance" "orquestacion" {
     tags        = merge(local.etiquetas, { Name = "${local.nombre}-orquestacion-root" })
   }
   tags = merge(local.etiquetas, { Name = "${local.nombre}-orquestacion" })
-  depends_on = [aws_ssm_parameter.orquestacion, aws_ssm_parameter.rds_password, aws_ssm_parameter.rds_conexion]
+  depends_on = [aws_ssm_parameter.orquestacion, aws_ssm_parameter.rds_password, aws_ssm_parameter.rds_conexion, aws_iam_role_policy.orquestacion_f2]
   lifecycle {
     ignore_changes = [ami]
   }
