@@ -176,12 +176,8 @@ def test_ca10_spark_parity_on_same_10000_accounts(spark):
     """EG-36 / EG-51: evaluate identical monthly plays in Python and real Spark."""
     from sonoraplay.reglas.fraude import evaluar_cuentas
     from sonoraplay.reglas.metricas_fraude import medir_ca10
-    from tests.simulador.test_f2_avanzado import (
-        CFG,
-        _fuentes,
-        reproducciones_fraude,
-    )
     from sonoraplay.simulador.f2_avanzado import generar
+    from tests.simulador.test_f2_avanzado import CFG, _fuentes, reproducciones_fraude
 
     sources = _fuentes(12_000)
     sim = generar(sources, CFG)
@@ -225,7 +221,10 @@ def test_ca10_spark_parity_on_same_10000_accounts(spark):
     actual = {r["user_id"]: bool(r["sospechosa"]) for r in signals.collect()}
     expected = {u: bool(v.sospechosa) for u, v in pure.items()}
     mismatches = [u for u in expected if actual.get(u) != expected[u]]
-    print(f"EG36_SPARK_PARITY accounts={len(labels)} plays={len(rows)} mismatches={len(mismatches)}")
+    print(
+        f"EG36_SPARK_PARITY accounts={len(labels)} plays={len(rows)} "
+        f"mismatches={len(mismatches)}"
+    )
     assert not mismatches, f"Spark/Python mismatches: {mismatches[:10]}"
     assert set(actual) == set(labels)
     metrics = medir_ca10(labels, actual)
