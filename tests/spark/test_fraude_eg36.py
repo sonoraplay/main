@@ -1,4 +1,5 @@
 """EG-36 / HU09: Spark acceptance and held-money regression tests."""
+
 from datetime import date
 
 import pytest
@@ -34,16 +35,29 @@ def fixtures(spark, rows):
         "mes_liquidacion string, pagable boolean",
     )
     artists = spark.createDataFrame(
-        [("t1", "artista_a"), ("t2", "artista_b"),
-         ("t3", "artista_c"), ("t4", "artista_d")],
+        [
+            ("t1", "artista_a"),
+            ("t2", "artista_b"),
+            ("t3", "artista_c"),
+            ("t4", "artista_d"),
+        ],
         "track_id string, artista_principal string",
     )
     return silver, artists
 
 
 def play(pid, user, track, device, hour, ms=31_000, settlement="2026-09-01"):
-    return (pid, user, track, device, f"2026-09-10T{hour:02d}:00:00+00:00",
-            ms, "2026-09-01", settlement, True)
+    return (
+        pid,
+        user,
+        track,
+        device,
+        f"2026-09-10T{hour:02d}:00:00+00:00",
+        ms,
+        "2026-09-01",
+        settlement,
+        True,
+    )
 
 
 def test_hu09_concentration_holds_entire_month_and_keeps_legitimate_money(spark):
@@ -64,7 +78,10 @@ def test_hu09_concentration_holds_entire_month_and_keeps_legitimate_money(spark)
     assert annotated.filter("estado_fraude = 'en_revision'").count() == 4
     payable = preparar_gold(annotated, MES)
     assert {r["play_id"] for r in payable.select("play_id").collect()} == {
-        "l1", "l2", "l3", "l4"
+        "l1",
+        "l2",
+        "l3",
+        "l4",
     }
     # One synthetic USD per eligible play: no farm allocation, 4 USD remain eligible.
     amounts = payable.groupBy("user_id").count().collect()
@@ -106,10 +123,7 @@ def test_gold_money_uses_only_eligible_plays_and_existing_decimal_formula(spark)
 
 
 def test_hu09_shared_device_six_accounts_exact_threshold(spark):
-    rows = [
-        play(f"p{i}", f"u{i}", f"t{(i % 4) + 1}", "shared", i + 1)
-        for i in range(6)
-    ]
+    rows = [play(f"p{i}", f"u{i}", f"t{(i % 4) + 1}", "shared", i + 1) for i in range(6)]
     silver, artists = fixtures(spark, rows)
     annotated, signals = evaluar_fraude(silver, artists)
     assert signals.filter("dispositivo_compartido").count() == 6
@@ -117,10 +131,7 @@ def test_hu09_shared_device_six_accounts_exact_threshold(spark):
 
 
 def test_hu09_five_accounts_not_flagged_by_device(spark):
-    rows = [
-        play(f"p{i}", f"u{i}", f"t{(i % 4) + 1}", "shared", i + 1)
-        for i in range(5)
-    ]
+    rows = [play(f"p{i}", f"u{i}", f"t{(i % 4) + 1}", "shared", i + 1) for i in range(5)]
     silver, artists = fixtures(spark, rows)
     _, signals = evaluar_fraude(silver, artists)
     assert signals.filter("dispositivo_compartido").count() == 0
@@ -129,9 +140,17 @@ def test_hu09_five_accounts_not_flagged_by_device(spark):
 def test_hu09_rolling_24_hours_crosses_midnight(spark):
     # 21 consecutive one-hour plays; all same artist also triggers concentration.
     rows = [
-        (f"p{i}", "farm", "t1", "d1",
-         f"2026-09-{10 + (i // 24):02d}T{i % 24:02d}:00:00+00:00",
-         3_600_000, "2026-09-01", "2026-09-01", True)
+        (
+            f"p{i}",
+            "farm",
+            "t1",
+            "d1",
+            f"2026-09-{10 + (i // 24):02d}T{i % 24:02d}:00:00+00:00",
+            3_600_000,
+            "2026-09-01",
+            "2026-09-01",
+            True,
+        )
         for i in range(21)
     ]
     silver, artists = fixtures(spark, rows)
