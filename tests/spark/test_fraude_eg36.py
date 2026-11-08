@@ -8,6 +8,7 @@ pytest.importorskip("pandas")
 pytest.importorskip("pyarrow")
 
 from pyspark.sql import SparkSession
+
 from sonoraplay.spark.fraude import evaluar_fraude, preparar_gold
 
 MES = date(2026, 9, 1)
