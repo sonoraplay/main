@@ -286,3 +286,52 @@ def test_mismo_run_id_con_otro_resultado_no_sobrescribe(spark, pg):
     otra = liquidar(spark, silver, usr, cat, conds, bolsas(), SEPT, "run-x")[0]
     with pytest.raises(ValueError, match="otro resultado"):
         cargar_rds(pg, otra)
+
+
+def test_eg36_retained_plays_never_enter_gold_or_published_rds(spark, pg):
+    """RN-03: validate actual Spark Gold traces and PostgreSQL published rows."""
+    holder = TITULARES[0]
+    silver = spark.createDataFrame(
+        [
+            ("farm-1", "farm", "t0", "CO", "2026-09-10T01:00:00+00:00",
+             SEPT.isoformat(), True, "en_revision", False),
+            ("farm-2", "farm", "t0", "CO", "2026-09-10T02:00:00+00:00",
+             SEPT.isoformat(), True, "en_revision", False),
+            ("legit-1", "legit", "t0", "CO", "2026-09-10T03:00:00+00:00",
+             SEPT.isoformat(), True, "valida_para_fraude", True),
+        ],
+        "play_id string, user_id string, track_id string, country string, "
+        "inicio_utc string, mes_liquidacion string, pagable boolean, "
+        "estado_fraude string, pagable_gold boolean",
+    )
+    users = spark.createDataFrame(
+        [
+            ("farm", "CO", str(Componente.SUSCRIPCION)),
+            ("legit", "CO", str(Componente.SUSCRIPCION)),
+        ],
+        "user_id string, pais_facturacion string, componente string",
+    )
+    cat = spark.createDataFrame([("t0", str(holder))], "track_id string, titular_id string")
+    contracts = [
+        CondicionContrato(uuid.uuid4(), holder, "t0", Decimal("50"),
+                          date(2026, 1, 1), None)
+    ]
+    pools = [BolsaPais("CO", Decimal("100.00"), Decimal("0.00"))]
+    result, trace = liquidar(
+        spark, silver, users, cat, contracts, pools, SEPT, "eg36-published"
+    )
+    assert {r["play_id"] for r in trace.select("play_id").collect()} == {"legit-1"}
+    assert result.reproducciones_liquidadas == 1
+    assert sum((r.regalia_usd for r in result.filas), Decimal("0")) == Decimal("50.00")
+    assert cargar_rds(pg, result) == "creada"
+    published = pg.execute(
+        "SELECT regalia_usd, reproducciones_validas FROM reporte_regalias "
+        "WHERE liquidacion_id = %s",
+        (result.liquidacion_id,),
+    ).fetchall()
+    assert len(published) == 1
+    assert published[0] == (Decimal("50.00"), 1)
+    assert pg.execute(
+        "SELECT publicada_en IS NOT NULL FROM liquidaciones WHERE liquidacion_id = %s",
+        (result.liquidacion_id,),
+    ).fetchone()[0]
