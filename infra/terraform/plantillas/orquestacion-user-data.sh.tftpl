@@ -28,8 +28,8 @@ export ECS_CLUSTER='${ecs_cluster}'
 export ECS_SPARK_FAMILY='${ecs_spark_family}'
 export ECS_SUBNETS='${ecs_subnets}'
 export ECS_SECURITY_GROUPS='${ecs_security_groups}'
-export SILVER_JOB_COMMAND='python -m sonoraplay.orquestacion.ecs_job -- python -m sonoraplay.spark.silver --fecha {fecha} --run-id {run_id}'
-export LIQUIDACION_JOB_COMMAND='python -m sonoraplay.orquestacion.ecs_job -- python -m sonoraplay.spark.gold --mes {mes} --run-id {run_id}'
+export SILVER_JOB_COMMAND='python -m sonoraplay.orquestacion.ecs_job -- python -m sonoraplay.spark.silver --fecha {fecha} --run-id {run_id} --bronze s3a://${bronze_bucket}/f2 --catalogo s3a://${bronze_bucket}/f1/catalogo.parquet --silver s3a://${silver_bucket} --cuarentena s3a://${silver_bucket}/quarantine --source-version ${git_ref}'
+export LIQUIDACION_JOB_COMMAND='python -m sonoraplay.orquestacion.ecs_job -- python -m sonoraplay.spark.gold --periodo {periodo} --silver-run-id {silver_run_id} --run-id {run_id} --silver s3a://${silver_bucket} --cuarentena s3a://${silver_bucket}/quarantine --gold s3a://${gold_bucket} --catalogo s3a://${bronze_bucket}/f1/catalogo.parquet'
 export DATABASE_URL="$(python3 -c 'import os,urllib.parse as u; q=lambda k:u.quote(os.environ[k],safe=""); print("postgresql+psycopg://"+q("POSTGRES_USER")+":"+q("POSTGRES_PASSWORD")+"@"+os.environ["RDS_HOST"]+":5432/"+q("POSTGRES_DB"))')"
 export RABBITMQ_URL="$(python3 -c 'import os,urllib.parse as u; print("amqp://"+u.quote(os.environ["RABBITMQ_USER"],safe="")+":"+u.quote(os.environ["RABBITMQ_PASSWORD"],safe="")+"@rabbitmq:5672/%2F")')"
 python3 - <<'PY'
