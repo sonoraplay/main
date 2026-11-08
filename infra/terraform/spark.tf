@@ -32,18 +32,20 @@ resource "aws_ecs_task_definition" "spark" {
     cpu_architecture        = "ARM64" # ADR-0012; la imagen se construye para arm64 (CodeBuild)
   }
 
-  # Raíz de solo lectura; /tmp (HOME, SPARK_LOCAL_DIRS y java.io.tmpdir) es lo único escribible.
-  volume {
-    name = "tmp"
-  }
+  # Raíz ESCRIBIBLE a propósito. El primer intento (2026-11-08) usaba raíz de solo lectura y un
+  # volumen en /tmp, y la tarea murió al arrancar Spark: "No usable temporary directory found".
+  # En Fargate un volumen vacío montado en /tmp pertenece a root y el contenedor corre como
+  # `app` (uid 10001), así que /tmp no era escribible y la raíz tampoco. Spark y Python escriben
+  # en /tmp, en el directorio de usuario y en cachés; este job es de una sola ejecución, sin
+  # puertos de entrada ni datos persistentes.
+  # checkov:skip=CKV_AWS_336:job batch efímero; Spark necesita /tmp escribible (ver comentario)
 
   container_definitions = jsonencode([
     {
       name                   = "spark"
       image                  = "${data.aws_ecr_repository.spark[0].repository_url}:${var.spark_imagen_tag}"
       essential              = true
-      readonlyRootFilesystem = true
-      mountPoints            = [{ sourceVolume = "tmp", containerPath = "/tmp", readOnly = false }]
+      readonlyRootFilesystem = false
 
       environment = [
         { name = "AWS_REGION", value = var.region },
