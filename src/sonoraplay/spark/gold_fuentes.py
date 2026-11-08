@@ -129,6 +129,31 @@ def leer_catalogo_f1(ruta: str | Path, cliente_s3=None) -> list[tuple[str, str]]
     return [(str(t), str(h)) for t, h in cat.itertuples(index=False)]
 
 
+
+def leer_artistas_f1(ruta: str | Path, cliente_s3=None) -> list[tuple[str, str]]:
+    """EG-36: F1 main-artist mapping, separate from royalty ownership.
+
+    No inferred artist IDs: RN-03 uses the canonical F1 artista_principal.
+    """
+    import pandas as pd
+
+    if str(ruta).startswith("s3://"):
+        ruta = _descargar_s3(str(ruta), cliente_s3)
+    ruta = Path(ruta)
+    if ruta.is_dir():
+        ruta = ruta / "catalogo_f1.parquet"
+    if not ruta.exists():
+        raise FileNotFoundError(f"No existe el catálogo F1: {ruta}")
+    cat = pd.read_parquet(ruta, columns=["track_id", "artista_principal"])
+    if cat[["track_id", "artista_principal"]].isna().any().any():
+        raise ValueError("EG-36: F1 tiene pistas o artistas nulos")
+    if cat["track_id"].duplicated().any():
+        raise ValueError("EG-36: F1 tiene track_id duplicados")
+    if cat["artista_principal"].astype(str).str.strip().eq("").any():
+        raise ValueError("EG-36: F1 tiene artistas vacíos")
+    return [(str(t), str(a)) for t, a in cat.itertuples(index=False)]
+
+
 def leer_entradas(conexion, periodo: date, ruta_catalogo: str | Path) -> EntradasGold:
     """Lee F1, F3, F4, F5 y F6 del período con una conexión psycopg."""
     if periodo.day != 1:
