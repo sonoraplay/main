@@ -114,6 +114,7 @@ jobs:
         run: uv run --with pyspark==4.0.1 pytest -q tests/spark/test_gold.py tests/spark/test_gold_plan.py tests/spark/test_integracion_bronze_silver_gold.py tests/spark/test_fraude_eg36.py -k 'not test_ca10_spark_parity_on_same_10000_accounts'
       - name: EG-36 / EG-51 Spark parity metrics and post-fraud benchmark
         run: |
+          set -o pipefail
           /usr/bin/time -v uv run --with pyspark==4.0.1 pytest -q -s tests/spark/test_fraude_eg36.py::test_ca10_spark_parity_on_same_10000_accounts 2>&1 | tee eg36-spark-benchmark.log
           grep -E 'EG36_SPARK_(PARITY|CA10)|Elapsed \(wall clock\)|Maximum resident set size' eg36-spark-benchmark.log
       - name: Upload EG-36 Spark benchmark evidence
