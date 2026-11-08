@@ -109,7 +109,7 @@ jobs:
           java-version: '17'
       - run: uv sync --locked
       - name: Pruebas de la liquidación en Spark (sin saltos)
-        run: uv run --with pyspark==4.0.1 pytest -q tests/spark/test_gold.py tests/spark/test_gold_plan.py tests/spark/test_integracion_bronze_silver_gold.py
+        run: uv run --with pyspark==4.0.1 pytest -q tests/spark/test_gold.py tests/spark/test_gold_plan.py tests/spark/test_integracion_bronze_silver_gold.py tests/spark/test_fraude_eg36.py
 
   # EG-34 criterio 5: importa todos los DAG; falla si alguno tiene errores. Airflow va aparte
   # porque sus dependencias se fijan con las restricciones oficiales, no con uv.lock.
