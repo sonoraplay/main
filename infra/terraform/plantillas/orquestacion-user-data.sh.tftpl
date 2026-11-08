@@ -1,0 +1,59 @@
+#!/bin/bash
+set -euo pipefail
+exec > >(tee -a /var/log/sonoraplay-bootstrap.log) 2>&1
+dnf install -y docker git python3 curl
+systemctl enable --now docker
+install -d -m 755 /usr/local/lib/docker/cli-plugins
+curl -fsSL --retry 4 https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-linux-aarch64 -o /usr/local/lib/docker/cli-plugins/docker-compose
+chmod 755 /usr/local/lib/docker/cli-plugins/docker-compose
+docker compose version
+git clone --branch '${git_ref}' --depth 1 https://github.com/sonoraplay/main /opt/sonoraplay
+cd /opt/sonoraplay
+umask 077
+export AWS_DEFAULT_REGION='${region}'
+get_secret() { aws ssm get-parameter --name '${ssm_prefix}/'"$1" --with-decryption --query Parameter.Value --output text; }
+export RABBITMQ_USER=sonora
+export RABBITMQ_PASSWORD="$(get_secret rabbitmq/password)"
+export AIRFLOW_FERNET_KEY="$(get_secret airflow/fernet)"
+export AIRFLOW_JWT_SECRET="$(get_secret airflow/jwt)"
+export AIRFLOW_DB_PASSWORD="$(get_secret airflow/db-password)"
+export POSTGRES_USER="$(get_secret rds/username)"
+export POSTGRES_PASSWORD="$(get_secret rds/password)"
+export POSTGRES_DB="$(get_secret rds/dbname)"
+export RDS_HOST="$(get_secret rds/host)"
+export BRONZE_S3_BUCKET='${bronze_bucket}'
+export SILVER_COMMITS_URI='s3://${silver_bucket}/commits'
+export ALERTA_SNS_TOPIC_ARN='${sns_topic_arn}'
+export ECS_CLUSTER='${ecs_cluster}'
+export ECS_SPARK_FAMILY='${ecs_spark_family}'
+export ECS_SUBNETS='${ecs_subnets}'
+export ECS_SECURITY_GROUPS='${ecs_security_groups}'
+export SILVER_JOB_COMMAND='python -m sonoraplay.orquestacion.ecs_job -- python -m sonoraplay.spark.silver --fecha {fecha} --run-id {run_id}'
+export LIQUIDACION_JOB_COMMAND='python -m sonoraplay.orquestacion.ecs_job -- python -m sonoraplay.spark.gold --mes {mes} --run-id {run_id}'
+export DATABASE_URL="$(python3 -c 'import os,urllib.parse as u; q=lambda k:u.quote(os.environ[k],safe=""); print("postgresql+psycopg://"+q("POSTGRES_USER")+":"+q("POSTGRES_PASSWORD")+"@"+os.environ["RDS_HOST"]+":5432/"+q("POSTGRES_DB"))')"
+export RABBITMQ_URL="$(python3 -c 'import os,urllib.parse as u; print("amqp://"+u.quote(os.environ["RABBITMQ_USER"],safe="")+":"+u.quote(os.environ["RABBITMQ_PASSWORD"],safe="")+"@rabbitmq:5672/%2F")')"
+python3 - <<'PY'
+import os
+from pathlib import Path
+keys = [
+    "RABBITMQ_USER", "RABBITMQ_PASSWORD", "AIRFLOW_FERNET_KEY",
+    "AIRFLOW_JWT_SECRET", "AIRFLOW_DB_PASSWORD", "POSTGRES_USER",
+    "POSTGRES_PASSWORD", "POSTGRES_DB", "DATABASE_URL", "RABBITMQ_URL",
+    "BRONZE_S3_BUCKET", "SILVER_COMMITS_URI", "ALERTA_SNS_TOPIC_ARN",
+    "ECS_CLUSTER", "ECS_SPARK_FAMILY", "ECS_SUBNETS",
+    "ECS_SECURITY_GROUPS", "SILVER_JOB_COMMAND", "LIQUIDACION_JOB_COMMAND",
+    "AWS_DEFAULT_REGION",
+]
+def quoted(value):
+    return "'" + value.replace("'", "'\\''") + "'"
+Path("/opt/sonoraplay/.env").write_text(
+    "".join(k + "=" + quoted(os.environ[k]) + "\n" for k in keys)
+)
+Path("/opt/sonoraplay/.env").chmod(0o600)
+PY
+files=(-f docker-compose.yml -f docker-compose.airflow.yml -f docker-compose.aws.yml)
+docker compose "${files[@]}" up -d --no-deps rabbitmq airflow-db
+docker compose "${files[@]}" up -d --no-deps airflow-rabbit-vhost
+docker compose "${files[@]}" up -d --build --no-deps airflow-init
+docker compose "${files[@]}" up -d --build --no-deps airflow-apiserver airflow-scheduler airflow-dag-processor airflow-worker consumidor
+docker compose "${files[@]}" ps
