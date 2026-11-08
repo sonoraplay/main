@@ -100,8 +100,17 @@ def test_la_suscripcion_propia_gana_a_la_del_titular(spark):
     ]
     silver, usr, cat, conds, s = _entradas(spark, [("p", "uA", "2026-09-05")], sus)
     _, salida = liquidar(
-        spark, silver, usr, cat, conds, [BolsaPais("CO", Decimal(10), Decimal(10))], SEPT, "r", s
-    , fraude_verificado=False)
+        spark,
+        silver,
+        usr,
+        cat,
+        conds,
+        [BolsaPais("CO", Decimal(10), Decimal(10))],
+        SEPT,
+        "r",
+        s,
+        fraude_verificado=False,
+    )
     assert _componentes(salida) == {"p": "publicidad"}
 
 
@@ -119,7 +128,8 @@ def test_sin_plan_vigente_en_la_fecha_la_corrida_falla(spark):
             SEPT,
             "r",
             s,
-         fraude_verificado=False)
+            fraude_verificado=False,
+        )
 
 
 def test_gold_nunca_borra_otras_liquidaciones_y_repetir_es_idempotente(spark, tmp_path):
