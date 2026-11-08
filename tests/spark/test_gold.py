@@ -293,12 +293,39 @@ def test_eg36_retained_plays_never_enter_gold_or_published_rds(spark, pg):
     holder = TITULARES[0]
     silver = spark.createDataFrame(
         [
-            ("farm-1", "farm", "t0", "CO", "2026-09-10T01:00:00+00:00",
-             SEPT.isoformat(), True, "en_revision", False),
-            ("farm-2", "farm", "t0", "CO", "2026-09-10T02:00:00+00:00",
-             SEPT.isoformat(), True, "en_revision", False),
-            ("legit-1", "legit", "t0", "CO", "2026-09-10T03:00:00+00:00",
-             SEPT.isoformat(), True, "valida_para_fraude", True),
+            (
+                "farm-1",
+                "farm",
+                "t0",
+                "CO",
+                "2026-09-10T01:00:00+00:00",
+                SEPT.isoformat(),
+                True,
+                "en_revision",
+                False,
+            ),
+            (
+                "farm-2",
+                "farm",
+                "t0",
+                "CO",
+                "2026-09-10T02:00:00+00:00",
+                SEPT.isoformat(),
+                True,
+                "en_revision",
+                False,
+            ),
+            (
+                "legit-1",
+                "legit",
+                "t0",
+                "CO",
+                "2026-09-10T03:00:00+00:00",
+                SEPT.isoformat(),
+                True,
+                "valida_para_fraude",
+                True,
+            ),
         ],
         "play_id string, user_id string, track_id string, country string, "
         "inicio_utc string, mes_liquidacion string, pagable boolean, "
@@ -313,13 +340,10 @@ def test_eg36_retained_plays_never_enter_gold_or_published_rds(spark, pg):
     )
     cat = spark.createDataFrame([("t0", str(holder))], "track_id string, titular_id string")
     contracts = [
-        CondicionContrato(uuid.uuid4(), holder, "t0", Decimal("50"),
-                          date(2026, 1, 1), None)
+        CondicionContrato(uuid.uuid4(), holder, "t0", Decimal("50"), date(2026, 1, 1), None)
     ]
     pools = [BolsaPais("CO", Decimal("100.00"), Decimal("0.00"))]
-    result, trace = liquidar(
-        spark, silver, users, cat, contracts, pools, SEPT, "eg36-published"
-    )
+    result, trace = liquidar(spark, silver, users, cat, contracts, pools, SEPT, "eg36-published")
     assert {r["play_id"] for r in trace.select("play_id").collect()} == {"legit-1"}
     assert result.reproducciones_liquidadas == 1
     assert sum((r.regalia_usd for r in result.filas), Decimal("0")) == Decimal("50.00")
