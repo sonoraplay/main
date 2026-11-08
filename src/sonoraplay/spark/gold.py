@@ -496,8 +496,8 @@ def main(argv=None) -> int:
     import psycopg
     from pyspark.sql import SparkSession
 
-    from sonoraplay.spark.gold_fuentes import leer_artistas_f1, leer_entradas
     from sonoraplay.spark.fraude import evaluar_fraude
+    from sonoraplay.spark.gold_fuentes import leer_artistas_f1, leer_entradas
     from sonoraplay.spark.silver import read_verified_snapshot
 
     url = args.database_url.replace("postgresql+psycopg://", "postgresql://", 1)
