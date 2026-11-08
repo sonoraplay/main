@@ -76,3 +76,18 @@ resource "aws_instance" "orquestacion" {
     ignore_changes = [ami]
   }
 }
+
+# Política nueva, aditiva: no altera el rol/política Airflow ya desplegados.
+data "aws_iam_policy_document" "orquestacion_f2" {
+  statement {
+    sid       = "ConsumidorEscribeSoloBronzeF2"
+    actions   = ["s3:PutObject"]
+    resources = ["${local.arn_s3["bronze"]}/f2/*"]
+  }
+}
+
+resource "aws_iam_role_policy" "orquestacion_f2" {
+  name   = "orquestacion-bronze-f2"
+  role   = aws_iam_role.ec2["airflow"].id
+  policy = data.aws_iam_policy_document.orquestacion_f2.json
+}
