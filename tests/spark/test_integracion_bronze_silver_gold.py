@@ -197,16 +197,16 @@ def test_gold_liquida_exactamente_lo_que_silver_publico(cadena):
         BolsaPais("MX", Decimal("800.50"), Decimal("90.10")),
     ]
     salida, trazas = gold.liquidar(
-                              spark,
-                              s,
-                              usr,
-                              cat,
-                              conds,
-                              bolsas,
-                              SEPT,
-                              "run-gold-1",
-                              fraude_verificado=False,
-                          )
+        spark,
+        s,
+        usr,
+        cat,
+        conds,
+        bolsas,
+        SEPT,
+        "run-gold-1",
+        fraude_verificado=False,
+    )
 
     esperadas = pagables_esperadas(reps)
     assert salida.reproducciones_liquidadas == len(esperadas)
