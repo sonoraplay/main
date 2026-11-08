@@ -170,3 +170,70 @@ def test_fail_closed_on_inconsistent_eligibility(spark):
     bad = bad.withColumn("pagable_gold", __import__("pyspark").sql.functions.lit(True))
     with pytest.raises(ValueError, match="inconsistent fraud eligibility"):
         preparar_gold(bad, MES)
+
+
+def test_ca10_spark_parity_on_same_10000_accounts(spark):
+    """EG-36 / EG-51: evaluate identical monthly plays in Python and real Spark."""
+    from collections import Counter
+
+    from sonoraplay.reglas.fraude import evaluar_cuentas
+    from sonoraplay.reglas.metricas_fraude import medir_ca10
+    from tests.simulador.test_f2_avanzado import (
+        CFG,
+        _fuentes,
+        reproducciones_fraude,
+    )
+    from sonoraplay.simulador.f2_avanzado import generar
+
+    sources = _fuentes(12_000)
+    sim = generar(sources, CFG)
+    labels = {c.cuenta_id: c.etiqueta for c in sim.cuentas}
+    assert len(labels) == 10_000
+    reps = [
+        r
+        for r in reproducciones_fraude(sim.eventos, sources)
+        if (r.inicio.year, r.inicio.month) == (CFG.mes.year, CFG.mes.month)
+    ]
+    pure = evaluar_cuentas(reps, CFG.fraude)
+    assert set(pure) == set(labels)
+    track_by_artist = {}
+    for t in sources.pistas:
+        track_by_artist.setdefault(t.artista, t.track_id)
+    rows = [
+        (
+            f"parity-{i}",
+            r.cuenta_id,
+            track_by_artist[r.artista_id],
+            r.dispositivo_id,
+            r.inicio.isoformat(),
+            r.ms_escuchados,
+            CFG.mes.isoformat(),
+            CFG.mes.isoformat(),
+            True,
+        )
+        for i, r in enumerate(reps)
+    ]
+    silver = spark.createDataFrame(
+        rows,
+        "play_id string, user_id string, track_id string, device_id string, "
+        "inicio_utc string, ms_continuos_max long, mes_reproduccion string, "
+        "mes_liquidacion string, pagable boolean",
+    )
+    artists = spark.createDataFrame(
+        [(track, artist) for artist, track in track_by_artist.items()],
+        "track_id string, artista_principal string",
+    )
+    _, signals = evaluar_fraude(silver, artists, CFG.fraude)
+    actual = {r["user_id"]: bool(r["sospechosa"]) for r in signals.collect()}
+    expected = {u: bool(v.sospechosa) for u, v in pure.items()}
+    mismatches = [u for u in expected if actual.get(u) != expected[u]]
+    print(f"EG36_SPARK_PARITY accounts={len(labels)} plays={len(rows)} mismatches={len(mismatches)}")
+    assert not mismatches, f"Spark/Python mismatches: {mismatches[:10]}"
+    assert set(actual) == set(labels)
+    metrics = medir_ca10(labels, actual)
+    print(
+        f"EG36_SPARK_CA10 tp={metrics.tp} fp={metrics.fp} tn={metrics.tn} "
+        f"fn={metrics.fn} recall={metrics.recall:.6f} "
+        f"fpr={metrics.tasa_falsos_positivos:.6f} passed={metrics.cumple_ca10}"
+    )
+    assert metrics.cumple_ca10
