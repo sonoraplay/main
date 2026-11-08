@@ -133,6 +133,43 @@ jobs:
           PYTHONPATH: src
         run: .venv-airflow/bin/python -m pytest tests/orquestacion/test_dags.py --noconftest -q
 
+  compose-d3:
+    runs-on: ubuntu-latest
+    env:
+      RABBITMQ_PASSWORD: ci-placeholder-not-a-secret
+      AIRFLOW_FERNET_KEY: ci-placeholder-not-a-secret
+      AIRFLOW_JWT_SECRET: ci-placeholder-not-a-secret
+      AIRFLOW_DB_PASSWORD: ci-placeholder-not-a-secret
+      POSTGRES_PASSWORD: ci-placeholder-not-a-secret
+      DATABASE_URL: postgresql+psycopg://sonora:placeholder@rds.internal:5432/sonoraplay
+      BRONZE_S3_BUCKET: sonoraplay-ci-bronze
+      SILVER_JOB_COMMAND: python -m sonoraplay.orquestacion.ecs_job
+      LIQUIDACION_JOB_COMMAND: python -m sonoraplay.orquestacion.ecs_job
+      SILVER_COMMITS_URI: s3://sonoraplay-ci-silver/commits
+      ALERTA_SNS_TOPIC_ARN: arn:aws:sns:us-east-1:000000000000:ci
+      ECS_CLUSTER: sonoraplay-dev
+      ECS_SPARK_FAMILY: sonoraplay-dev-spark
+      ECS_SUBNETS: subnet-ci
+      ECS_SECURITY_GROUPS: sg-ci
+      AWS_DEFAULT_REGION: us-east-1
+      RABBITMQ_URL: amqp://sonora:placeholder@rabbitmq:5672/
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate AWS Compose and private Airflow bind
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.airflow.yml -f docker-compose.aws.yml config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.airflow.yml -f docker-compose.aws.yml config --format json > /tmp/compose-d3.json
+          python3 - <<'PY'
+          import json
+          cfg = json.load(open("/tmp/compose-d3.json"))
+          assert not cfg["services"]["rabbitmq"].get("ports")
+          ports = cfg["services"]["airflow-apiserver"].get("ports", [])
+          assert len(ports) == 1 and ports[0]["host_ip"] == "127.0.0.1"
+          assert cfg["services"]["airflow-worker"]["deploy"]["replicas"] == 2
+          assert "postgres" in cfg["services"]  # declared but excluded by --no-deps
+          print("D3 Compose syntax, loopback port and 2 workers: PASS")
+          PY
+
   checkov:
     runs-on: ubuntu-latest
     steps:
