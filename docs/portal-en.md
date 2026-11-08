@@ -17,8 +17,8 @@ This portal exposes the repository's existing documentation: business-rule analy
 You need Git, Docker Desktop or Docker Engine with Compose, and a `.env` file copied from `.env.example`. Set secure database and JWT secrets, and never commit them.
 
 ```bash
-git clone https://github.com/JoshuaQ-rJ/sonoraplay-proyect.git
-cd sonoraplay-proyect
+git clone https://github.com/sonoraplay/main.git
+cd main
 git checkout develop
 cp .env.example .env
 docker compose --profile esqueleto up -d --build
