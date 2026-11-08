@@ -15,7 +15,7 @@ dependencies = [
     "sqlalchemy>=2.0",
     "psycopg[binary]>=3.1",
     "faker>=30",
-    "jsonschema>=4.23",
+    "jsonschema[format-nongpl]>=4.23",
     # Topes: el Control de aplicaciones de Windows bloquea DLL de pandas 3.0.6 y pyarrow 25.0.1
     "pandas>=2.2,<3",
     "pyarrow>=17,<25",

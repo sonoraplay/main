@@ -42,26 +42,26 @@ The locale selector is configured, but **historical technical documents have not
 - [ ] Confirmar que el workflow de Docusaurus y la documentación aprobada están en `main` (responsable: Joshua).
 - [ ] Confirmar que GitHub Pages utiliza **GitHub Actions** como fuente (requiere administrador).
 - [ ] Comprobar un despliegue **build + deploy** exitoso desde `main`; una compilación de PR no basta.
-- [ ] Abrir `https://joshuaq-rj.github.io/sonoraplay-proyect/` en una ventana privada y comprobar que es accesible sin iniciar sesión.
+- [ ] Abrir `https://sonoraplay.github.io/main/` en una ventana privada y comprobar que es accesible sin iniciar sesión.
 - [ ] Revisar portada, navegación lateral, imagen de arquitectura, enlaces internos y páginas de datos, servicios y ADR.
 - [ ] Comprobar el selector de idiomas sin afirmar que todos los documentos históricos están traducidos.
 - [ ] Guardar capturas de la URL pública y del workflow de despliegue, con fecha y commit.
 - [ ] Marcar los componentes AWS como **diseño/propuesta** hasta disponer de evidencias reales de despliegue.
 
-**Diagnóstico:** si la URL devuelve 404, revisar primero que Pages esté habilitado, que el workflow exista en `main` y que `baseUrl` sea `/sonoraplay-proyect/`. Si el sitio abre pero faltan páginas, revisar los enlaces relativos y el registro de compilación. No publicar secretos ni capturas con credenciales.
+**Diagnóstico:** si la URL devuelve 404, revisar primero que Pages esté habilitado, que el workflow exista en `main` y que `baseUrl` sea `/main/`. Si el sitio abre pero faltan páginas, revisar los enlaces relativos y el registro de compilación. No publicar secretos ni capturas con credenciales.
 
 ### English
 
 - [ ] Confirm that the Docusaurus workflow and approved documentation have reached `main` (owner: Joshua).
 - [ ] Confirm GitHub Pages uses **GitHub Actions** as its source (administrator required).
 - [ ] Verify a successful **build + deploy** run from `main`; a PR build alone is insufficient.
-- [ ] Open `https://joshuaq-rj.github.io/sonoraplay-proyect/` in a private window and verify access without signing in.
+- [ ] Open `https://sonoraplay.github.io/main/` in a private window and verify access without signing in.
 - [ ] Check the homepage, sidebar, architecture image, internal links, data, services, and ADR pages.
 - [ ] Test the locale selector without claiming that all historical documents are translated.
 - [ ] Save dated screenshots of the public URL and deployment workflow, including the commit identifier.
 - [ ] Label AWS components as **design/proposal** until real deployment evidence is available.
 
-**Troubleshooting:** for a 404, first check that Pages is enabled, the workflow exists on `main`, and `baseUrl` is `/sonoraplay-proyect/`. If the site loads but pages are missing, check relative links and build logs. Never publish secrets or credential-bearing screenshots.
+**Troubleshooting:** for a 404, first check that Pages is enabled, the workflow exists on `main`, and `baseUrl` is `/main/`. If the site loads but pages are missing, check relative links and build logs. Never publish secrets or credential-bearing screenshots.
 
 
 ## Cobertura de idiomas y estado / Language coverage and status

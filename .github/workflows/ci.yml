@@ -67,6 +67,20 @@ jobs:
           # La prueba de reinicio del broker reinicia el contenedor de servicio del job.
           # El contexto job solo existe dentro de los pasos, no en el env del job.
           RABBITMQ_REINICIO: docker restart ${{ job.services.rabbitmq.id }}
+      - name: Production-only F2 timestamp validation (no dev dependencies)
+        run: |
+          uv sync --locked --no-dev
+          uv run --locked --no-dev python - <<'PY'
+          from sonoraplay.simulador.f2_minimo import validador
+          from pathlib import Path
+          import json
+          valid = json.loads(Path("schemas/ejemplos/validos/start.json").read_text())
+          validator = validador()
+          assert validator.is_valid(valid)
+          invalid = {**valid, "server_ts": "2026-02-31T25:99:99Z"}
+          assert not validator.is_valid(invalid), "Invalid date accepted in production"
+          print("Production F2 project validator rejects invalid timestamps: PASS")
+          PY
 
   spark-silver:
     runs-on: ubuntu-latest

@@ -18,8 +18,8 @@ La documentación existente del repositorio se presenta aquí sin duplicarla: an
 Necesitas Git, Docker Desktop o Docker Engine con Compose, y un archivo `.env` creado a partir de `.env.example`. Configura contraseñas y el secreto JWT sin subirlos al repositorio.
 
 ```bash
-git clone https://github.com/JoshuaQ-rJ/sonoraplay-proyect.git
-cd sonoraplay-proyect
+git clone https://github.com/sonoraplay/main.git
+cd main
 git checkout develop
 cp .env.example .env
 docker compose --profile esqueleto up -d --build

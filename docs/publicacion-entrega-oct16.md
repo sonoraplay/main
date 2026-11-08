@@ -9,7 +9,7 @@
 1. Joshua revisa e integra el PR de Docusaurus y este cambio a `develop`; luego integra `develop` en `main` según el proceso del equipo. **No se publica desde PR ni desde `develop`.**
 2. En GitHub, un administrador abre **Settings → Pages → Build and deployment → Source: GitHub Actions**. Esto requiere permisos de administración.
 3. Tras integrar el workflow en `main`, ejecutar **Actions → Docusaurus → Run workflow** sobre `main`, o publicar una modificación de documentación en `main`.
-4. Verificar la URL esperada, **solo después de un despliegue exitoso**: https://joshuaq-rj.github.io/sonoraplay-proyect/ .
+4. Verificar la URL esperada, **solo después de un despliegue exitoso**: https://sonoraplay.github.io/main/ .
 5. Probar inicio, enlaces de la barra lateral, imágenes, páginas de arquitectura y servicios y selector de idioma. Revisar enlaces externos y registrar capturas de evidencia.
 6. Confirmar con el TL si GitHub Pages sirve como dominio. Si se asigna otro dominio, actualizar `url`, `baseUrl`, `organizationName` y `projectName` según el destino real y configurar DNS y GitHub Pages antes de publicarlo.
 
@@ -34,7 +34,7 @@
 1. Joshua reviews and merges the Docusaurus PR and this change into `develop`, then integrates `develop` into `main` following the team's process. **Neither pull requests nor `develop` publish the site.**
 2. A repository administrator opens **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 3. After the workflow reaches `main`, use **Actions → Docusaurus → Run workflow** on `main`, or push a documentation change to `main`.
-4. Verify the expected URL **only after successful deployment**: https://joshuaq-rj.github.io/sonoraplay-proyect/ .
+4. Verify the expected URL **only after successful deployment**: https://sonoraplay.github.io/main/ .
 5. Test home, sidebar links, images, architecture and service pages, language selector and external links. Save evidence screenshots.
 6. Confirm with the instructor whether GitHub Pages is acceptable. If a custom domain is assigned, update the Docusaurus deployment settings and configure DNS and Pages accordingly.
 
