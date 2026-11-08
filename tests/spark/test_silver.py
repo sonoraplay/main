@@ -671,3 +671,36 @@ def test_verified_snapshot_requires_commit_marker_and_pins_run(spark, tmp_path):
             fecha=date(2026, 9, 20),
             source_version="fixture-v1",
         )
+
+
+def test_silver_se_compacta_en_un_archivo_por_particion(spark, tmp_path):
+    """Con muchas particiones de shuffle, cada (year, month, country) queda en un solo archivo."""
+    from datetime import date
+
+    from sonoraplay.spark.silver import write_historical_snapshot
+
+    bronze = tmp_path / "f2" / "fecha=2026-09-20"
+    bronze.mkdir(parents=True)
+    events = [r.asDict() for r in _events(spark, "duplicado_por_reintento").collect()]
+    (bronze / "lote.jsonl").write_text(
+        "".join(json.dumps(event) + "\n" for event in events), encoding="utf-8"
+    )
+    spark.conf.set("spark.sql.shuffle.partitions", "50")
+    try:
+        silver_path, _ = write_historical_snapshot(
+            spark,
+            str(tmp_path / "f2"),
+            _catalog(spark),
+            str(tmp_path / "silver"),
+            str(tmp_path / "quarantine"),
+            fecha=date(2026, 9, 20),
+            run_id="compactacion-1",
+            source_version="fixture-v1",
+        )
+    finally:
+        spark.conf.set("spark.sql.shuffle.partitions", "200")
+    por_particion = {}
+    for archivo in Path(silver_path).rglob("*.parquet"):
+        por_particion.setdefault(archivo.parent, []).append(archivo)
+    assert por_particion, "no se escribió ningún archivo Parquet"
+    assert all(len(archivos) == 1 for archivos in por_particion.values()), por_particion

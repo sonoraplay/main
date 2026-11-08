@@ -256,6 +256,36 @@ def liquidar(
     return SalidaGold(liquidacion_id, periodo, run_id, tuple(resultados), total), plays
 
 
+def conciliar(silver, plays, periodo: date) -> dict:
+    """Concilia por ``play_id`` las reproducciones pagables del período en Silver con las que
+    Gold liquidó (condición 9 del ADR-0014, EG-31).
+
+    Falla si Gold liquidó una reproducción que Silver no tiene como pagable, si dejó sin liquidar
+    alguna que sí lo era, o si hay ``play_id`` repetidos en Gold. Devuelve los conteos.
+    """
+    from pyspark.sql import functions as F
+
+    en_silver = (
+        silver.filter(F.col("pagable") & (F.col("mes_liquidacion") == periodo.isoformat()))
+        .select("play_id")
+        .distinct()
+    )
+    en_gold = plays.select("play_id")
+    n_silver, n_gold_filas = en_silver.count(), en_gold.count()
+    n_gold = en_gold.distinct().count()
+    faltan = en_silver.join(en_gold.distinct(), "play_id", "left_anti").limit(5).collect()
+    sobran = en_gold.distinct().join(en_silver, "play_id", "left_anti").limit(5).collect()
+    if n_gold_filas != n_gold:
+        raise ValueError(f"Gold tiene {n_gold_filas - n_gold} play_id repetidos")
+    if faltan or sobran:
+        raise ValueError(
+            "conciliación Silver ↔ Gold por play_id: "
+            f"sin liquidar {[r['play_id'] for r in faltan]}, "
+            f"liquidadas sin ser pagables {[r['play_id'] for r in sobran]}"
+        )
+    return {"silver_pagables": n_silver, "gold_liquidadas": n_gold}
+
+
 def _con_componente_por_fecha(base, suscripciones):
     """Une cada reproducción con la suscripción vigente en su fecha UTC (``desde <= f < hasta``).
 
@@ -489,6 +519,7 @@ def main(argv=None) -> int:
             args.run_id,
             suscripciones=suscripciones,
         )
+        conciliacion = conciliar(silver, plays, periodo)
         escribir_gold(salida, plays, args.gold)
         estado = cargar_rds(conexion, salida)
     print(
@@ -500,6 +531,7 @@ def main(argv=None) -> int:
                 "run_id": args.run_id,
                 "silver_run_id": marcador["run_id"],
                 "reproducciones_liquidadas": salida.reproducciones_liquidadas,
+                "conciliacion": conciliacion,
             },
             sort_keys=True,
         )
