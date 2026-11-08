@@ -281,7 +281,7 @@ data "aws_iam_policy_document" "airflow" {
   statement {
     sid       = "EscribeF6F7"
     actions   = ["s3:PutObject"]
-    resources = ["${local.arn_s3["bronze"]}/f2/*", "${local.arn_s3["bronze"]}/f6/*", "${local.arn_s3["bronze"]}/f7/*"]
+    resources = ["${local.arn_s3["bronze"]}/f6/*", "${local.arn_s3["bronze"]}/f7/*"]
   }
 
   # EG-34: `verificar_silver_publicado` lee el marcador `commits/<run_id>.json` de Silver (solo ese
