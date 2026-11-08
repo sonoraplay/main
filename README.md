@@ -29,8 +29,8 @@ La forma más rápida de tener todo funcionando: un solo comando levanta Postgre
 **1. Clona y prepara `.env`**
 
 ```bash
-git clone https://github.com/JoshuaQ-rJ/sonoraplay-proyect.git
-cd sonoraplay-proyect
+git clone https://github.com/sonoraplay/main.git
+cd main
 git checkout develop
 cp .env.example .env
 ```
@@ -191,8 +191,8 @@ No hace falta instalar Python a mano: uv descarga la versión fijada en `.python
 ## Instalación
 
 ```bash
-git clone https://github.com/JoshuaQ-rJ/sonoraplay-proyect.git
-cd sonoraplay-proyect
+git clone https://github.com/sonoraplay/main.git
+cd main
 git checkout develop
 uv sync
 uv run python -m pre_commit install
