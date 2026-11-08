@@ -56,5 +56,6 @@ docker compose "${files[@]}" up -d --wait --no-deps rabbitmq airflow-db
 docker compose "${files[@]}" up -d --no-deps airflow-rabbit-vhost
 docker compose "${files[@]}" wait airflow-rabbit-vhost
 docker compose "${files[@]}" up -d --build --no-deps airflow-init
+docker compose "${files[@]}" wait airflow-init
 docker compose "${files[@]}" up -d --build --no-deps airflow-apiserver airflow-scheduler airflow-dag-processor airflow-worker consumidor
 docker compose "${files[@]}" ps
