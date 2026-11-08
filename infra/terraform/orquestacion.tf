@@ -22,14 +22,17 @@ ephemeral "random_password" "orquestacion" {
 
 resource "aws_ssm_parameter" "orquestacion" {
   for_each = {
-    rabbitmq = { ruta = "rabbitmq/password", secreto = ephemeral.random_password.orquestacion["rabbitmq"].result }
-    fernet   = { ruta = "airflow/fernet", secreto = base64encode(ephemeral.random_password.orquestacion["fernet"].result) }
-    jwt      = { ruta = "airflow/jwt", secreto = ephemeral.random_password.orquestacion["jwt"].result }
-    metadata = { ruta = "airflow/db-password", secreto = ephemeral.random_password.orquestacion["metadata"].result }
+    rabbitmq = "rabbitmq/password"
+    fernet   = "airflow/fernet"
+    jwt      = "airflow/jwt"
+    metadata = "airflow/db-password"
   }
-  name             = "${local.ssm_prefijo}/${each.value.ruta}"
-  type             = "SecureString"
-  value_wo         = each.value.secreto
+  name = "${local.ssm_prefijo}/${each.value}"
+  type = "SecureString"
+  value_wo = (
+    each.key == "fernet" ? base64encode(ephemeral.random_password.orquestacion["fernet"].result) :
+    ephemeral.random_password.orquestacion[each.key].result
+  )
   value_wo_version = 1
   tags             = local.etiquetas
 }
