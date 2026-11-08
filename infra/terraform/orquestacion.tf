@@ -27,9 +27,9 @@ resource "aws_ssm_parameter" "orquestacion" {
     jwt      = "airflow/jwt"
     metadata = "airflow/db-password"
   }
-  name             = "${local.ssm_prefijo}/${each.value}"
-  type             = "SecureString"
-  value_wo         = (
+  name = "${local.ssm_prefijo}/${each.value}"
+  type = "SecureString"
+  value_wo = (
     each.key == "fernet" ? base64encode(ephemeral.random_password.orquestacion["fernet"].result) :
     ephemeral.random_password.orquestacion[each.key].result
   )
@@ -45,7 +45,7 @@ resource "aws_instance" "orquestacion" {
   iam_instance_profile        = aws_iam_instance_profile.ec2["airflow"].name
   associate_public_ip_address = false
   ebs_optimized               = true
-  user_data                   = templatefile("${path.module}/plantillas/orquestacion-user-data.sh.tftpl", {
+  user_data = templatefile("${path.module}/plantillas/orquestacion-user-data.sh.tftpl", {
     git_ref             = var.orquestacion_git_ref
     region              = var.region
     ssm_prefix          = local.ssm_prefijo
@@ -70,7 +70,7 @@ resource "aws_instance" "orquestacion" {
     volume_size = 30
     tags        = merge(local.etiquetas, { Name = "${local.nombre}-orquestacion-root" })
   }
-  tags = merge(local.etiquetas, { Name = "${local.nombre}-orquestacion" })
+  tags       = merge(local.etiquetas, { Name = "${local.nombre}-orquestacion" })
   depends_on = [aws_ssm_parameter.orquestacion, aws_ssm_parameter.rds_password, aws_ssm_parameter.rds_conexion, aws_iam_role_policy.orquestacion_f2]
   lifecycle {
     ignore_changes = [ami]
