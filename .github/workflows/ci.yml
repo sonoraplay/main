@@ -67,6 +67,17 @@ jobs:
           # La prueba de reinicio del broker reinicia el contenedor de servicio del job.
           # El contexto job solo existe dentro de los pasos, no en el env del job.
           RABBITMQ_REINICIO: docker restart ${{ job.services.rabbitmq.id }}
+      - name: Production-only F2 timestamp validation (no dev dependencies)
+        run: |
+          uv sync --locked --no-dev
+          uv run --locked --no-dev python - <<'PY'
+          from jsonschema import FormatChecker
+          checker = FormatChecker()
+          assert "date-time" in checker.checkers
+          assert not checker.conforms("2026-02-31T25:99:99Z", "date-time")
+          assert checker.conforms("2026-02-28T23:59:59Z", "date-time")
+          print("Production JSON Schema date-time format: PASS")
+          PY
 
   spark-silver:
     runs-on: ubuntu-latest
