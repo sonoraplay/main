@@ -288,6 +288,17 @@ def test_mismo_run_id_con_otro_resultado_no_sobrescribe(spark, pg):
         cargar_rds(pg, otra)
 
 
+
+def test_gold_rejects_unverified_silver_by_default(spark):
+    """Production Gold must fail closed if RN-03 was never evaluated."""
+    users, plays = datos(3, semilla=13)
+    owners = {f"t{k}": TITULARES[k % len(TITULARES)] for k in range(6)}
+    silver, usr, cat = a_dataframes(spark, users, plays, owners)
+    with pytest.raises(ValueError, match="fraud gate missing"):
+        liquidar(spark, silver, usr, cat, [], bolsas(), SEPT, "unverified")
+
+
+
 def test_eg36_retained_plays_never_enter_gold_or_published_rds(spark, pg):
     """RN-03: validate actual Spark Gold traces and PostgreSQL published rows."""
     holder = TITULARES[0]
