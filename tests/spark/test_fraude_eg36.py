@@ -71,6 +71,40 @@ def test_hu09_concentration_holds_entire_month_and_keeps_legitimate_money(spark)
     assert {r["user_id"]: r["count"] for r in amounts} == {"legit": 4}
 
 
+def test_gold_money_uses_only_eligible_plays_and_existing_decimal_formula(spark):
+    """RN-03 + RNF-02: fraud plays cannot alter a rights-holder numerator."""
+    import uuid
+    from decimal import Decimal
+
+    from sonoraplay.reglas.liquidacion import BolsaPais, repartir_bolsa
+    from sonoraplay.reporte_regalias import Componente
+
+    rows = [
+        play("f1", "farm", "t1", "df", 1),
+        play("f2", "farm", "t1", "df", 2),
+        play("f3", "farm", "t1", "df", 3),
+        play("f4", "farm", "t2", "df", 4),
+        play("l1", "legit", "t1", "dl", 1),
+        play("l2", "legit", "t2", "dl", 2),
+        play("l3", "legit", "t3", "dl", 3),
+        play("l4", "legit", "t4", "dl", 4),
+    ]
+    silver, artists = fixtures(spark, rows)
+    annotated, _ = evaluar_fraude(silver, artists)
+    payable = preparar_gold(annotated, MES)
+    counts = {r["user_id"]: r["count"] for r in payable.groupBy("user_id").count().collect()}
+    assert counts == {"legit": 4}
+    legitimate_holder = uuid.UUID("00000000-0000-0000-0000-000000000001")
+    # Existing RNF-02 formula: USD 100 pool * 4/4 share * 50% contract = USD 50.
+    result = repartir_bolsa(
+        MES,
+        BolsaPais("CO", Decimal("100.00"), Decimal("0.00")),
+        {(Componente.SUSCRIPCION, legitimate_holder, Decimal("50")): counts["legit"]},
+    )
+    assert result.total_usd() == Decimal("50.00")
+    assert result.total_titular(legitimate_holder) == Decimal("50.00")
+
+
 def test_hu09_shared_device_six_accounts_exact_threshold(spark):
     rows = [
         play(f"p{i}", f"u{i}", f"t{(i % 4) + 1}", "shared", i + 1)
