@@ -221,11 +221,12 @@ def test_ca10_spark_parity_on_same_10000_accounts(spark):
     actual = {r["user_id"]: bool(r["sospechosa"]) for r in signals.collect()}
     expected = {u: bool(v.sospechosa) for u, v in pure.items()}
     mismatches = [u for u in expected if actual.get(u) != expected[u]]
-    parity_message = (
-        f"EG36_SPARK_PARITY accounts={len(labels)} plays={len(rows)} "
-        f"mismatches={len(mismatches)}"
+    print(
+        "EG36_SPARK_PARITY",
+        f"accounts={len(labels)}",
+        f"plays={len(rows)}",
+        f"mismatches={len(mismatches)}",
     )
-    print(parity_message)
     assert not mismatches, f"Spark/Python mismatches: {mismatches[:10]}"
     assert set(actual) == set(labels)
     metrics = medir_ca10(labels, actual)
