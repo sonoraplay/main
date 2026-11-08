@@ -419,3 +419,12 @@ def test_eg36_retained_plays_never_enter_gold_or_published_rds(spark, pg):
         "SELECT publicada_en IS NOT NULL FROM liquidaciones WHERE liquidacion_id = %s",
         (result.liquidacion_id,),
     ).fetchone()[0]
+
+
+def test_gold_rejects_unverified_silver_by_default(spark):
+    """Production Gold must fail closed without RN-03 verification."""
+    usuarios, plays = datos(3, semilla=13)
+    owners = {f"t{k}": TITULARES[k % len(TITULARES)] for k in range(6)}
+    silver, usr, cat = a_dataframes(spark, usuarios, plays, owners)
+    with pytest.raises(ValueError, match="fraud gate missing"):
+        liquidar(spark, silver, usr, cat, [], bolsas(), SEPT, "unverified")
