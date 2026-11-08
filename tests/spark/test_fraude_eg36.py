@@ -174,8 +174,6 @@ def test_fail_closed_on_inconsistent_eligibility(spark):
 
 def test_ca10_spark_parity_on_same_10000_accounts(spark):
     """EG-36 / EG-51: evaluate identical monthly plays in Python and real Spark."""
-    from collections import Counter
-
     from sonoraplay.reglas.fraude import evaluar_cuentas
     from sonoraplay.reglas.metricas_fraude import medir_ca10
     from tests.simulador.test_f2_avanzado import (
