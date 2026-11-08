@@ -59,3 +59,42 @@
 **Corrección de seguridad:** liquidar obliga a pasar por preparar_gold por defecto, incluso si faltan columnas de fraude (fallo seguro). La excepción histórica debe ser explícita y limitada a pruebas aisladas. Si existen columnas de fraude, preparar_gold se ejecuta incluso con la excepción.
 
 **Medición CA-10:** `medir_ca10` calcula VP, FP, VN, FN, sensibilidad y tasa de falsos positivos con etiquetas independientes EG-51. Rechaza predicciones faltantes y exige sensibilidad ≥95% y falsos positivos &lt;2%. Sus pruebas comprueban los límites matemáticos, **no** el rendimiento real del simulador. Falta ejecutar el circuito completo con etiquetas antes de aceptar.
+
+## English — measured Spark parity and benchmark (CI)
+
+**Source:** [GitHub Actions run 42517450604, Spark Gold job](https://github.com/sonoraplay/main/actions/runs/42517450604), commit `c0f0b6b5`. This run's Spark Gold job passed; its overall workflow was not green because lint failed on formatting, subsequently corrected in the PR branch. The benchmark executes the same EG-51 simulator input through `evaluar_fraude` in real PySpark 4.0.1.
+
+| Measure | Observed value |
+|---|---:|
+| Labelled accounts | 10,000 |
+| Playback rows evaluated | 185,692 |
+| Python/Spark prediction mismatches | 0 |
+| True positives / false positives | 500 / 1 |
+| True negatives / false negatives | 9,499 / 0 |
+| Recall | 100.0000% |
+| False-positive rate | 0.010526% |
+| Instrumented test wall-clock (`/usr/bin/time -v`) | 59.37 seconds |
+| Maximum resident set size of timed process | 668,992 kB (about 653.3 MiB) |
+| Test result | 1 passed in 58.59 seconds |
+
+**Measurement boundary:** wall time includes pytest setup, data generation and Spark actions; it is not a pure `evaluar_fraude` latency. Maximum RSS is for the timed process and does not establish the full Spark JVM/executor or per-group pandas peak. The dataset contains 185,692 rows, **not 400,000**; no valid extrapolation to the previous 42-minute 400,000-play measurement is possible. A post-EG-36 400,000-play benchmark with JVM/executor and pandas-group memory evidence remains an acceptance gap. The offline playback-month source-window completeness and real AWS monthly DAG also remain unverified.
+
+## Español — paridad y rendimiento Spark medidos en CI
+
+**Fuente:** [GitHub Actions 42517450604, trabajo Spark Gold](https://github.com/sonoraplay/main/actions/runs/42517450604), commit `c0f0b6b5`. El trabajo Spark Gold aprobó, pero el flujo completo no quedó verde por un error de formato en lint, corregido después en la rama del PR. La medición procesa los mismos datos simulados EG-51 mediante `evaluar_fraude` en PySpark 4.0.1 real.
+
+| Medida | Valor observado |
+|---|---:|
+| Cuentas etiquetadas | 10.000 |
+| Reproducciones evaluadas | 185.692 |
+| Discrepancias entre Python y Spark | 0 |
+| Verdaderos positivos / falsos positivos | 500 / 1 |
+| Verdaderos negativos / falsos negativos | 9.499 / 0 |
+| Sensibilidad (recall) | 100,0000 % |
+| Tasa de falsos positivos | 0,010526 % |
+| Tiempo total instrumentado (`/usr/bin/time -v`) | 59,37 segundos |
+| Memoria residente máxima del proceso medido | 668.992 kB (aprox. 653,3 MiB) |
+| Resultado del test | 1 aprobado en 58,59 segundos |
+
+**Límite de medición:** el tiempo incluye configuración de pytest, generación de datos y acciones Spark; no representa la latencia aislada de `evaluar_fraude`. El RSS máximo corresponde al proceso medido, no a toda la JVM de Spark, los ejecutores ni al pico de memoria por grupo pandas. La muestra tiene 185.692 filas, **no 400.000**; no se puede extrapolar válidamente al resultado histórico de 42 minutos para 400.000 reproducciones. Sigue pendiente medir 400.000 reproducciones después de EG-36 con memoria JVM/ejecutores y grupos pandas. También falta verificar la ventana offline por mes de reproducción y el DAG mensual real en AWS.
+
