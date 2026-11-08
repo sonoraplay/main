@@ -10,6 +10,9 @@ from sonoraplay.config import AtribucionOfflineConfig, ReglasValidezConfig
 from sonoraplay.reglas.atribucion import atribuir_reproduccion
 from sonoraplay.reglas.sesiones import reconstruir
 
+# Tope de filas por archivo Parquet de Silver al compactar (ver write_historical_snapshot).
+MAX_FILAS_POR_ARCHIVO = 2_000_000
+
 
 # Import Spark only when the Silver job is invoked; existing services need no Spark.
 def event_schema():
@@ -424,8 +427,17 @@ def write_historical_snapshot(
     )
     # Record corrected playback months for comparison with persisted Parquet.
     affected = affected_playback_months(silver, quarantine)
-    silver.write.mode("errorifexists").partitionBy("year", "month", "country").parquet(silver_path)
-    quarantine.write.mode("errorifexists").parquet(quarantine_path)
+    # Compactación (ADR-0014, EG-31): sin esto, cada partición de shuffle escribe su propio archivo
+    # por (year, month, country) y quedan miles de archivos pequeños. Se agrupa por las columnas
+    # de partición para dejar un archivo por partición, con tope de filas por archivo.
+    (
+        silver.repartition("year", "month", "country")
+        .write.mode("errorifexists")
+        .option("maxRecordsPerFile", MAX_FILAS_POR_ARCHIVO)
+        .partitionBy("year", "month", "country")
+        .parquet(silver_path)
+    )
+    quarantine.coalesce(1).write.mode("errorifexists").parquet(quarantine_path)
     # Force actual Parquet reads. Do not claim that a pair of S3 writes is atomic.
     saved_silver = spark.read.parquet(silver_path)
     saved_quarantine = spark.read.parquet(quarantine_path)

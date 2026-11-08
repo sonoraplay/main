@@ -202,3 +202,49 @@ def test_el_catalogo_f1_tambien_se_lee_de_s3(tmp_path):
         ("bucket-bronze", "catalogo/catalogo_f1.parquet"),
         ("bucket-bronze", "catalogo/catalogo_f1.parquet"),
     ]
+
+
+def _gold_y_silver(spark):
+    sus = [("uA", "suscripcion", "2026-01-01", None, 0)]
+    silver, usr, cat, conds, s = _entradas(
+        spark, [("p1", "uA", "2026-09-05"), ("p2", "uA", "2026-09-06")], sus
+    )
+    bolsa = [BolsaPais("CO", Decimal(10), Decimal(10))]
+    _, plays = liquidar(spark, silver, usr, cat, conds, bolsa, SEPT, "r", suscripciones=s)
+    return silver, plays
+
+
+def test_la_conciliacion_por_play_id_cuadra_cuando_gold_liquida_todo_lo_pagable(spark):
+    from sonoraplay.spark.gold import conciliar
+
+    silver, plays = _gold_y_silver(spark)
+    assert conciliar(silver, plays, SEPT) == {"silver_pagables": 2, "gold_liquidadas": 2}
+
+
+def test_la_conciliacion_falla_si_gold_dejo_sin_liquidar_una_reproduccion(spark):
+    from pyspark.sql import functions as F
+
+    from sonoraplay.spark.gold import conciliar
+
+    silver, plays = _gold_y_silver(spark)
+    with pytest.raises(ValueError, match="sin liquidar"):
+        conciliar(silver, plays.filter(F.col("play_id") != "p2"), SEPT)
+
+
+def test_la_conciliacion_falla_si_gold_liquida_algo_que_no_es_pagable(spark):
+    from pyspark.sql import functions as F
+
+    from sonoraplay.spark.gold import conciliar
+
+    silver, plays = _gold_y_silver(spark)
+    extra = plays.limit(1).withColumn("play_id", F.lit("fantasma"))
+    with pytest.raises(ValueError, match="liquidadas sin ser pagables"):
+        conciliar(silver, plays.unionByName(extra), SEPT)
+
+
+def test_la_conciliacion_falla_si_hay_play_id_repetidos_en_gold(spark):
+    from sonoraplay.spark.gold import conciliar
+
+    silver, plays = _gold_y_silver(spark)
+    with pytest.raises(ValueError, match="repetidos"):
+        conciliar(silver, plays.unionByName(plays.limit(1)), SEPT)
