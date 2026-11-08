@@ -185,7 +185,7 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.16.6
-      - run: terraform fmt -check -recursive infra/terraform
+      - run: terraform fmt -diff -check -recursive infra/terraform
       # Sin backend ni credenciales: valida la sintaxis y los tipos, no toca AWS.
       - run: |
           for d in infra/terraform infra/terraform/bootstrap infra/terraform/ecr infra/terraform/presupuesto infra/terraform/eks infra/terraform/cicd; do
