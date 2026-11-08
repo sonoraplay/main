@@ -2,6 +2,7 @@
 
 This evaluator never changes RN-03 thresholds or Gold settlement outcomes.
 """
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -25,8 +26,10 @@ class MetricasFraude:
 
     @property
     def cumple_ca10(self) -> bool:
-        return self.tp + self.fn > 0 and self.fp + self.tn > 0 and (
-            self.recall >= 0.95 and self.tasa_falsos_positivos < 0.02
+        return (
+            self.tp + self.fn > 0
+            and self.fp + self.tn > 0
+            and (self.recall >= 0.95 and self.tasa_falsos_positivos < 0.02)
         )
 
 
