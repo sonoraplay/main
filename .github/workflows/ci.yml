@@ -133,6 +133,14 @@ jobs:
           PYTHONPATH: src
         run: .venv-airflow/bin/python -m pytest tests/orquestacion/test_dags.py --noconftest -q
 
+  checkov:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Checkov infrastructure policy (existing justified exceptions)
+        run: uvx checkov -d infra/terraform --config-file infra/terraform/.checkov.yaml
+
   terraform:
     runs-on: ubuntu-latest
     steps:
