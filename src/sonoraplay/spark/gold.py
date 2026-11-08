@@ -107,7 +107,7 @@ def liquidar(
     periodo: date,
     run_id: str,
     suscripciones=None,
-    fraude_verificado=False,
+    fraude_verificado=True,
 ):
     """Liquida ``periodo``. Devuelve ``(SalidaGold, plays_liquidados: DataFrame)``.
 
