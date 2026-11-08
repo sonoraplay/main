@@ -134,7 +134,7 @@ def liquidar(
         usuarios_cols = usuarios.select("user_id", "pais_facturacion", "componente")
     else:
         usuarios_cols = usuarios.select("user_id", "pais_facturacion")
-    if fraude_verificado:
+    if fraude_verificado or "pagable_gold" in silver.columns or "estado_fraude" in silver.columns:
         from sonoraplay.spark.fraude import preparar_gold
 
         silver_pagable = preparar_gold(silver, periodo)
