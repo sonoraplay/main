@@ -3,10 +3,10 @@ const config = {
   title: 'SonoraPlay Regalías',
   tagline: 'Documentación de arquitectura, datos y ejecución',
   favicon: 'img/favicon.svg',
-  url: 'https://joshuaq-rj.github.io',
-  baseUrl: '/sonoraplay-proyect/',
-  organizationName: 'JoshuaQ-rJ',
-  projectName: 'sonoraplay-proyect',
+  url: 'https://sonoraplay.github.io',
+  baseUrl: '/main/',
+  organizationName: 'sonoraplay',
+  projectName: 'main',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
   i18n: { defaultLocale: 'es', locales: ['es', 'en'], localeConfigs: { es: { label: 'Español' }, en: { label: 'English' } } },
@@ -21,7 +21,7 @@ const config = {
     navbar: { title: 'SonoraPlay', items: [
       { type: 'docSidebar', sidebarId: 'tutorialSidebar', position: 'left', label: 'Documentación' },
       { type: 'localeDropdown', position: 'right' },
-      { href: 'https://github.com/JoshuaQ-rJ/sonoraplay-proyect', label: 'GitHub', position: 'right' }
+      { href: 'https://github.com/sonoraplay/main', label: 'GitHub', position: 'right' }
     ] },
     footer: { style: 'dark', copyright: 'SonoraPlay · Proyecto académico de ingeniería de datos' }
   }
