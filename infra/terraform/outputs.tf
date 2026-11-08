@@ -70,3 +70,16 @@ output "spark_task_definition" {
   description = "Definición de tarea que lanza Airflow para Silver y Gold (vacía sin spark_imagen_tag)."
   value       = local.spark_activo ? "${aws_ecs_task_definition.spark[0].family}:${aws_ecs_task_definition.spark[0].revision}" : ""
 }
+
+# ADR-0024: el único acceso administrativo es Session Manager.
+output "orquestacion_instance_id" {
+  value = aws_instance.orquestacion.id
+}
+
+output "orquestacion_ssm_entrar" {
+  value = "aws ssm start-session --target ${aws_instance.orquestacion.id} --region ${var.region}"
+}
+
+output "orquestacion_ssm_airflow" {
+  value = "aws ssm start-session --target ${aws_instance.orquestacion.id} --region ${var.region} --document-name AWS-StartPortForwardingSession --parameters 'portNumber=8080,localPortNumber=8080'"
+}
