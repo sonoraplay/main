@@ -142,8 +142,8 @@ def liquidar(
         # Backwards compatibility for EG-37 unit tests only.
         # Production CLI always requires the fraud gate.
         silver_pagable = silver.filter(
-            F.col("pagable") & (F.col("mes_liquidacion") == periodo.isoformat()
-        ))
+            F.col("pagable") & (F.col("mes_liquidacion") == periodo.isoformat())
+        )
     base = silver_pagable.join(usuarios_cols, "user_id", "left")
     if suscripciones is not None:
         base = _con_componente_por_fecha(base, suscripciones)
