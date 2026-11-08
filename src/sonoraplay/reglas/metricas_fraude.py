@@ -4,8 +4,8 @@ This evaluator never changes RN-03 thresholds or Gold settlement outcomes.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
 from collections.abc import Mapping
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
