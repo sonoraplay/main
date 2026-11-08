@@ -51,6 +51,7 @@ resource "aws_instance" "orquestacion" {
     ssm_prefix          = local.ssm_prefijo
     bronze_bucket       = aws_s3_bucket.capa["bronze"].bucket
     silver_bucket       = aws_s3_bucket.capa["silver"].bucket
+    gold_bucket         = aws_s3_bucket.capa["gold"].bucket
     sns_topic_arn       = "arn:${local.particion}:sns:${var.region}:${local.cuenta}:${var.proyecto}-presupuesto-alertas"
     ecs_cluster         = aws_ecs_cluster.principal.name
     ecs_spark_family    = "${local.nombre}-spark"
