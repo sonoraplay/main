@@ -142,7 +142,17 @@ def test_spark_da_lo_mismo_que_las_funciones_puras(spark):
     conds = [c for c in condiciones() if titular_de_pista[c.track_id] == c.titular_id]
     silver, usr, cat = a_dataframes(spark, usuarios, plays, titular_de_pista)
 
-    salida, _ = liquidar(spark, silver, usr, cat, conds, bolsas(), SEPT, "run-1", fraude_verificado=False)
+    salida, _ = liquidar(
+                    spark,
+                    silver,
+                    usr,
+                    cat,
+                    conds,
+                    bolsas(),
+                    SEPT,
+                    "run-1",
+                    fraude_verificado=False,
+                )
     puro = esperado(usuarios, plays, titular_de_pista, conds, bolsas())
 
     spark_filas = {clave(f): f for f in salida.filas}
@@ -162,7 +172,17 @@ def test_la_suma_por_pais_no_supera_la_bolsa_rnf02(spark):
     plays = [(pid, u, tr, titular_de_pista[tr], ini, pr) for pid, u, tr, _, ini, pr in plays]
     conds = [c for c in condiciones() if titular_de_pista[c.track_id] == c.titular_id]
     silver, usr, cat = a_dataframes(spark, usuarios, plays, titular_de_pista)
-    salida, _ = liquidar(spark, silver, usr, cat, conds, bolsas(), SEPT, "run-rnf02", fraude_verificado=False)
+    salida, _ = liquidar(
+                    spark,
+                    silver,
+                    usr,
+                    cat,
+                    conds,
+                    bolsas(),
+                    SEPT,
+                    "run-rnf02",
+                    fraude_verificado=False,
+                )
     for r in salida.resultados:
         for comp in Componente:
             assert r.total_usd(comp) <= r.bolsa.de(comp) + Decimal("0.01"), (r.bolsa.pais, comp)
@@ -176,7 +196,17 @@ def test_cada_reproduccion_liquidada_lleva_su_liquidacion_id(spark):
     plays = [(pid, u, tr, titular_de_pista[tr], ini, pr) for pid, u, tr, _, ini, pr in plays]
     conds = [c for c in condiciones() if titular_de_pista[c.track_id] == c.titular_id]
     silver, usr, cat = a_dataframes(spark, usuarios, plays, titular_de_pista)
-    salida, trazas = liquidar(spark, silver, usr, cat, conds, bolsas(), SEPT, "run-traza", fraude_verificado=False)
+    salida, trazas = liquidar(
+                         spark,
+                         silver,
+                         usr,
+                         cat,
+                         conds,
+                         bolsas(),
+                         SEPT,
+                         "run-traza",
+                         fraude_verificado=False,
+                     )
     filas = trazas.collect()
     assert len(filas) == len(plays) == salida.reproducciones_liquidadas
     assert {r["liquidacion_id"] for r in filas} == {str(salida.liquidacion_id)}
@@ -199,7 +229,19 @@ def test_falla_si_un_pais_no_tiene_bolsa_o_un_usuario_no_tiene_pais(spark):
     plays = [(pid, u, tr, TITULARES[0], ini, pr) for pid, u, tr, _, ini, pr in plays]
     silver, usr, cat = a_dataframes(spark, usuarios, plays, titular_de_pista)
     with pytest.raises(ValueError, match="faltan bolsas"):
-        liquidar(spark, silver, usr, cat, [], [BolsaPais("CO", Decimal(1), Decimal(1))], SEPT, "r", fraude_verificado=False)
+        liquidar(
+            spark,
+            silver,
+            usr,
+            cat,
+            [],
+            [BolsaPais("CO",
+            Decimal(1),
+            Decimal(1))],
+            SEPT,
+            "r",
+            fraude_verificado=False,
+        )
     huerfano = usr.filter(f"user_id != '{plays[0][1]}'")  # el usuario de la primera reproducción
     with pytest.raises(ValueError, match="sin país de facturación"):
         liquidar(spark, silver, huerfano, cat, [], bolsas(), SEPT, "r", fraude_verificado=False)
