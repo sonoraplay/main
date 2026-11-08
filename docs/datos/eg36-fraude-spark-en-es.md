@@ -39,3 +39,23 @@
 **Pendiente para aceptar:** ejecutar la suite Spark, leer F1 Parquet real, conciliar play_id retenidos con Gold/RDS, medir dinero retenido con las bolsas reales, probar el DAG mensual en AWS y conservar evidencia CI. CA-10 (≥95% de detección, <2% falsos positivos) requiere etiquetas del simulador EG-51 y se valida en EG-43. Todavía no se afirma cumplimiento.
 
 **Riesgo:** los eventos offline pueden exigir una ventana Silver más amplia para evaluar todos los meses UTC de reproducción. También falta medir memoria y duración de los grupos pandas.
+
+## English — financial verification and false-positive policy
+
+**Decision verified against the accepted ADR-0005:** do not change the three strict RN-03 thresholds or silently exempt a six-member family sharing one device. ADR-0005 explicitly accepts this edge case for manual review. CA-10 is a measured target (<2% false-positive rate), not a promise of zero false positives. A held legitimate account is not permanently denied royalties: ADR-0007 requires append-only adjustment after review.
+
+**Gold formula verified:** `repartir_bolsa` uses Decimal, separate country/component denominators, and each rights holder receives `pool * eligible_count / total_eligible_count * contract_percentage / 100`. Held accounts do not contribute to either numerator or denominator. The remaining eligible shares may increase; this follows RN-05–RN-10 and RNF-02, not a financial defect. The new test verifies an exact USD 50.00 royalty from a USD 100.00 subscription pool and 50% contract after excluding four farm plays, without altering the accepted formula.
+
+**Additional safety fix:** when a DataFrame contains any fraud decision columns, `liquidar` now enforces `preparar_gold` even if an older caller omits the new flag. This prevents an accidental bypass while retaining compatibility for legacy tests that have no fraud fields.
+
+**CA-10 evaluation:** `medir_ca10` produces TP, FP, TN, FN, recall and false-positive rate from independently labelled EG-51 accounts; it fails on missing predictions or unknown labels and accepts only recall ≥95% and FPR <2%. Its unit tests verify the boundary, **not** actual EG-51 performance. A labelled end-to-end simulator run remains required before acceptance.
+
+## Español — verificación financiera y política de falsos positivos
+
+**Decisión contrastada con ADR-0005:** no se cambian los tres umbrales estrictos RN-03 ni se exceptúa silenciosamente a una familia de seis miembros que comparte dispositivo. El ADR aceptado reconoce expresamente ese caso y lo envía a revisión. CA-10 exige medir una tasa de falsos positivos inferior al 2%, no garantiza cero. Si una cuenta legítima se libera, sus regalías se pagan como ajuste append-only según ADR-0007.
+
+**Fórmula Gold contrastada:** `repartir_bolsa` utiliza Decimal y denominadores independientes por país y componente; la regalía es `bolsa * reproducciones_elegibles_del_titular / total_elegibles * porcentaje_contractual / 100`. Las cuentas retenidas no suman en numerador ni denominador. Puede aumentar la participación de los titulares elegibles restantes; es el comportamiento previsto por RN-05–RN-10 y RNF-02, no un error de cálculo. La prueba añadida comprueba USD 50,00 exactos con bolsa USD 100,00 y contrato del 50%, tras excluir cuatro reproducciones fraudulentas, sin cambiar la fórmula aceptada.
+
+**Corrección de seguridad:** si el DataFrame incluye campos de decisión de fraude, `liquidar` obliga a usar `preparar_gold` incluso si un llamador antiguo no activa explícitamente la bandera. Así no se salta accidentalmente la exclusión y se mantienen las pruebas antiguas sin campos de fraude.
+
+**Medición CA-10:** `medir_ca10` calcula VP, FP, VN, FN, sensibilidad y tasa de falsos positivos con etiquetas independientes EG-51. Rechaza predicciones faltantes y exige sensibilidad ≥95% y falsos positivos <2%. Sus pruebas comprueban los límites matemáticos, **no** el rendimiento real del simulador. Falta ejecutar el circuito completo con etiquetas antes de aceptar.
