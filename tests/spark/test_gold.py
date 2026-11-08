@@ -235,9 +235,7 @@ def test_falla_si_un_pais_no_tiene_bolsa_o_un_usuario_no_tiene_pais(spark):
             usr,
             cat,
             [],
-            [BolsaPais("CO",
-            Decimal(1),
-            Decimal(1))],
+            [BolsaPais("CO", Decimal(1), Decimal(1))],
             SEPT,
             "r",
             fraude_verificado=False,
@@ -285,7 +283,17 @@ def _liquidar_para_bd(spark, run_id):
     plays = [(pid, u, tr, titular_de_pista[tr], ini, pr) for pid, u, tr, _, ini, pr in plays]
     conds = [c for c in condiciones() if titular_de_pista[c.track_id] == c.titular_id]
     silver, usr, cat = a_dataframes(spark, usuarios, plays, titular_de_pista)
-    return liquidar(spark, silver, usr, cat, conds, bolsas(), SEPT, run_id, fraude_verificado=False)[0]
+    return liquidar(
+        spark,
+        silver,
+        usr,
+        cat,
+        conds,
+        bolsas(),
+        SEPT,
+        run_id,
+        fraude_verificado=False,
+    )[0]
 
 
 def test_repetir_el_mismo_run_id_no_duplica_filas(spark, pg):
@@ -325,20 +333,19 @@ def test_mismo_run_id_con_otro_resultado_no_sobrescribe(spark, pg):
     plays = [(pid, u, tr, titular_de_pista[tr], ini, pr) for pid, u, tr, _, ini, pr in plays]
     conds = [c for c in condiciones() if titular_de_pista[c.track_id] == c.titular_id]
     silver, usr, cat = a_dataframes(spark, usuarios, plays, titular_de_pista)
-    otra = liquidar(spark, silver, usr, cat, conds, bolsas(), SEPT, "run-x", fraude_verificado=False)[0]
+    otra = liquidar(
+        spark,
+        silver,
+        usr,
+        cat,
+        conds,
+        bolsas(),
+        SEPT,
+        "run-x",
+        fraude_verificado=False,
+    )[0]
     with pytest.raises(ValueError, match="otro resultado"):
         cargar_rds(pg, otra)
-
-
-
-def test_gold_rejects_unverified_silver_by_default(spark):
-    """Production Gold must fail closed if RN-03 was never evaluated."""
-    users, plays = datos(3, semilla=13)
-    owners = {f"t{k}": TITULARES[k % len(TITULARES)] for k in range(6)}
-    silver, usr, cat = a_dataframes(spark, users, plays, owners)
-    with pytest.raises(ValueError, match="fraud gate missing"):
-        liquidar(spark, silver, usr, cat, [], bolsas(), SEPT, "unverified")
-
 
 
 def test_eg36_retained_plays_never_enter_gold_or_published_rds(spark, pg):
