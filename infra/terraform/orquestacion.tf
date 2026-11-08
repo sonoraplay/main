@@ -56,8 +56,9 @@ resource "aws_instance" "orquestacion" {
   })
   user_data_replace_on_change = true
   metadata_options {
-    http_tokens   = "required"
-    http_endpoint = "enabled"
+    http_tokens                 = "required"
+    http_endpoint               = "enabled"
+    http_put_response_hop_limit = 2
   }
   root_block_device {
     encrypted   = true
