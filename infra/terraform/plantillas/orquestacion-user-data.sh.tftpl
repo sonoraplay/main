@@ -1,6 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 exec > >(tee -a /var/log/sonoraplay-bootstrap.log) 2>&1
+# Salvavidas de memoria: 4 GB de swap en el disco (30 GB) por si Airflow, RabbitMQ y los builds coinciden.
+if ! swapon --show | grep -q .; then
+  fallocate -l 4G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
 dnf install -y docker git python3 curl
 systemctl enable --now docker
 install -d -m 755 /usr/local/lib/docker/cli-plugins

@@ -18,6 +18,9 @@ services:
       ECS_SUBNETS: ${ECS_SUBNETS:?}
       ECS_SECURITY_GROUPS: ${ECS_SECURITY_GROUPS:?}
       AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:?}
+      # 2 workers x 4 procesos: Celery arranca todos los procesos al iniciar (por defecto 16 por worker)
+      # y en una t4g.large de 8 GB eso agotaba la memoria junto con Airflow y RabbitMQ.
+      AIRFLOW__CELERY__WORKER_CONCURRENCY: "4"
   airflow-scheduler:
     environment: *aws-airflow
   airflow-dag-processor:
