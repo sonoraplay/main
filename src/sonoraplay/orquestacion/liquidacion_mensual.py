@@ -124,7 +124,9 @@ def liquidar(
             "no tiene un run de Silver verificado en ingesta_diaria_estado."
         )
     comando = [
-        p.replace("{periodo}", mes).replace("{silver_run_id}", silver_run_id or "")
+        p.replace("{periodo}", mes)
+        .replace("{silver_run_id}", silver_run_id or "")
+        .replace("{run_id}", run_id)
         for p in shlex.split(plantilla)
     ]
     antes = _versiones(conexion, periodo)

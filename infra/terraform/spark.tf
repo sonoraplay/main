@@ -5,6 +5,17 @@
 # `spark` (S3 de las capas, iam.tf), el rol de ejecución (SSM de RDS, logs) y la regla del
 # security group `spark` hacia RDS. Solo con var.spark_imagen_tag, igual que la API.
 
+variable "spark_arquitectura" {
+  description = "Arquitectura de la tarea de Spark. ARM64 (ADR-0012) es la oficial; X86_64 solo si no hay dónde construir arm64 (la imagen debe coincidir)."
+  type        = string
+  default     = "ARM64"
+
+  validation {
+    condition     = contains(["ARM64", "X86_64"], var.spark_arquitectura)
+    error_message = "spark_arquitectura debe ser ARM64 o X86_64."
+  }
+}
+
 locals {
   spark_activo = var.spark_imagen_tag != ""
 }
@@ -29,7 +40,7 @@ resource "aws_ecs_task_definition" "spark" {
 
   runtime_platform {
     operating_system_family = "LINUX"
-    cpu_architecture        = "ARM64" # ADR-0012; la imagen se construye para arm64 (CodeBuild)
+    cpu_architecture        = var.spark_arquitectura # ADR-0012: ARM64 por defecto; la imagen debe coincidir
   }
 
   # Raíz ESCRIBIBLE a propósito. El primer intento (2026-11-08) usaba raíz de solo lectura y un

@@ -1,0 +1,47 @@
+# ADR-0024: solo para la EC2 privada. Se arranca con --no-deps por servicio.
+# airflow-db es la base de metadatos LOCAL; postgres de plataforma sigue en RDS.
+services:
+  rabbitmq:
+    ports: !reset []
+  airflow-apiserver:
+    ports: !override
+      - "127.0.0.1:8080:8080"
+    environment: &aws-airflow
+      DATABASE_URL: ${DATABASE_URL:?RDS required}
+      BRONZE_S3_BUCKET: ${BRONZE_S3_BUCKET:?}
+      SILVER_JOB_COMMAND: ${SILVER_JOB_COMMAND:?}
+      LIQUIDACION_JOB_COMMAND: ${LIQUIDACION_JOB_COMMAND:?}
+      SILVER_COMMITS_URI: ${SILVER_COMMITS_URI:?}
+      ALERTA_SNS_TOPIC_ARN: ${ALERTA_SNS_TOPIC_ARN:?}
+      ECS_CLUSTER: ${ECS_CLUSTER:?}
+      ECS_SPARK_FAMILY: ${ECS_SPARK_FAMILY:?}
+      ECS_SUBNETS: ${ECS_SUBNETS:?}
+      ECS_SECURITY_GROUPS: ${ECS_SECURITY_GROUPS:?}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:?}
+  airflow-scheduler:
+    environment: *aws-airflow
+  airflow-dag-processor:
+    environment: *aws-airflow
+  airflow-worker:
+    environment: *aws-airflow
+  airflow-init:
+    environment: *aws-airflow
+  consumidor:
+    build:
+      context: .
+      dockerfile: docker/consumidor.Dockerfile
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL:?}
+      BRONZE_S3_BUCKET: ${BRONZE_S3_BUCKET:?}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:?}
+    restart: unless-stopped
+  productor:
+    build:
+      context: .
+      dockerfile: docker/consumidor.Dockerfile
+    command: ["python", "-m", "sonoraplay.streaming.productor", "--entrada", "/datos/entrada/eventos_f2.jsonl"]
+    volumes:
+      - ./data/processed:/datos/entrada:ro
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL:?}
+    restart: "no"
