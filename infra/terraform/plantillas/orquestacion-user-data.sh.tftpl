@@ -12,7 +12,7 @@ fi
 dnf install -y docker git python3 curl
 systemctl enable --now docker
 install -d -m 755 /usr/local/lib/docker/cli-plugins
-curl -fsSL --retry 4 https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-linux-aarch64 -o /usr/local/lib/docker/cli-plugins/docker-compose
+curl -fsSL --retry 4 https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-linux-$(uname -m) -o /usr/local/lib/docker/cli-plugins/docker-compose
 chmod 755 /usr/local/lib/docker/cli-plugins/docker-compose
 docker compose version
 git clone --branch '${git_ref}' --depth 1 https://github.com/sonoraplay/main /opt/sonoraplay

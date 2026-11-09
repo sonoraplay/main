@@ -37,8 +37,16 @@ resource "aws_ssm_parameter" "orquestacion" {
   tags             = local.etiquetas
 }
 
+data "aws_ec2_instance_type" "orquestacion" {
+  instance_type = var.orquestacion_instance_type
+}
+
+data "aws_ssm_parameter" "al2023_orquestacion" {
+  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-${contains(data.aws_ec2_instance_type.orquestacion.supported_architectures, "arm64") ? "arm64" : "x86_64"}"
+}
+
 resource "aws_instance" "orquestacion" {
-  ami                         = data.aws_ssm_parameter.al2023_arm64.value
+  ami                         = data.aws_ssm_parameter.al2023_orquestacion.value
   instance_type               = var.orquestacion_instance_type
   subnet_id                   = aws_subnet.privada[local.azs[0]].id
   vpc_security_group_ids      = [local.sg["airflow"]]
