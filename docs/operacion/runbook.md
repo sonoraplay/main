@@ -17,7 +17,7 @@ Cómo levantar el entorno desde cero, comprobar que cada pieza está sana, resol
 | ECS Fargate, ALB y API de sellos | `infra/terraform/ecs.tf`, `alb.tf` | Sí (EG-27) |
 | Repositorios de ECR | `infra/terraform/ecr/` | Sí, **persistente** |
 | Presupuesto y SNS | `infra/terraform/presupuesto/` | Sí, **persistente** |
-| EC2 de RabbitMQ y de Airflow | — | **No todavía** (HU 20 y 25): hoy corren con Docker Compose (`docker-compose.yml`, `docker-compose.airflow.yml`) |
+| Una EC2 privada de orquestación (RabbitMQ + Airflow) | `infra/terraform/orquestacion.tf`, `docker-compose.aws.yml` | **Sí, declarada en la rama D3; despliegue AWS pendiente** (ADR-0024) |
 | Job de Spark (Silver, fraude, liquidación) | — | **No todavía** (EG-35, EG-36, EG-37) |
 | EKS | — | **No todavía** (EG-41) |
 
@@ -32,9 +32,17 @@ Requisitos: Terraform ≥ 1.11, AWS CLI v2, Docker con buildx, sesión de AWS en
 3. **Imágenes.** `infra/scripts/publicar-imagen.sh api-titulares` (repite para cada servicio). Imprime la etiqueta (SHA del commit).
 4. **Entorno.** `terraform -chdir=infra/terraform init -backend-config=backend.hcl`, luego `plan -out=ventana.tfplan` y `apply ventana.tfplan` (añade `-var api_titulares_imagen_tag=<sha>` para la API). Detalle y variables: `infra/terraform/README.md`.
 5. **Datos (seed).** RDS es privada: corre el seed desde CloudShell **dentro de la VPC**, según [eg28-seed-rds.md](../infraestructura/eg28-seed-rds.md).
-6. **Mensajería y Airflow.** Con Docker Compose: `cp .env.example .env`, cambia **todos** los `cambia_esto` (ver §4) y
-   `docker compose -f docker-compose.yml -f docker-compose.airflow.yml up -d --build`.
-7. **DAGs.** Interfaz en `http://localhost:8080` (o por túnel SSM). Activa `sonoraplay_ingesta_diaria` y `sonoraplay_liquidacion_mensual`; define `SILVER_JOB_COMMAND` y `LIQUIDACION_JOB_COMMAND` cuando EG-35 / EG-37 existan (contratos en `docs/orquestacion/airflow-dags.md`, PR de EG-38).
+6. **Mensajería y Airflow en AWS (D3).** La EC2 privada `aws_instance.orquestacion` se crea con el `apply` anterior. Para probar la rama antes del merge, usar `-var orquestacion_git_ref=feature/D3-ec2-orquestacion`; el valor por defecto `main` solo sirve después del merge. El `user_data` instala Docker Compose, lee SSM y arranca exclusivamente RabbitMQ, `airflow-db`, los servicios Airflow y el consumidor (no arranca `postgres` ni `seed`). Ver comandos y criterios en §1.1. En local, conservar el Compose existente y su `.env` de desarrollo.
+7. **DAGs.** Interfaz en `http://localhost:8080` por túnel SSM. Activa `sonoraplay_ingesta_diaria` y `sonoraplay_liquidacion_mensual`; define `SILVER_JOB_COMMAND` y `LIQUIDACION_JOB_COMMAND` cuando EG-35 / EG-37 existan (contratos en `docs/orquestacion/airflow-dags.md`, PR de EG-38).
+
+
+> **Bloqueo / Blocker:** el arranque presupone que el catálogo F1 ya está publicado en `s3://<bronze>/f1/catalogo.parquet`, que RDS tiene esquema/seed y que existe la definición ECS Spark. Sin esas precondiciones, la EC2 puede arrancar, pero Silver/Gold no están validados de punta a punta. / Startup assumes the F1 catalog is already uploaded to `s3://<bronze>/f1/catalogo.parquet`, RDS is seeded and the ECS Spark task definition exists. Without these prerequisites, EC2 startup does not prove end-to-end Silver/Gold.
+
+### 1.1 · D3 AWS — verificación operativa / operational verification
+
+**Español.** No ejecutar `terraform apply` ni `destroy` fuera de una ventana autorizada. La EC2 no tiene IP pública ni SSH. Después de un `plan` revisado, recuperar el ID con `terraform -chdir=infra/terraform output -raw orquestacion_instance_id`. Iniciar sesión con `aws ssm start-session --target <instance-id> --region us-east-1`. El túnel de Airflow se obtiene con `terraform -chdir=infra/terraform output -raw orquestacion_ssm_airflow` y responde en `http://localhost:8080/api/v2/version`. Dentro de la EC2, comprobar `sudo docker compose -f docker-compose.yml -f docker-compose.airflow.yml -f docker-compose.aws.yml ps`, `sudo docker compose -f docker-compose.yml -f docker-compose.airflow.yml -f docker-compose.aws.yml logs --tail 100 airflow-dag-processor` y `sudo docker compose -f docker-compose.yml -f docker-compose.airflow.yml -f docker-compose.aws.yml exec airflow-scheduler airflow dags list`. Comprobar que hay dos workers. El productor es un servicio **a demanda**: preparar un archivo de 100 eventos F2 válidos en `data/processed/eventos_f2.jsonl` y ejecutar `sudo docker compose -f docker-compose.yml -f docker-compose.airflow.yml -f docker-compose.aws.yml run --rm --no-deps productor`; verificar objetos bajo `s3://<bronze>/f2/`. Guardar salidas y no afirmar éxito sin pruebas reales. `infra/scripts/destruir-todo.sh --dry-run` ya incluye la EC2 en el stack principal y la búsqueda de huérfanos.
+
+**English.** Never run `terraform apply` or `destroy` outside an authorized window. This EC2 has neither a public IP nor SSH. After reviewing the plan, retrieve its ID with `terraform -chdir=infra/terraform output -raw orquestacion_instance_id`. Enter via `aws ssm start-session --target <instance-id> --region us-east-1`. Obtain the Airflow tunnel command from `terraform -chdir=infra/terraform output -raw orquestacion_ssm_airflow` and check `http://localhost:8080/api/v2/version`. On the EC2, inspect Compose status, Airflow DAG processor logs and `airflow dags list` using the three Compose files above; verify two workers. The producer is **on demand**: stage 100 valid F2 events in `data/processed/eventos_f2.jsonl`, run `docker compose ... run --rm --no-deps productor`, then check `s3://<bronze>/f2/`. Preserve actual outputs; do not claim success before execution. `infra/scripts/destruir-todo.sh --dry-run` already covers the EC2 through the main Terraform stack and orphan checks.
 
 ## 2 · Comprobar que cada componente está sano
 
@@ -109,4 +117,4 @@ El bucket de `infra/terraform/bootstrap` es persistente. Solo después de entreg
 
 - [ ] Que otra persona levante y destruya todo siguiendo solo este documento (criterio 5).
 - [ ] Ejecutar `destruir-todo.sh` de verdad en una ventana y guardar su salida y la comprobación de Tag Editor / Cost Explorer (criterio 2). Hoy se probó el modo `--dry-run`, la sintaxis y, con `aws` y `terraform` simulados (`tests/test_destruir_todo.py`, 18 pruebas), el orden, las comprobaciones de recursos facturables y los códigos de salida; contra AWS real, no.
-- [ ] Añadir EC2 de RabbitMQ y Airflow a Terraform (HU 20 y 25) y EKS (EG-41), y actualizar §0–§2.
+- [ ] Validar y desplegar en AWS la EC2 de orquestación D3 (declarada en Terraform); verificar SSM, Compose, DAG y lote de 100 eventos. EKS (EG-41) sigue sujeto a ADR-0018.

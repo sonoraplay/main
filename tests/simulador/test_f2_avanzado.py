@@ -26,6 +26,7 @@ from sonoraplay.config import (
 )
 from sonoraplay.reglas.atribucion import corregir_reloj_sesion
 from sonoraplay.reglas.fraude import Reproduccion, SenalFraude, evaluar_cuentas
+from sonoraplay.reglas.metricas_fraude import medir_ca10
 from sonoraplay.reglas.sesiones import deduplicar, tramos
 from sonoraplay.seed import f3_suscripciones, f4_contratos
 from sonoraplay.simulador import f2_avanzado as cli
@@ -197,6 +198,17 @@ def test_ca10_detecta_al_menos_95_por_ciento_de_granjas_con_menos_de_2_de_falsos
     """Lo que mide la EG-43: el simulador no debe fabricar falsos positivos por sí mismo."""
     detectadas, falsos = _medir_cuentas(sim, fraude)
     assert detectadas >= 0.95 and falsos < 0.02, (detectadas, falsos)
+    etiquetas = {c.cuenta_id: c.etiqueta for c in sim.cuentas}
+    predicciones = {cuenta: bool(fraude[cuenta].sospechosa) for cuenta in etiquetas}
+    metricas = medir_ca10(etiquetas, predicciones)
+    print(
+        f"EG51_CA10 tp={metricas.tp} fp={metricas.fp} tn={metricas.tn} "
+        f"fn={metricas.fn} recall={metricas.recall:.6f} "
+        f"fpr={metricas.tasa_falsos_positivos:.6f} cumple={metricas.cumple_ca10}"
+    )
+    assert metricas.cumple_ca10, metricas
+    assert metricas.recall == detectadas
+    assert metricas.tasa_falsos_positivos == falsos
 
 
 @pytest.mark.parametrize("n_artistas", [60, 3_000])
